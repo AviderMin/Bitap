@@ -90,7 +90,7 @@
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
 - APK 路径：`D:\Projects\Github\Bitap\app\build\outputs\apk\debug\app-debug.apk`
 - APK 大小：**107,339,091 bytes = 107.34 MB（十进制）/ 102.37 MiB（Windows 显示）**
-- SHA-256：`9A804878EEFF70AD280AA91D446B5D5542B955E119685EDE349C27C160AFCEBB`（A12 修复后最终构建，构建时间 2026-11-06 22:51:06）
+- SHA-256：`6C6707884D5433D04571AD4D20EFCD2A7B1631FB17C8C28C999D3A60B00A66A8`（A12 + IME 窗口 owner 修复后构建）
 - APK 内条目：169 个；**不含任何 `.litertlm` 模型文件**（模型由用户导入）
 - 主要体积构成：`classes.dex` 42.3 MB、`lib/arm64-v8a/liblitertlm_jni.so` 22.7 MB、其余 classesN.dex 若干；`assets/pinyin_dict.tsv` 586,532 bytes
 - 说明：debug 包未混淆、未裁剪资源、包含 Compose 调试产物与 LiteRT JNI，107 MB 属预期；不能直接与 docs/05 的发布口径（release APK ≈ 27.5 MB）比较。
@@ -156,8 +156,21 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 | --- | --- | --- |
 | 单元测试 | `:app:testDebugUnitTest` | exit 0；**77 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
-| Debug APK | `:app:assembleDebug` | exit 0；107,339,091 bytes，SHA-256 `9A804878...` |
+| Debug APK | `:app:assembleDebug` | exit 0；107,339,091 bytes，SHA-256 `6C670788...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
+
+
+### 2.7 真机 Via 冒烟测试（2026-11-06 22:57–23:10）
+
+连接设备：`22021211RC`（model `munch`），Android 16 / API 36，Via 浏览器 `mark.via`。安装 demo APK 后，ADB 成功：
+
+- 注册并启用 IME：`ime enable/set com.bitap.keyboard/.ime.BitapImeService` 成功；
+- 打开 Via 主页并点击搜索框，Via 进入地址栏输入态；
+- 首次弹出 Bitap 键盘时，Bitap IME 进程崩溃：
+  `java.lang.IllegalStateException: ViewTreeLifecycleOwner not found from android.widget.LinearLayout{... #android:id/parentPanel}`，堆栈落在 `AbstractComposeView.onAttachedToWindow` / `InputMethodService.setInputView`。
+- 根因：`InputMethodService` 的 `SoftInputWindow` 是 Dialog，Compose 在 DecorView 上查找 owner，仅在 ComposeView 上设置不够。
+- 修复：`BitapImeService` 在 `onCreate`、`onCreateInputView`、`onWindowShown` 将 `LifecycleOwner`/`ViewModelStoreOwner`/`SavedStateRegistryOwner` 同时挂到 `window.window.decorView`；debug APK 重新构建并安装。
+- 修复后复测被阻塞：设备进入安全锁屏（`secure=true`、有锁屏凭据），ADB 无法解锁，`screencap` 为黑屏；需要用户手动解锁后继续在 Via 中复测。**因此本条不标 PASS。**
 
 ---
 
@@ -219,7 +232,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,478,415 bytes = 27.48 MB（十进制）/ 26.21 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `EF8635A8B53F1BE3DF556EF9AC3A9A6EDF895A92300B66853867E50B0E233696`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,478,415 bytes = 27.48 MB（十进制）/ 26.21 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `07031A92F755D2DE6305AE6509758E0DAA655503A671909B21BAC398D22A0A1F`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
 - 本次门禁产物 `app-debug.apk` = 107,339,091 bytes（107.34 MB 十进制 / 102.37 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 

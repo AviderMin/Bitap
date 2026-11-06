@@ -63,6 +63,7 @@ class BitapImeService :
         savedStateController.performAttach()
         savedStateController.performRestore(null as Bundle?)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        attachOwnersToWindowDecor()
 
         controller = KeyboardController(
             scope = serviceScope,
@@ -84,6 +85,9 @@ class BitapImeService :
     }
 
     override fun onCreateInputView(): View {
+        // Compose looks for owners on the window DecorView (InputMethodService's
+        // SoftInputWindow is a Dialog), not only on the ComposeView itself.
+        attachOwnersToWindowDecor()
         val view = ComposeView(this).apply {
             ViewTreeOwners.attach(this, this@BitapImeService, this@BitapImeService, this@BitapImeService)
             setContent {
@@ -118,7 +122,18 @@ class BitapImeService :
         super.onFinishInput()
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        attachOwnersToWindowDecor()
+    }
+
     override fun onEvaluateFullscreenMode(): Boolean = false
+
+    private fun attachOwnersToWindowDecor() {
+        window?.window?.decorView?.let { decorView ->
+            ViewTreeOwners.attach(decorView, this, this, this)
+        }
+    }
 
     override fun onDestroy() {
         inputView = null
