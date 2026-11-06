@@ -35,8 +35,8 @@
 ```
 
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
-- 测试数量：**77 tests / 0 failures / 0 errors / 0 skipped**
-  - 原有测试基线：5 个测试类、**51 tests**（与任务描述一致，全部通过）
+- 测试数量：**78 tests / 0 failures / 0 errors / 0 skipped**
+  - 原有测试基线：5 个测试类、**52 tests**（含键盘输入候选稳定回归 1 条，全部通过）
   - 本次 QA 新增：5 个测试类、**26 tests**（全部通过）
 - 数据来源：`app/build/test-results/testDebugUnitTest/TEST-*.xml`（JUnit XML 汇总）
 
@@ -45,14 +45,14 @@
 | `com.bitap.keyboard.ai.AiPromptBuilderTest` | 6 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.ai.AiResultSanitizerTest` | 12 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.ai.ModelFileRulesTest` | 4 | 0 | 0 | 0 | PASS |
-| `com.bitap.keyboard.core.KeyboardReducerTest` | 19 | 0 | 0 | 0 | PASS |
+| `com.bitap.keyboard.core.KeyboardReducerTest` | 20 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.core.PinyinEngineTest` | 10 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaAiSafetyTest` | 6 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaKeyboardControllerIntegrationTest` | 7 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaPinyinAcceptanceTest` | 5 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaPrivacyGuardTest` | 4 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaSettingsContractTest` | 4 | 0 | 0 | 0 | PASS |
-| **合计** | **77** | **0** | **0** | **0** | **PASS** |
+| **合计** | **78** | **0** | **0** | **0** | **PASS** |
 
 ### 2.2 Lint
 
@@ -156,7 +156,7 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 
 | 步骤 | 命令 | 结果 |
 | --- | --- | --- |
-| 单元测试 | `:app:testDebugUnitTest` | exit 0；**77 tests / 0 failures / 0 errors / 0 skipped** |
+| 单元测试 | `:app:testDebugUnitTest` | exit 0；**78 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
 | Debug APK | `:app:assembleDebug` | exit 0；107,521,175 bytes，SHA-256 `479DB079...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
@@ -285,7 +285,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ```powershell
 cd D:\Projects\Github\Bitap
 
-# 1) 单元测试（期望 77 tests / 0 failures）
+# 1) 单元测试（期望 78 tests / 0 failures）
 .\gradlew.bat :app:testDebugUnitTest --console=plain
 
 # 2) Lint（期望 0 errors / 14 warnings）
