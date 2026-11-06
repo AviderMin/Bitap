@@ -1,4 +1,8 @@
 # Gradle files
+models/
+*.litertlm
+.tmp/
+dist/
 .gradle/
 build/
 .kotlin/

@@ -1,0 +1,322 @@
+package com.bitap.keyboard.core
+
+import com.bitap.keyboard.ai.RewriteTone
+
+/**
+ * Pure keyboard state machine. Given the same state/action it always produces the
+ * same [Reduction]; all InputConnection work is expressed as [ImeCommand] values
+ * and performed later by KeyboardController.
+ */
+object KeyboardReducer {
+
+    const val MAX_AI_SOURCE_CHARS = 512
+    const val MAX_AI_RESULT_CHARS = MAX_AI_SOURCE_CHARS * 3
+    private const val DOUBLE_TAP_WINDOW_MS = 350L
+
+    fun reduce(state: KeyboardUiState, action: KeyboardAction): Reduction = when (action) {
+        KeyboardAction.ToggleLanguage -> toggleLanguage(state)
+        is KeyboardAction.ShiftTapped -> shiftTapped(state, action.now)
+        is KeyboardAction.ShowLayer -> showLayer(state, action.layer)
+        is KeyboardAction.AppendInput -> appendInput(state, action.text)
+        is KeyboardAction.ComposingUpdated -> composingUpdated(state, action)
+        is KeyboardAction.CandidateTapped -> candidateTapped(state, action.index)
+        KeyboardAction.CommitRaw -> commitRaw(state)
+        KeyboardAction.Space -> space(state)
+        KeyboardAction.Backspace -> backspace(state)
+        KeyboardAction.Enter -> enter(state)
+        is KeyboardAction.AiPanelOpened -> aiPanelOpened(state, action.source)
+        is KeyboardAction.AiToneChosen -> aiToneChosen(state, action.tone)
+        KeyboardAction.AiCancel -> aiCancel(state)
+        is KeyboardAction.AiDelta -> aiDelta(state, action.text)
+        is KeyboardAction.AiCompleted -> aiCompleted(state, action.text)
+        is KeyboardAction.AiFailed -> aiFailed(state, action.message)
+        KeyboardAction.AiInsert -> aiInsert(state)
+        KeyboardAction.AiDismiss -> aiDismiss(state)
+        is KeyboardAction.AiAvailabilityChanged -> aiAvailabilityChanged(state, action)
+        is KeyboardAction.HapticsChanged -> state.copy(hapticsEnabled = action.enabled).let { Reduction(it) }
+    }
+
+    private fun toggleLanguage(state: KeyboardUiState): Reduction {
+        val commands = if (state.composing.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(ImeCommand.CommitText(state.composing))
+        }
+        val nextLanguage = when (state.language) {
+            InputLanguage.Chinese -> InputLanguage.English
+            InputLanguage.English -> InputLanguage.Chinese
+        }
+        return Reduction(
+            state.copy(
+                language = nextLanguage,
+                layer = KeyboardLayer.Letters,
+                shift = ShiftState.Off,
+                composing = "",
+                candidates = emptyList(),
+                lastShiftTapAt = 0L,
+            ),
+            commands,
+        )
+    }
+
+    private fun shiftTapped(state: KeyboardUiState, now: Long): Reduction {
+        if (state.layer != KeyboardLayer.Letters) return Reduction(state)
+        val withinDoubleTap = state.lastShiftTapAt > 0L &&
+            now > 0L &&
+            now - state.lastShiftTapAt in 1..DOUBLE_TAP_WINDOW_MS
+        val next = when {
+            withinDoubleTap && state.shift != ShiftState.Locked -> ShiftState.Locked
+            state.shift == ShiftState.Off -> ShiftState.Shifted
+            else -> ShiftState.Off
+        }
+        return Reduction(state.copy(shift = next, lastShiftTapAt = now))
+    }
+
+    private fun showLayer(state: KeyboardUiState, layer: KeyboardLayer): Reduction {
+        if (layer == state.layer) return Reduction(state)
+        val leavesLetters = layer != KeyboardLayer.Letters
+        val commands = if (leavesLetters && state.composing.isNotEmpty()) {
+            listOf(ImeCommand.CommitText(state.composing))
+        } else {
+            emptyList()
+        }
+        return Reduction(
+            state.copy(
+                layer = layer,
+                shift = ShiftState.Off,
+                composing = if (leavesLetters) "" else state.composing,
+                candidates = if (leavesLetters) emptyList() else state.candidates,
+                lastShiftTapAt = 0L,
+            ),
+            commands,
+        )
+    }
+
+    private fun appendInput(state: KeyboardUiState, text: String): Reduction {
+        if (text.isEmpty()) return Reduction(state)
+        if (state.layer != KeyboardLayer.Letters) {
+            return Reduction(state, listOf(ImeCommand.CommitText(text)))
+        }
+        return when (state.language) {
+            InputLanguage.English -> {
+                val output = applyShift(text, state.shift)
+                val nextShift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off
+                Reduction(state.copy(shift = nextShift), listOf(ImeCommand.CommitText(output)))
+            }
+
+            InputLanguage.Chinese -> {
+                val lower = text.lowercase()
+                if (lower.any { it !in 'a'..'z' }) {
+                    Reduction(state, listOf(ImeCommand.CommitText(text)))
+                } else {
+                    val composing = state.composing + lower
+                    Reduction(
+                        state.copy(composing = composing, candidates = emptyList()),
+                        listOf(ImeCommand.SetComposingText(composing)),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun applyShift(text: String, shift: ShiftState): String = when (shift) {
+        ShiftState.Off -> text
+        ShiftState.Shifted, ShiftState.Locked -> text.uppercase()
+    }
+
+    private fun composingUpdated(state: KeyboardUiState, action: KeyboardAction.ComposingUpdated): Reduction {
+        if (action.composing != state.composing) return Reduction(state)
+        return Reduction(state.copy(candidates = action.candidates.take(PinyinEngine.DEFAULT_LIMIT)))
+    }
+
+    private fun candidateTapped(state: KeyboardUiState, index: Int): Reduction {
+        val candidate = state.candidates.getOrNull(index) ?: return Reduction(state)
+        return commitCandidate(state, candidate.word)
+    }
+
+    private fun commitCandidate(state: KeyboardUiState, word: String): Reduction = Reduction(
+        state.copy(
+            composing = "",
+            candidates = emptyList(),
+            shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
+        ),
+        listOf(ImeCommand.CommitText(word)),
+    )
+
+    private fun commitRaw(state: KeyboardUiState): Reduction {
+        if (state.composing.isEmpty()) return Reduction(state)
+        return Reduction(
+            state.copy(composing = "", candidates = emptyList()),
+            listOf(ImeCommand.CommitText(state.composing)),
+        )
+    }
+
+    private fun space(state: KeyboardUiState): Reduction = when {
+        state.composing.isNotEmpty() && state.candidates.isNotEmpty() ->
+            commitCandidate(state, state.candidates.first().word)
+
+        state.composing.isNotEmpty() -> commitRaw(state)
+
+        else -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
+    }
+
+    private fun backspace(state: KeyboardUiState): Reduction {
+        if (state.composing.isEmpty()) {
+            return Reduction(state, listOf(ImeCommand.DeleteBackward))
+        }
+        val remaining = state.composing.dropLast(1)
+        return if (remaining.isEmpty()) {
+            Reduction(
+                state.copy(composing = "", candidates = emptyList()),
+                listOf(ImeCommand.FinishComposing),
+            )
+        } else {
+            Reduction(
+                state.copy(composing = remaining, candidates = emptyList()),
+                listOf(ImeCommand.SetComposingText(remaining)),
+            )
+        }
+    }
+
+    private fun enter(state: KeyboardUiState): Reduction {
+        if (state.composing.isNotEmpty()) {
+            return Reduction(
+                state.copy(composing = "", candidates = emptyList()),
+                listOf(ImeCommand.CommitText(state.composing)),
+            )
+        }
+        return Reduction(state, listOf(ImeCommand.SendEnter))
+    }
+
+    private fun aiPanelOpened(state: KeyboardUiState, rawSource: String): Reduction {
+        if (!state.aiEnabled) return Reduction(state)
+        val source = rawSource.trim().take(MAX_AI_SOURCE_CHARS)
+        return if (!state.aiReady) {
+            Reduction(
+                state.copy(
+                    ai = AiPanelUiState(
+                        visible = true,
+                        source = source,
+                        status = AiStatus.Unavailable,
+                        error = "本地模型未就绪，请先在 Bitap 中导入模型",
+                    ),
+                ),
+            )
+        } else {
+            Reduction(
+                state.copy(
+                    ai = AiPanelUiState(
+                        visible = true,
+                        source = source,
+                        status = AiStatus.Idle,
+                        error = if (source.isEmpty()) "没有可改写的文本" else null,
+                    ),
+                ),
+            )
+        }
+    }
+
+    private fun aiToneChosen(state: KeyboardUiState, tone: RewriteTone): Reduction {
+        val panel = state.ai
+        if (!panel.visible) return Reduction(state)
+        if (!state.aiEnabled || !state.aiReady) {
+            return Reduction(
+                state.copy(
+                    ai = panel.copy(
+                        status = AiStatus.Unavailable,
+                        error = "本地模型未就绪，请先在 Bitap 中导入模型",
+                    ),
+                ),
+            )
+        }
+        if (panel.source.isBlank()) {
+            return Reduction(state.copy(ai = panel.copy(status = AiStatus.Failed, error = "没有可改写的文本")))
+        }
+        return Reduction(
+            state.copy(
+                ai = panel.copy(
+                    tone = tone,
+                    status = AiStatus.Thinking,
+                    result = "",
+                    error = null,
+                ),
+            ),
+        )
+    }
+
+    private fun aiCancel(state: KeyboardUiState): Reduction {
+        val panel = state.ai
+        if (!panel.visible) return Reduction(state)
+        return Reduction(
+            state.copy(
+                ai = panel.copy(
+                    tone = null,
+                    status = if (state.aiReady) AiStatus.Idle else AiStatus.Unavailable,
+                    result = "",
+                    error = null,
+                ),
+            ),
+        )
+    }
+
+    private fun aiDelta(state: KeyboardUiState, delta: String): Reduction {
+        val panel = state.ai
+        if (!panel.visible || !panel.isRunning || delta.isEmpty()) return Reduction(state)
+        return Reduction(state.copy(ai = panel.copy(status = AiStatus.Streaming, result = panel.result + delta)))
+    }
+
+    private fun aiCompleted(state: KeyboardUiState, text: String): Reduction {
+        val panel = state.ai
+        if (!panel.visible) return Reduction(state)
+        val cleaned = text.trim().take(MAX_AI_RESULT_CHARS)
+        return if (cleaned.isEmpty()) {
+            Reduction(state.copy(ai = panel.copy(status = AiStatus.Failed, error = "这次没想好")))
+        } else {
+            Reduction(state.copy(ai = panel.copy(status = AiStatus.Completed, result = cleaned, error = null)))
+        }
+    }
+
+    private fun aiFailed(state: KeyboardUiState, message: String): Reduction {
+        val panel = state.ai
+        if (!panel.visible) return Reduction(state)
+        return Reduction(
+            state.copy(
+                ai = panel.copy(
+                    status = AiStatus.Failed,
+                    error = message.ifBlank { "这次没想好" },
+                ),
+            ),
+        )
+    }
+
+    private fun aiInsert(state: KeyboardUiState): Reduction {
+        val panel = state.ai
+        if (!panel.visible || !panel.canInsert) return Reduction(state)
+        return Reduction(state.copy(ai = AiPanelUiState()), listOf(ImeCommand.CommitText(panel.result)))
+    }
+
+    private fun aiDismiss(state: KeyboardUiState): Reduction {
+        if (!state.ai.visible) return Reduction(state)
+        return Reduction(state.copy(ai = AiPanelUiState()))
+    }
+
+    private fun aiAvailabilityChanged(
+        state: KeyboardUiState,
+        action: KeyboardAction.AiAvailabilityChanged,
+    ): Reduction {
+        val ready = action.enabled && action.ready
+        val panel = when {
+            !action.enabled -> AiPanelUiState()
+            !ready && state.ai.visible -> state.ai.copy(
+                status = AiStatus.Unavailable,
+                error = "本地模型未就绪，请先在 Bitap 中导入模型",
+            )
+            ready && state.ai.visible && state.ai.status == AiStatus.Unavailable -> state.ai.copy(
+                status = AiStatus.Idle,
+                error = null,
+            )
+            else -> state.ai
+        }
+        return Reduction(state.copy(aiEnabled = action.enabled, aiReady = ready, ai = panel))
+    }
+}

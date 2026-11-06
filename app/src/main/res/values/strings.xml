@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Bitap</string>
+    <string name="ime_label">Bitap 键盘</string>
+    <string name="subtype_en">English</string>
+    <string name="subtype_zh">中文（拼音）</string>
+    <string name="tagline">轻触，恰到好处。</string>
+</resources>
