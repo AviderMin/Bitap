@@ -449,7 +449,7 @@ private fun KeyboardHeightSection(
     }
     BitapSectionTitle(
         title = "键盘",
-        subtitle = "单手也能按到：高度按手型微调，键盘下次弹出即生效",
+        subtitle = "整块键盘高度：键帽与底部安全区一起调整，避免和系统快捷栏重叠",
     )
     BitapCard {
         Row(
@@ -457,7 +457,7 @@ private fun KeyboardHeightSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "键盘高度",
+                text = "键盘整体高度",
                 color = palette.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
@@ -471,7 +471,7 @@ private fun KeyboardHeightSection(
             )
         }
         Text(
-            text = "默认 100%。高于 115% 适合大屏与单手，低于 90% 适合小屏。",
+            text = "默认 100%。该高度包含底部系统快捷栏安全区；高于 115% 适合大屏与单手，低于 90% 适合小屏。",
             color = palette.textSecondary,
             fontSize = 12.sp,
             lineHeight = 17.sp,

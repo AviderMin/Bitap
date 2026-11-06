@@ -37,7 +37,8 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 | D10 | AI 已安装模型 | 将 Qwen3 0.6B dynamic INT4（343,490,560 bytes）放入私有模型目录，点 ✦ → 润色 | PASS，面板显示「本地思考中…」，约 10–15 s 返回「hello」，点「插入」后 EditText 增加 hello（hellohello → hellohellohello） |
 | D11 | 隐私 | aapt dump permissions | PASS，无 INTERNET / ACCESS_NETWORK_STATE |
 | D12 | 主题持久化 | 切换主题/深色后重启 Activity | PASS，SharedPreferences 保存 `theme_family` / `dark_mode` |
-| D13 | 键盘高度 | 首页「键盘高度」从 100% 拖到 125%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.25`，键盘实际增高、无裁切；再改回 100% 也生效 |
+| D13 | 键盘高度 | 首页「键盘整体高度」从 100% 拖到 125%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.25`，键盘整体增高、无裁切；再改回 100% 也生效 |
+| D14 | 系统快捷键栏 | 125% 高度下检查底部「收起 / 选择键盘」系统栏 | PASS，键盘通过 `WindowInsets.navigationBars` 为系统栏预留底部安全区，底部按键不再与系统栏重叠 |
 
 ## 3. 截图证据
 
@@ -48,6 +49,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [AI 润色结果：hello + 插入按钮](evidence/bitap-ai-result.png)
 - [键盘高度设置：100% → 125%](evidence/bitap-height-setting.png)
 - [125% 高度下的 Via Bitap 键盘](evidence/bitap-keyboard-height-125.png)
+- [为底部系统快捷键栏预留安全区后的键盘](evidence/bitap-keyboard-navsafe-125.png)
 
 ## 4. 说明
 

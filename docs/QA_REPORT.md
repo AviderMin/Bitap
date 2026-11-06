@@ -91,8 +91,8 @@
 
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
 - APK 路径：`D:\Projects\Github\Bitap\app\build\outputs\apk\debug\app-debug.apk`
-- APK 大小：**107,384,223 bytes = 107.38 MB（十进制）/ 102.41 MiB（Windows 显示）**
-- SHA-256：`63B35FCB7F2C1FC085642382A7BADC88C96A4955C1C0E760AEA5B55DD5001930`（A12 + IME 窗口 owner + 键盘高度功能构建）
+- APK 大小：**107,607,463 bytes = 107.61 MB（十进制）/ 102.62 MiB（Windows 显示）**
+- SHA-256：`A371F19BD68D03772012A13763313489518D9DE21B37A4EACAEFD58F8EB0D5B7`（A12 + IME 窗口 owner + 键盘高度/系统栏安全区构建）
 - APK 内条目：169 个；**不含任何 `.litertlm` 模型文件**（模型由用户导入）
 - 主要体积构成：`classes.dex` 42.3 MB、`lib/arm64-v8a/liblitertlm_jni.so` 22.7 MB、其余 classesN.dex 若干；`assets/pinyin_dict.tsv` 586,532 bytes
 - 说明：debug 包未混淆、未裁剪资源、包含 Compose 调试产物与 LiteRT JNI，107 MB 属预期；不能直接与 docs/05 的发布口径（release APK ≈ 27.5 MB）比较。
@@ -158,7 +158,7 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 | --- | --- | --- |
 | 单元测试 | `:app:testDebugUnitTest` | exit 0；**77 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
-| Debug APK | `:app:assembleDebug` | exit 0；107,384,223 bytes，SHA-256 `63B35FCB...` |
+| Debug APK | `:app:assembleDebug` | exit 0；107,607,463 bytes，SHA-256 `A371F19B...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
 
 
@@ -234,8 +234,8 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,527,567 bytes = 27.53 MB（十进制）/ 26.25 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `B28EF75D3CA1FC10057B734EA7A8009F5677AB753EDD4605E1B76D140E926995`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
-- 本次门禁产物 `app-debug.apk` = 107,384,223 bytes（107.38 MB 十进制 / 102.41 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,527,567 bytes = 27.53 MB（十进制）/ 26.25 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `9720819FF9515CD87B0A54CE86F7E46A38DF677CA65C9C358884DFE0A5BF0E48`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 本次门禁产物 `app-debug.apk` = 107,607,463 bytes（107.61 MB 十进制 / 102.62 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 
 ### 5.3 其他限制

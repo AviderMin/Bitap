@@ -16,6 +16,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -94,6 +97,7 @@ fun KeyboardScreen(
                 .clip(KeyboardDockShape)
                 .background(palette.background)
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = 5.dp, bottom = 4.dp),
         ) {
             // A quiet visual dock line replaces the old hard top edge. It is
