@@ -53,6 +53,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [键盘高度设置：100% → 125%](evidence/bitap-height-setting.png)
 - [125% 高度下的 Via Bitap 键盘](evidence/bitap-keyboard-height-125.png)
 - [为底部系统快捷键栏预留安全区后的键盘](evidence/bitap-keyboard-navsafe-125.png)
+- [固定键帽 54dp、整体高度 120% 的键盘](evidence/bitap-keyboard-fixed-keys-120.png)
 - [独立 Bitap App：系统应用抽屉](evidence/bitap-app-drawer.png)
 - [App/键盘主题分离设置](evidence/bitap-keyboard-theme-settings.png)
 - [独立的 Ink 键盘主题](evidence/bitap-ink-keyboard.png)
