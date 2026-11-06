@@ -39,7 +39,7 @@ App 主题只影响首页/设置；键盘主题只影响 IME，两者互不串�
 
 键帽固定 54 dp，不随键盘整体高度变化；用户滑杆只调整键区之间的呼吸空间与键盘上沿，所有触控目标最小 48 dp。
 
-键盘主题 token 见 [KeyboardTheme.kt](../app/src/main/java/com/bitap/keyboard/ui/theme/KeyboardTheme.kt)：纸白/墨玉提供实色明暗 palette，极光提供半透明键帽 + 冷色渐变背景。键盘整体高度包含 `WindowInsets.navigationBars` 底部安全区，避免系统「收起 / 选择键盘」快捷栏与按键重叠。
+键盘主题 token 见 [KeyboardTheme.kt](../app/src/main/java/com/bitap/keyboard/ui/theme/KeyboardTheme.kt)：纸白/墨玉提供实色明暗 palette，极光提供半透明键帽 + 冷色渐变背景。键盘整体高度包含 `WindowInsets.navigationBars` 底部安全区，避免系统「收起 / 选择键盘」快捷栏与按键重叠。IME 的 `SoftInputWindow` 与 DecorView 必须设透明背景，否则深色模式下顶部圆角外侧会露出黑块。
 
 ## 4. 组件
 

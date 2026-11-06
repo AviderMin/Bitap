@@ -42,6 +42,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 | D15 | 独立 App | 打开系统应用抽屉 | PASS，可见独立 **Bitap** 图标；点击可进入首页/设置（不是只有 IME 服务） |
 | D16 | App/键盘主题分离 | App 选 Glasmio，键盘切到纸白/墨玉 | PASS，App 保持 Glasmio 光效，键盘按自己的纸白/墨玉主题渲染，互不串联 |
 | D17 | AI 词库入口 | 输入 `nihao`，点候选条 `✦ AI` | PARTIAL：按钮进入加载省略态，但本次未返回候选；请求链路已接通，需继续调试 prompt/解析 |
+| D18 | 深色模式圆角透明 | 深色模式下检查键盘左上/右上圆角外侧 | PASS，`InputMethodService` 窗口背景与 DecorView 设为透明后，圆角外侧显示后方页面而非黑块 |
 
 ## 3. 截图证据
 
@@ -54,6 +55,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [125% 高度下的 Via Bitap 键盘](evidence/bitap-keyboard-height-125.png)
 - [为底部系统快捷键栏预留安全区后的键盘](evidence/bitap-keyboard-navsafe-125.png)
 - [固定键帽 54dp、整体高度 120% 的键盘](evidence/bitap-keyboard-fixed-keys-120.png)
+- [深色模式圆角透明修复](evidence/bitap-dark-transparent-corners.png)
 - [独立 Bitap App：系统应用抽屉](evidence/bitap-app-drawer.png)
 - [App/键盘主题分离设置](evidence/bitap-keyboard-theme-settings.png)
 - [独立的 Ink 键盘主题](evidence/bitap-ink-keyboard.png)

@@ -1,5 +1,7 @@
 package com.bitap.keyboard.ime
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
 import android.view.View
@@ -64,6 +66,7 @@ class BitapImeService :
         savedStateController.performRestore(null as Bundle?)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         attachOwnersToWindowDecor()
+        configureWindowTransparency()
 
         controller = KeyboardController(
             scope = serviceScope,
@@ -88,6 +91,7 @@ class BitapImeService :
         // Compose looks for owners on the window DecorView (InputMethodService's
         // SoftInputWindow is a Dialog), not only on the ComposeView itself.
         attachOwnersToWindowDecor()
+        configureWindowTransparency()
         val view = ComposeView(this).apply {
             ViewTreeOwners.attach(this, this@BitapImeService, this@BitapImeService, this@BitapImeService)
             setContent {
@@ -125,9 +129,21 @@ class BitapImeService :
     override fun onWindowShown() {
         super.onWindowShown()
         attachOwnersToWindowDecor()
+        configureWindowTransparency()
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
+
+    /**
+     * The keyboard draws its own rounded dock. The IME window itself must stay
+     * transparent, otherwise its theme background shows through the clipped top
+     * corners as an opaque dark band.
+     */
+    private fun configureWindowTransparency() {
+        window?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        window?.window?.decorView?.setBackgroundColor(Color.TRANSPARENT)
+        window?.window?.setDimAmount(0f)
+    }
 
     private fun attachOwnersToWindowDecor() {
         window?.window?.decorView?.let { decorView ->
