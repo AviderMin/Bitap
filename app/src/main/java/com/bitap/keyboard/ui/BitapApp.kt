@@ -455,7 +455,7 @@ private fun KeyboardHeightSection(
     }
     BitapSectionTitle(
         title = "键盘",
-        subtitle = "键盘有自己的主题与整体高度；与上方 App 外观分开设置",
+        subtitle = "键盘有自己的主题与整体高度；按键高度固定，只调整键盘整体呼吸空间",
     )
     BitapCard {
         Text(
@@ -501,7 +501,7 @@ private fun KeyboardHeightSection(
             )
         }
         Text(
-            text = "默认 100%。该高度包含底部系统快捷栏安全区；高于 115% 适合大屏与单手，低于 90% 适合小屏。",
+            text = "键帽固定 54dp；滑杆只改变整块键盘高度、行间距和顶部上沿，包含底部系统快捷栏安全区。",
             color = palette.textSecondary,
             fontSize = 12.sp,
             lineHeight = 17.sp,

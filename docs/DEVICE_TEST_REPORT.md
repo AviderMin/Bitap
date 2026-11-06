@@ -37,7 +37,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 | D10 | AI 已安装模型 | 将 Qwen3 0.6B dynamic INT4（343,490,560 bytes）放入私有模型目录，点 ✦ → 润色 | PASS，面板显示「本地思考中…」，约 10–15 s 返回「hello」，点「插入」后 EditText 增加 hello（hellohello → hellohellohello） |
 | D11 | 隐私 | aapt dump permissions | PASS，无 INTERNET / ACCESS_NETWORK_STATE |
 | D12 | 主题持久化 | 切换主题/深色后重启 Activity | PASS，SharedPreferences 保存 `theme_family` / `dark_mode` |
-| D13 | 键盘高度 | 首页「键盘整体高度」从 100% 拖到 125%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.25`，键盘整体增高、无裁切；再改回 100% 也生效 |
+| D13 | 键盘整体高度 | 首页「键盘整体高度」从 100% 调到 120%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.2`，按键保持固定 54dp，行间距/键盘上沿增高且无裁切 |
 | D14 | 系统快捷键栏 | 125% 高度下检查底部「收起 / 选择键盘」系统栏 | PASS，键盘通过 `WindowInsets.navigationBars` 为系统栏预留底部安全区，底部按键不再与系统栏重叠 |
 | D15 | 独立 App | 打开系统应用抽屉 | PASS，可见独立 **Bitap** 图标；点击可进入首页/设置（不是只有 IME 服务） |
 | D16 | App/键盘主题分离 | App 选 Glasmio，键盘切到纸白/墨玉 | PASS，App 保持 Glasmio 光效，键盘按自己的纸白/墨玉主题渲染，互不串联 |

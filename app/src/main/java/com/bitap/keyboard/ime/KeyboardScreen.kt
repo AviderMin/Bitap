@@ -80,7 +80,10 @@ fun KeyboardScreen(
     val palette = LocalBitapPalette.current
     val view = LocalView.current
     val heightScale = state.keyboardHeightScale.coerceIn(0.85f, 1.35f)
-    val keyHeight = (54.dp * heightScale).coerceIn(48.dp, 78.dp)
+    // Keys stay at a fixed 54 dp. The overall-height control only adds
+    // breathing room between keyboard rows so touch target size never changes.
+    val keyHeight = 54.dp
+    val extraRowGap = (36.dp * (heightScale - 0.85f)).coerceAtLeast(0.dp)
     val haptic = {
         if (state.hapticsEnabled) {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -110,6 +113,7 @@ fun KeyboardScreen(
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = 5.dp, bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(extraRowGap),
         ) {
             // A quiet visual dock line replaces the old hard top edge. It is
             // decorative, not a drag handle: height is controlled in Settings.

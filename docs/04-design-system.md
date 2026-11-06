@@ -37,7 +37,7 @@ App 主题只影响首页/设置；键盘主题只影响 IME，两者互不串�
 
 圆角：键帽 10 dp（Miuix）/ 12 dp + 连续曲率（Glasmio）；键盘顶部 dock 24 dp；卡片 20–28 dp；胶囊 999 dp。间距基数 4 dp；键盘边距 6–8 dp。
 
-键帽默认最小高度 54 dp，随用户设置的键盘高度在 48–78 dp 间缩放；所有触控目标最小 48 dp。
+键帽固定 54 dp，不随键盘整体高度变化；用户滑杆只调整键区之间的呼吸空间与键盘上沿，所有触控目标最小 48 dp。
 
 键盘主题 token 见 [KeyboardTheme.kt](../app/src/main/java/com/bitap/keyboard/ui/theme/KeyboardTheme.kt)：纸白/墨玉提供实色明暗 palette，极光提供半透明键帽 + 冷色渐变背景。键盘整体高度包含 `WindowInsets.navigationBars` 底部安全区，避免系统「收起 / 选择键盘」快捷栏与按键重叠。
 
