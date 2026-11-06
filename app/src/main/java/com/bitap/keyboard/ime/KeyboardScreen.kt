@@ -31,8 +31,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -43,6 +45,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +64,9 @@ import com.bitap.keyboard.ui.theme.LocalBitapPalette
  * tokens through [LocalBitapPalette]; all key positions and interactions stay
  * identical.
  */
+private val KeyboardDockShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+private val LocalKeyboardKeyHeight = staticCompositionLocalOf { 54.dp }
+
 @Composable
 fun KeyboardScreen(
     state: KeyboardUiState,
@@ -69,6 +75,8 @@ fun KeyboardScreen(
 ) {
     val palette = LocalBitapPalette.current
     val view = LocalView.current
+    val heightScale = state.keyboardHeightScale.coerceIn(0.85f, 1.35f)
+    val keyHeight = (54.dp * heightScale).coerceIn(48.dp, 78.dp)
     val haptic = {
         if (state.hapticsEnabled) {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -79,35 +87,55 @@ fun KeyboardScreen(
         onAction(action)
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(palette.background)
-            .padding(vertical = 4.dp),
-    ) {
-        CandidateBar(state = state, onAction = onAction, haptic = haptic)
-        AiPanel(panel = state.ai, onAction = onAction, haptic = haptic)
-        when (state.layer) {
-            KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
-            KeyboardLayer.Numbers -> SymbolLayout(
-                rows = NumberRows,
-                bottomRow = listOf(".", ",", "?", "!", "'", "\""),
-                switchLabel = "#+=",
-                switchDescription = "切换到更多符号",
-                nextLayer = KeyboardLayer.Symbols,
-                press = press,
-            )
+    CompositionLocalProvider(LocalKeyboardKeyHeight provides keyHeight) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(KeyboardDockShape)
+                .background(palette.background)
+                .border(0.5.dp, palette.hairline, KeyboardDockShape)
+                .padding(top = 5.dp, bottom = 4.dp),
+        ) {
+            // A quiet visual dock line replaces the old hard top edge. It is
+            // decorative, not a drag handle: height is controlled in Settings.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(34.dp)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(palette.textSecondary.copy(alpha = 0.28f)),
+                )
+            }
+            CandidateBar(state = state, onAction = onAction, haptic = haptic)
+            AiPanel(panel = state.ai, onAction = onAction, haptic = haptic)
+            when (state.layer) {
+                KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
+                KeyboardLayer.Numbers -> SymbolLayout(
+                    rows = NumberRows,
+                    bottomRow = listOf(".", ",", "?", "!", "'", "\""),
+                    switchLabel = "#+=",
+                    switchDescription = "切换到更多符号",
+                    nextLayer = KeyboardLayer.Symbols,
+                    press = press,
+                )
 
-            KeyboardLayer.Symbols -> SymbolLayout(
-                rows = SymbolRows,
-                bottomRow = listOf(".", ",", "?", "!", ":", ";"),
-                switchLabel = "ABC",
-                switchDescription = "切换到字母键盘",
-                nextLayer = KeyboardLayer.Letters,
-                press = press,
-            )
+                KeyboardLayer.Symbols -> SymbolLayout(
+                    rows = SymbolRows,
+                    bottomRow = listOf(".", ",", "?", "!", ":", ";"),
+                    switchLabel = "ABC",
+                    switchDescription = "切换到字母键盘",
+                    nextLayer = KeyboardLayer.Letters,
+                    press = press,
+                )
+            }
+            FunctionRow(state = state, press = press)
         }
-        FunctionRow(state = state, press = press)
     }
 }
 
@@ -441,7 +469,7 @@ private fun KeyButton(
     Box(
         modifier = modifier
             .padding(horizontal = 2.dp, vertical = 3.dp)
-            .heightIn(min = 48.dp)
+            .heightIn(min = LocalKeyboardKeyHeight.current)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale

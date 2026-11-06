@@ -37,6 +37,7 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 | D10 | AI 已安装模型 | 将 Qwen3 0.6B dynamic INT4（343,490,560 bytes）放入私有模型目录，点 ✦ → 润色 | PASS，面板显示「本地思考中…」，约 10–15 s 返回「hello」，点「插入」后 EditText 增加 hello（hellohello → hellohellohello） |
 | D11 | 隐私 | aapt dump permissions | PASS，无 INTERNET / ACCESS_NETWORK_STATE |
 | D12 | 主题持久化 | 切换主题/深色后重启 Activity | PASS，SharedPreferences 保存 `theme_family` / `dark_mode` |
+| D13 | 键盘高度 | 首页「键盘高度」从 100% 拖到 125%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.25`，键盘实际增高、无裁切；再改回 100% 也生效 |
 
 ## 3. 截图证据
 
@@ -45,6 +46,8 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [Miuix 深色：首页与主题选择](evidence/bitap-home-miuix-dark.png)
 - [AI 面板：模型就绪、四动作](evidence/bitap-ai-panel.png)
 - [AI 润色结果：hello + 插入按钮](evidence/bitap-ai-result.png)
+- [键盘高度设置：100% → 125%](evidence/bitap-height-setting.png)
+- [125% 高度下的 Via Bitap 键盘](evidence/bitap-keyboard-height-125.png)
 
 ## 4. 说明
 

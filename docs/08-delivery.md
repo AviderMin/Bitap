@@ -18,6 +18,7 @@
 - **输入法**：`BitapImeService` + Compose 键盘；英文 QWERTY、中文全拼候选、数字/符号层、Shift、中英切换、退格/回车/空格；候选选择与拼音 composing。
 - **本地 AI**：Qwen3 0.6B 的 `.litertlm` 导入（SAF）、私有目录存储、LiteRT-LM CPU 推理、流式结果、20 s 超时、结果清理；AI 必须手动触发并手动插入。
 - **双主题**：Miuix `MiuixTheme` 与 Glasmio `GlasmioTheme` + `GlasmioBackdropHost`；四套浅/深 palette；键盘与首页/设置一致。
+- **键盘高度**：85%–135% 滑杆（默认 100%，5% 步进），键帽 48–78 dp 自适应；键盘顶部改为圆角 dock 与轻量提手线。
 - **首页/设置**：三步启用清单、主题即时预览、深色模式、AI/触觉/声音开关、模型管理、隐私承诺。
 - **隐私**：Manifest 无 `INTERNET`；无分析 SDK；无输入日志；`allowBackup=false`；模型可删除。
 

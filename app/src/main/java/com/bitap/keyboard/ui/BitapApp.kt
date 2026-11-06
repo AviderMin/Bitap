@@ -40,6 +40,8 @@ import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -75,6 +77,7 @@ import com.bitap.keyboard.settings.ThemeFamily
 import com.bitap.keyboard.ui.theme.BitapTheme
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Bitap home / settings. One calm page: brand, three setup steps, appearance,
@@ -178,6 +181,15 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                         settings = settings,
                         onThemeFamily = repository::setThemeFamily,
                         onDarkMode = repository::setDarkMode,
+                    )
+                }
+            }
+
+            item {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    KeyboardHeightSection(
+                        settings = settings,
+                        onHeightScale = repository::setKeyboardHeightScale,
                     )
                 }
             }
@@ -423,6 +435,72 @@ private fun AppearanceSection(
         )
         Spacer(modifier = Modifier.height(8.dp))
         DarkModeSelector(current = settings.darkMode, onSelect = onDarkMode)
+    }
+}
+
+@Composable
+private fun KeyboardHeightSection(
+    settings: BitapSettings,
+    onHeightScale: (Float) -> Unit,
+) {
+    val palette = BitapTheme.palette
+    var draftScale by remember(settings.keyboardHeightScale) {
+        mutableStateOf(settings.keyboardHeightScale)
+    }
+    BitapSectionTitle(
+        title = "键盘",
+        subtitle = "单手也能按到：高度按手型微调，键盘下次弹出即生效",
+    )
+    BitapCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "键盘高度",
+                color = palette.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "${(draftScale * 100f).roundToInt()}%",
+                color = palette.accent,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text(
+            text = "默认 100%。高于 115% 适合大屏与单手，低于 90% 适合小屏。",
+            color = palette.textSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Slider(
+            value = draftScale,
+            onValueChange = { draftScale = it },
+            onValueChangeFinished = { onHeightScale(draftScale) },
+            valueRange = 0.85f..1.35f,
+            steps = 9,
+            colors = SliderDefaults.colors(
+                thumbColor = palette.accent,
+                activeTrackColor = palette.accent,
+                inactiveTrackColor = palette.functionKey,
+            ),
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            listOf("紧凑" to "85%", "标准" to "100%", "舒适" to "115%", "超大" to "135%").forEach { (label, value) ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = label, color = palette.textSecondary, fontSize = 10.sp)
+                    Text(text = value, color = palette.textSecondary.copy(alpha = 0.7f), fontSize = 9.sp)
+                }
+            }
+        }
     }
 }
 

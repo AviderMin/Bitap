@@ -42,6 +42,10 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         prefs.edit().putBoolean(KEY_PUNCTUATION, value).apply()
     }
 
+    fun setKeyboardHeightScale(value: Float) {
+        prefs.edit().putFloat(KEY_KEYBOARD_HEIGHT, value.coerceIn(0.85f, 1.35f)).apply()
+    }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         _settings.value = read()
     }
@@ -57,6 +61,7 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         hapticsEnabled = prefs.getBoolean(KEY_HAPTICS, true),
         soundEnabled = prefs.getBoolean(KEY_SOUND, false),
         smartPunctuation = prefs.getBoolean(KEY_PUNCTUATION, true),
+        keyboardHeightScale = prefs.getFloat(KEY_KEYBOARD_HEIGHT, 1.0f).coerceIn(0.85f, 1.35f),
     )
 
     private companion object {
@@ -67,5 +72,6 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         const val KEY_HAPTICS = "haptics"
         const val KEY_SOUND = "sound"
         const val KEY_PUNCTUATION = "smart_punctuation"
+        const val KEY_KEYBOARD_HEIGHT = "keyboard_height"
     }
 }

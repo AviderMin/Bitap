@@ -72,6 +72,7 @@ data class KeyboardUiState(
     val aiEnabled: Boolean = true,
     val aiReady: Boolean = false,
     val hapticsEnabled: Boolean = true,
+    val keyboardHeightScale: Float = 1.0f,
     val lastShiftTapAt: Long = 0L,
 )
 

@@ -79,6 +79,9 @@ class KeyboardController(
     fun onSettingsChanged(newSettings: BitapSettings) {
         settings = newSettings
         dispatch(KeyboardAction.HapticsChanged(newSettings.hapticsEnabled))
+        _state.value = _state.value.copy(
+            keyboardHeightScale = newSettings.keyboardHeightScale.coerceIn(0.85f, 1.35f),
+        )
         publishAiAvailability()
     }
 

@@ -91,8 +91,8 @@
 
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
 - APK 路径：`D:\Projects\Github\Bitap\app\build\outputs\apk\debug\app-debug.apk`
-- APK 大小：**107,339,091 bytes = 107.34 MB（十进制）/ 102.37 MiB（Windows 显示）**
-- SHA-256：`6C6707884D5433D04571AD4D20EFCD2A7B1631FB17C8C28C999D3A60B00A66A8`（A12 + IME 窗口 owner 修复后构建）
+- APK 大小：**107,384,223 bytes = 107.38 MB（十进制）/ 102.41 MiB（Windows 显示）**
+- SHA-256：`63B35FCB7F2C1FC085642382A7BADC88C96A4955C1C0E760AEA5B55DD5001930`（A12 + IME 窗口 owner + 键盘高度功能构建）
 - APK 内条目：169 个；**不含任何 `.litertlm` 模型文件**（模型由用户导入）
 - 主要体积构成：`classes.dex` 42.3 MB、`lib/arm64-v8a/liblitertlm_jni.so` 22.7 MB、其余 classesN.dex 若干；`assets/pinyin_dict.tsv` 586,532 bytes
 - 说明：debug 包未混淆、未裁剪资源、包含 Compose 调试产物与 LiteRT JNI，107 MB 属预期；不能直接与 docs/05 的发布口径（release APK ≈ 27.5 MB）比较。
@@ -158,7 +158,7 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 | --- | --- | --- |
 | 单元测试 | `:app:testDebugUnitTest` | exit 0；**77 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
-| Debug APK | `:app:assembleDebug` | exit 0；107,339,091 bytes，SHA-256 `6C670788...` |
+| Debug APK | `:app:assembleDebug` | exit 0；107,384,223 bytes，SHA-256 `63B35FCB...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
 
 
@@ -234,8 +234,8 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,478,415 bytes = 27.48 MB（十进制）/ 26.21 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `07031A92F755D2DE6305AE6509758E0DAA655503A671909B21BAC398D22A0A1F`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
-- 本次门禁产物 `app-debug.apk` = 107,339,091 bytes（107.34 MB 十进制 / 102.37 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,527,567 bytes = 27.53 MB（十进制）/ 26.25 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `B28EF75D3CA1FC10057B734EA7A8009F5677AB753EDD4605E1B76D140E926995`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 本次门禁产物 `app-debug.apk` = 107,384,223 bytes（107.38 MB 十进制 / 102.41 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 
 ### 5.3 其他限制
@@ -262,7 +262,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 已解决 / 已接受项（不阻断 technical preview）：
 
 - **A12 触控目标**：5 处 <48 dp 已由 Lead 修复为 48 dp，AI 面板最大高度 180→260 dp；QA 已复核源码并重跑构建（§5.1）。
-- **release 体积**：docs/05 §5 已更新为「优化后 release APK ≈ 27.5 MB」；`dist/bitap-0.1.0-demo.apk` = 27.48 MB（十进制），符合新口径，偏差已接受（§5.2）。
+- **release 体积**：docs/05 §5 已更新为「优化后 release APK ≈ 27.5 MB」；`dist/bitap-0.1.0-demo.apk` = 27.53 MB（十进制），符合新口径，偏差已接受（§5.2）。
 - Lint 14 个 warning（OldTargetApi / AndroidGradlePluginVersion / ChromeOsAbiSupport / ObsoleteSdkInt / UnusedResources ×2 / MonochromeLauncherIcon / UseKtx ×6）。
 - debug APK 107 MB 仅用于测试安装；正式分发使用 release。
 - 词库 29,999 条（30,000 行含表头）、586 KB，满足离线候选需求。

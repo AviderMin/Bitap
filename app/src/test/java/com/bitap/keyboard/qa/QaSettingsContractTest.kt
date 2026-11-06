@@ -25,6 +25,7 @@ class QaSettingsContractTest {
         assertTrue(defaults.hapticsEnabled)
         assertFalse(defaults.soundEnabled)
         assertTrue(defaults.smartPunctuation)
+        assertEquals(1.0f, defaults.keyboardHeightScale, 0.001f)
     }
 
     @Test
@@ -42,10 +43,11 @@ class QaSettingsContractTest {
     @Test
     fun settingsAreImmutableValueObjects() {
         val base = BitapSettings()
-        val dark = base.copy(darkMode = DarkMode.Dark, aiEnabled = false)
+        val dark = base.copy(darkMode = DarkMode.Dark, aiEnabled = false, keyboardHeightScale = 1.25f)
         assertEquals(DarkMode.System, base.darkMode)
         assertTrue(base.aiEnabled)
         assertEquals(DarkMode.Dark, dark.darkMode)
         assertFalse(dark.aiEnabled)
+        assertEquals(1.25f, dark.keyboardHeightScale, 0.001f)
     }
 }
