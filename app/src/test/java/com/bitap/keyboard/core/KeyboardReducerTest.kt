@@ -24,6 +24,18 @@ class KeyboardReducerTest {
     }
 
     @Test
+    fun typingKeepsPreviousCandidatesUntilFreshQueryArrives() {
+        val state = KeyboardUiState(
+            composing = "ni",
+            candidates = listOf(Candidate("你", "ni", 100), Candidate("泥", "ni", 50)),
+        )
+        val result = reduce(state = state, action = KeyboardAction.AppendInput("h"))
+        assertEquals("nih", result.state.composing)
+        assertEquals(2, result.state.candidates.size)
+        assertEquals("你", result.state.candidates.first().word)
+    }
+
+    @Test
     fun composingUpdateIgnoresStaleResultsAndCapsAtEight() {
         val composingState = KeyboardUiState(composing = "ni")
         val stale = reduce(

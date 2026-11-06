@@ -92,7 +92,7 @@
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
 - APK 路径：`D:\Projects\Github\Bitap\app\build\outputs\apk\debug\app-debug.apk`
 - APK 大小：**107,521,175 bytes = 107.52 MB（十进制）/ 102.54 MiB（Windows 显示）**
-- SHA-256：`A646BD5043FA67C40AB81D577D02BB7DBCE7918F0DC1136399B9A1720ACED7E8`（独立 App/键盘主题 + AI 词库 + 固定键高 + 透明窗口构建）
+- SHA-256：`479DB0790C1B22B157EE8B94CCACA6B8FA3F299C349BC4C9B4905EA56B5A4EA4`（独立 App/键盘主题 + AI 词库 + 固定键高 + 候选稳定构建）
 - APK 内条目：169 个；**不含任何 `.litertlm` 模型文件**（模型由用户导入）
 - 主要体积构成：`classes.dex` 42.3 MB、`lib/arm64-v8a/liblitertlm_jni.so` 22.7 MB、其余 classesN.dex 若干；`assets/pinyin_dict.tsv` 586,532 bytes
 - 说明：debug 包未混淆、未裁剪资源、包含 Compose 调试产物与 LiteRT JNI，107 MB 属预期；不能直接与 docs/05 的发布口径（release APK ≈ 27.5 MB）比较。
@@ -158,7 +158,7 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 | --- | --- | --- |
 | 单元测试 | `:app:testDebugUnitTest` | exit 0；**77 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
-| Debug APK | `:app:assembleDebug` | exit 0；107,521,175 bytes，SHA-256 `A646BD50...` |
+| Debug APK | `:app:assembleDebug` | exit 0；107,521,175 bytes，SHA-256 `479DB079...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
 
 
@@ -234,7 +234,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,494,743 bytes = 27.49 MB（十进制）/ 26.22 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `B4F74BC45479AEE05754CAFA9C673C9ED53023E4838003664BD5EBA9FF1DB588`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,494,743 bytes = 27.49 MB（十进制）/ 26.22 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `89AD96BDCA370D121FE85F6D8C652B1B48E576A9D6A51F0D21C4AF7F4FAF1331`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
 - 本次门禁产物 `app-debug.apk` = 107,521,175 bytes（107.52 MB 十进制 / 102.54 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 

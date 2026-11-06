@@ -114,8 +114,11 @@ object KeyboardReducer {
                     Reduction(state, listOf(ImeCommand.CommitText(text)))
                 } else {
                     val composing = state.composing + lower
+                    // Keep the previous candidates on screen until the debounced
+                    // pinyin result arrives; clearing them here makes fast typing
+                    // flash the candidate strip between every keystroke.
                     Reduction(
-                        state.copy(composing = composing, candidates = emptyList()),
+                        state.copy(composing = composing),
                         listOf(ImeCommand.SetComposingText(composing)),
                     )
                 }
@@ -179,7 +182,7 @@ object KeyboardReducer {
             )
         } else {
             Reduction(
-                state.copy(composing = remaining, candidates = emptyList()),
+                state.copy(composing = remaining),
                 listOf(ImeCommand.SetComposingText(remaining)),
             )
         }
