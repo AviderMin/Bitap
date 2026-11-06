@@ -1,6 +1,6 @@
 # Bitap 0.1 交付说明
 
-日期：2026-11-06｜负责人：Lead｜状态：工程交付（无真机）
+日期：2026-11-06｜负责人：Lead｜状态：工程交付 + 真机 Via 冒烟测试通过
 
 ## 1. 交付物
 
@@ -29,17 +29,22 @@
 - `:app:assembleRelease`：通过；demo APK 使用 debug key 签名。
 - `aapt dump permissions`：无 `android.permission.INTERNET`。
 
-## 4. 未验证（无设备）
+## 4. 真机 Via 冒烟测试
 
-已连接真机 `22021211RC`（Android 16/API 36），但复测时设备处于安全锁屏且 ADB 无法解锁；以下项目已静态检查/部分在 Via 中尝试，但未完成真机验收：
+已于 `22021211RC`（Android 16 / API 36）完成 Via 浏览器实测，详见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)：
 
-- IME 在系统设置中启用、切换、弹出与 ComposeView 生命周期；
-- 键盘实际高度、横竖屏/字体缩放、触觉反馈；
-- Glasmio 玻璃折射/极光在 IME 窗口中的显示与性能；
-- 真实 `.litertlm` 模型加载、首 token 延迟与改写质量（需导入 328 MiB 模型）；
-- 系统输入法设置/选择器跳转流程。
+- 启用/选择 Bitap IME，Via 地址栏实际弹出 Bitap 键盘；
+- 中文拼音：`ni` → 候选「你 泥 尼 拟 逆 暱 腻 妮」，点选后上屏「你」；`nihao` → 「你好」并上屏；
+- 英文点按输入 `hello`；数字/符号层切换正常；
+- Miuix / Glasmio 浅色与深色主题均实际渲染；
+- AI 未装模型时正确显示「本地模型未就绪」；放入 Qwen3 0.6B dynamic INT4 后，「润色」在约 10–15 s 返回「hello」，手动「插入」后成功写回 Via；
+- 隐私：aapt 无 `INTERNET` / `ACCESS_NETWORK_STATE`。
 
-建议在 Android 13+ 真机上按 [质量门槛](06-quality-bar.md) 的 A1–A12 验收矩阵执行；模型推理用 [scripts/download-model.ps1](../scripts/download-model.ps1) 获取后通过系统文件选择器导入。
+首次弹键盘曾触发 `ViewTreeLifecycleOwner not found` 崩溃，已通过 IME `window.decorView` owner 挂载修复（提交 `b4a14c9`）。
+
+仍未覆盖：竖屏/横屏旋转、字体缩放、TalkBack、真实系统输入法设置页跳转；模型导入通过 ADB 预置到私有目录，未完成文件选择器的端到端导入。
+
+建议继续在 Android 13+ 真机上按 [质量门槛](06-quality-bar.md) 的 A1–A12 验收矩阵补测。
 
 ## 5. 已知边界
 

@@ -2,7 +2,9 @@
 
 版本：0.1 ｜ 负责人：qa-dev ｜ 日期：2026-11-06 ｜ 任务：task-5（T4 构建验收、测试与 QA 报告）
 
-> 本报告只记录**实际执行过**的命令与结果。本机没有 Android 真机、没有 AVD、没有模拟器，因此所有依赖设备/IME 运行时的验收项一律标记 **BLOCKED**，不伪造通过。JVM 层可以验证的部分单独给出证据。
+> 2026-11-06 23:26 起用户在真机 `22021211RC` 上关闭安全锁屏，Lead 已补做 Via 浏览器真机冒烟测试，结果见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。本文 §2.7 保留首轮“锁屏导致 BLOCKED”快照，最终真机结论以 DEVICE_TEST_REPORT 为准。
+
+> 本报告主体只记录 **23:26 前**实际执行过的命令与结果。该时点前没有可用真机，因此设备相关项标记 **BLOCKED**；23:26 用户关闭锁屏后完成的 Via 真机测试见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)，不伪造任何未执行项。
 
 ---
 
