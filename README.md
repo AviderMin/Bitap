@@ -5,13 +5,13 @@
 Bitap 是一个 **小而美、隐私优先、AI 克制而精准** 的 Android 输入法。它把 AI 留在设备里，把选择权留给你。
 
 - **零网络权限**：应用清单中没有 `INTERNET`，输入、候选与 AI 提示都不会离开设备。
-- **本地 AI**：支持导入 Qwen3-0.6B（LiteRT-LM，INT4 `.litertlm`，约 328 MiB）在手机本地运行，只在你主动点击 ✦ 时工作。
-- **双主题**：Miuix「清透」与 Glasmio「流光」两套完整设计语言，覆盖键盘、引导页与设置页。
+- **本地 AI 词库**：支持导入 Qwen3-0.6B（LiteRT-LM，INT4 `.litertlm`，约 328 MiB），只在用户点击候选条 `✦ AI` 时生成中文候选。
+- **独立 App + 分离主题**：Bitap 是独立 App（桌面应用列表可见）；App 使用 Miuix「清透」/ Glasmio「流光」，键盘使用纸白 / 墨玉 / 极光三套独立主题。
 - **中文拼音 + 英文 QWERTY**：内置约 3 万条离线词库，按键即时出候选；AI 不参与每一次按键。
 
 ## 状态
 
-Bitap 0.1 已完成工程实现：输入法服务、离线拼音候选、AI 改写面板、模型导入、双主题、首页/设置、隐私边界与单测。产品与架构基调见 [产品简报](docs/00-product-brief.md)、[体验规范](docs/01-experience-spec.md)、[架构设计](docs/02-architecture.md)、[AI 设计](docs/03-ai-design.md)、[设计系统](docs/04-design-system.md)、[隐私安全](docs/05-privacy-security.md)、[质量门槛](docs/06-quality-bar.md)、[团队计划](docs/07-team-plan.md) 与 [交付说明](docs/08-delivery.md)。
+Bitap 0.1 已完成工程实现：输入法服务、离线拼音候选、AI 词库候选、模型导入、App/键盘分离主题、首页/设置、隐私边界与单测。产品与架构基调见 [产品简报](docs/00-product-brief.md)、[体验规范](docs/01-experience-spec.md)、[架构设计](docs/02-architecture.md)、[AI 设计](docs/03-ai-design.md)、[设计系统](docs/04-design-system.md)、[隐私安全](docs/05-privacy-security.md)、[质量门槛](docs/06-quality-bar.md)、[团队计划](docs/07-team-plan.md) 与 [交付说明](docs/08-delivery.md)。
 
 ## 构建
 

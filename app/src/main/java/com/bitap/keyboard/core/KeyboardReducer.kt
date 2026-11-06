@@ -24,6 +24,10 @@ object KeyboardReducer {
         KeyboardAction.Space -> space(state)
         KeyboardAction.Backspace -> backspace(state)
         KeyboardAction.Enter -> enter(state)
+        KeyboardAction.RequestAiCandidates -> requestAiCandidates(state)
+        is KeyboardAction.AiCandidatesUpdated -> aiCandidatesUpdated(state, action.candidates)
+        is KeyboardAction.AiCandidatesFailed -> aiCandidatesFailed(state, action.message)
+        is KeyboardAction.AiCandidateTapped -> aiCandidateTapped(state, action.word)
         is KeyboardAction.AiPanelOpened -> aiPanelOpened(state, action.source)
         is KeyboardAction.AiToneChosen -> aiToneChosen(state, action.tone)
         KeyboardAction.AiCancel -> aiCancel(state)
@@ -138,6 +142,9 @@ object KeyboardReducer {
         state.copy(
             composing = "",
             candidates = emptyList(),
+            aiCandidates = emptyList(),
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
             shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
         ),
         listOf(ImeCommand.CommitText(word)),
@@ -186,6 +193,45 @@ object KeyboardReducer {
             )
         }
         return Reduction(state, listOf(ImeCommand.SendEnter))
+    }
+
+    private fun requestAiCandidates(state: KeyboardUiState): Reduction {
+        if (!state.aiEnabled) return Reduction(state)
+        return Reduction(
+            state.copy(
+                aiCandidates = emptyList(),
+                aiCandidatesLoading = true,
+                aiCandidatesError = null,
+            ),
+        )
+    }
+
+    private fun aiCandidatesUpdated(state: KeyboardUiState, candidates: List<String>): Reduction {
+        val cleaned = candidates.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it.length <= 24 }
+            .distinct()
+            .take(6)
+            .toList()
+        return Reduction(
+            state.copy(
+                aiCandidates = cleaned,
+                aiCandidatesLoading = false,
+                aiCandidatesError = if (cleaned.isEmpty()) "AI 词库没有返回候选" else null,
+            ),
+        )
+    }
+
+    private fun aiCandidatesFailed(state: KeyboardUiState, message: String): Reduction = Reduction(
+        state.copy(
+            aiCandidatesLoading = false,
+            aiCandidatesError = message,
+        ),
+    )
+
+    private fun aiCandidateTapped(state: KeyboardUiState, word: String): Reduction {
+        if (word.isBlank()) return Reduction(state)
+        return commitCandidate(state, word)
     }
 
     private fun aiPanelOpened(state: KeyboardUiState, rawSource: String): Reduction {

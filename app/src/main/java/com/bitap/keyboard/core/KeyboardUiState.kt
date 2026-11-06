@@ -71,6 +71,9 @@ data class KeyboardUiState(
     val ai: AiPanelUiState = AiPanelUiState(),
     val aiEnabled: Boolean = true,
     val aiReady: Boolean = false,
+    val aiCandidates: List<String> = emptyList(),
+    val aiCandidatesLoading: Boolean = false,
+    val aiCandidatesError: String? = null,
     val hapticsEnabled: Boolean = true,
     val keyboardHeightScale: Float = 1.0f,
     val lastShiftTapAt: Long = 0L,
@@ -101,6 +104,15 @@ sealed interface KeyboardAction {
     data object Backspace : KeyboardAction
 
     data object Enter : KeyboardAction
+
+    /** Requests AI candidates for the current pinyin/context. */
+    data object RequestAiCandidates : KeyboardAction
+
+    data class AiCandidatesUpdated(val candidates: List<String>) : KeyboardAction
+
+    data class AiCandidatesFailed(val message: String) : KeyboardAction
+
+    data class AiCandidateTapped(val word: String) : KeyboardAction
 
     /** Opens the AI panel; an empty [source] is filled from TextSession by the controller. */
     data class AiPanelOpened(val source: String = "") : KeyboardAction

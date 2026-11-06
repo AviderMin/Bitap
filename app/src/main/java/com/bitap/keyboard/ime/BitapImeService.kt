@@ -20,7 +20,7 @@ import com.bitap.keyboard.BitapApplication
 import com.bitap.keyboard.core.AndroidTextSession
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.settings.DarkMode
-import com.bitap.keyboard.ui.theme.BitapTheme
+import com.bitap.keyboard.ui.theme.BitapKeyboardTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -97,7 +97,7 @@ class BitapImeService :
                     DarkMode.Light -> false
                     DarkMode.Dark -> true
                 }
-                BitapTheme(themeFamily = settings.themeFamily, darkTheme = darkTheme) {
+                BitapKeyboardTheme(theme = settings.keyboardTheme, darkTheme = darkTheme) {
                     val state by controller.state.collectAsStateWithLifecycle()
                     KeyboardScreen(
                         state = state,

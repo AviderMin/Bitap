@@ -46,6 +46,10 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         prefs.edit().putFloat(KEY_KEYBOARD_HEIGHT, value.coerceIn(0.85f, 1.35f)).apply()
     }
 
+    fun setKeyboardTheme(value: KeyboardTheme) {
+        prefs.edit().putString(KEY_KEYBOARD_THEME, value.name).apply()
+    }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         _settings.value = read()
     }
@@ -62,6 +66,9 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         soundEnabled = prefs.getBoolean(KEY_SOUND, false),
         smartPunctuation = prefs.getBoolean(KEY_PUNCTUATION, true),
         keyboardHeightScale = prefs.getFloat(KEY_KEYBOARD_HEIGHT, 1.0f).coerceIn(0.85f, 1.35f),
+        keyboardTheme = prefs.getString(KEY_KEYBOARD_THEME, null)
+            ?.let { runCatching { KeyboardTheme.valueOf(it) }.getOrNull() }
+            ?: KeyboardTheme.Paper,
     )
 
     private companion object {
@@ -73,5 +80,6 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         const val KEY_SOUND = "sound"
         const val KEY_PUNCTUATION = "smart_punctuation"
         const val KEY_KEYBOARD_HEIGHT = "keyboard_height"
+        const val KEY_KEYBOARD_THEME = "keyboard_theme"
     }
 }

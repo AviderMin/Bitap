@@ -116,6 +116,47 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         }
     }.flowOn(Dispatchers.Default)
 
+    override fun suggestCandidates(pinyin: String, context: String): Flow<AiEvent> = flow {
+        if (closed.get()) {
+            emit(AiEvent.Failed("AI 服务已关闭"))
+            return@flow
+        }
+        val query = pinyin.trim().take(48)
+        if (query.isEmpty()) {
+            emit(AiEvent.Failed("没有可用的拼音"))
+            return@flow
+        }
+        val modelPath = modelStore.currentModelPath()
+        if (modelPath == null) {
+            _runtimeState.value = AiRuntimeState.NotInstalled
+            emit(AiEvent.Failed("未安装本地模型"))
+            return@flow
+        }
+
+        val events = Channel<AiEvent>(Channel.BUFFERED)
+        val request = scope.launch(start = CoroutineStart.LAZY) {
+            runLexicon(modelPath, query, context.trim().take(160), events)
+        }
+        val previous = synchronized(requestLock) {
+            val old = activeJob
+            activeJob = request
+            old
+        }
+        previous?.cancel()
+        engine.cancel()
+        request.start()
+
+        try {
+            for (event in events) emit(event)
+        } finally {
+            request.cancel()
+            events.close()
+            synchronized(requestLock) {
+                if (activeJob === request) activeJob = null
+            }
+        }
+    }.flowOn(Dispatchers.Default)
+
     override fun cancel() {
         cancelActiveRequest()
         if (_runtimeState.value == AiRuntimeState.Busy || _runtimeState.value == AiRuntimeState.Loading) {
@@ -174,6 +215,48 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         } catch (error: Throwable) {
             _runtimeState.value = AiRuntimeState.Error
             output.send(AiEvent.Failed("本地模型运行失败"))
+        } finally {
+            output.close()
+        }
+    }
+
+    private suspend fun runLexicon(
+        modelPath: String,
+        pinyin: String,
+        context: String,
+        output: SendChannel<AiEvent>,
+    ) {
+        try {
+            if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
+            val system = "你是 Bitap 输入法的本地中文词库引擎。根据拼音和上下文，按可能性从高到低输出最多 5 个中文候选词或短语，每行一个。不要解释、不要编号、不要使用 Markdown、不要输出标点。"
+            val user = "拼音：$pinyin\n上文：${context.ifBlank { "（无）" }}\n只输出候选词，每行一个。"
+            engine.rewrite(modelPath, system, user).collect { event ->
+                when (event) {
+                    is AiEvent.Started -> {
+                        _runtimeState.value = AiRuntimeState.Busy
+                        output.send(event)
+                    }
+                    is AiEvent.Delta -> output.send(event)
+                    is AiEvent.Completed -> {
+                        _runtimeState.value = AiRuntimeState.Ready
+                        output.send(event)
+                    }
+                    is AiEvent.Failed -> {
+                        _runtimeState.value = AiRuntimeState.Error
+                        output.send(event)
+                    }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            _runtimeState.value = if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
+            throw cancelled
+        } catch (outOfMemory: OutOfMemoryError) {
+            engine.release()
+            _runtimeState.value = AiRuntimeState.Error
+            output.send(AiEvent.Failed("设备内存不足"))
+        } catch (error: Throwable) {
+            _runtimeState.value = AiRuntimeState.Error
+            output.send(AiEvent.Failed("本地词库运行失败"))
         } finally {
             output.close()
         }

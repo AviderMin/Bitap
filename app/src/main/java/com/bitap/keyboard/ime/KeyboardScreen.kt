@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -95,7 +96,17 @@ fun KeyboardScreen(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(KeyboardDockShape)
-                .background(palette.background)
+                .then(
+                    if (palette.isGlass) {
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                listOf(palette.background, palette.elevatedSurface),
+                            ),
+                        )
+                    } else {
+                        Modifier.background(palette.background)
+                    },
+                )
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = 5.dp, bottom = 4.dp),
@@ -117,7 +128,6 @@ fun KeyboardScreen(
                 )
             }
             CandidateBar(state = state, onAction = onAction, haptic = haptic)
-            AiPanel(panel = state.ai, onAction = onAction, haptic = haptic)
             when (state.layer) {
                 KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
                 KeyboardLayer.Numbers -> SymbolLayout(
@@ -157,7 +167,7 @@ private fun CandidateBar(
             .padding(start = 8.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (state.composing.isNotEmpty() || state.candidates.isNotEmpty()) {
+        if (state.composing.isNotEmpty() || state.candidates.isNotEmpty() || state.aiCandidates.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .weight(1f)
@@ -188,6 +198,26 @@ private fun CandidateBar(
                         )
                     }
                 }
+                if (state.aiCandidates.isNotEmpty()) {
+                    Text(
+                        text = "AI",
+                        color = palette.accent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 6.dp, end = 2.dp),
+                    )
+                    state.aiCandidates.forEach { word ->
+                        CandidateChip(
+                            label = word,
+                            description = "AI 词库候选 " + word,
+                            accent = true,
+                            onClick = {
+                                haptic()
+                                onAction(KeyboardAction.AiCandidateTapped(word))
+                            },
+                        )
+                    }
+                }
             }
         } else {
             Text(
@@ -207,14 +237,19 @@ private fun CandidateBar(
                     .clip(RoundedCornerShape(999.dp))
                     .clickable {
                         haptic()
-                        onAction(KeyboardAction.AiPanelOpened())
+                        onAction(KeyboardAction.RequestAiCandidates)
                     }
                     .semantics {
-                        contentDescription = if (ready) "AI 改写" else "AI 改写未就绪，点击查看提示"
+                        contentDescription = if (ready) "AI 词库候选" else "AI 词库未就绪，点击查看提示"
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "✦", color = if (ready) palette.accent else palette.textSecondary, fontSize = 20.sp)
+                Text(
+                    text = if (state.aiCandidatesLoading) "…" else "✦ AI",
+                    color = if (ready) palette.accent else palette.textSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }

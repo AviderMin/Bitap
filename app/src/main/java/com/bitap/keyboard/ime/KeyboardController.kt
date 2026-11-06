@@ -57,6 +57,11 @@ class KeyboardController(
         reduction.commands.forEach(::execute)
 
         if (reduction.state.composing != previous.composing) {
+            _state.value = _state.value.copy(
+                aiCandidates = emptyList(),
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+            )
             schedulePinyinQuery(reduction.state.composing)
         }
         if (previous.ai.visible && !reduction.state.ai.visible) {
@@ -71,6 +76,7 @@ class KeyboardController(
                 }
             }
 
+            KeyboardAction.RequestAiCandidates -> startAiCandidates()
             KeyboardAction.AiCancel -> cancelAi()
             else -> Unit
         }
@@ -103,6 +109,9 @@ class KeyboardController(
             composing = "",
             candidates = emptyList(),
             ai = AiPanelUiState(),
+            aiCandidates = emptyList(),
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
             shift = ShiftState.Off,
             lastShiftTapAt = 0L,
         )
@@ -116,6 +125,9 @@ class KeyboardController(
             composing = "",
             candidates = emptyList(),
             ai = AiPanelUiState(),
+            aiCandidates = emptyList(),
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
             shift = ShiftState.Off,
             lastShiftTapAt = 0L,
         )
@@ -156,6 +168,65 @@ class KeyboardController(
         if (!ready && _state.value.ai.isRunning && aiRuntimeState == AiRuntimeState.Loading) return
         dispatch(KeyboardAction.AiAvailabilityChanged(settings.aiEnabled, ready))
     }
+
+    private fun startAiCandidates() {
+        if (!settings.aiEnabled) return
+        aiJob?.cancel()
+        aiService.cancel()
+        val query = _state.value.composing.ifBlank {
+            runCatching { textSession.readAiSource(128) }.getOrDefault("")
+        }
+        if (query.isBlank()) {
+            reduceInto(KeyboardAction.AiCandidatesFailed("先输入拼音，或选中一段文字"))
+            return
+        }
+        val token = ++aiToken
+        aiJob = scope.launch {
+            var terminal = false
+            try {
+                aiService.suggestCandidates(
+                    pinyin = if (_state.value.composing.isNotEmpty()) _state.value.composing else "",
+                    context = query,
+                ).collect { event ->
+                    if (token != aiToken) return@collect
+                    when (event) {
+                        AiEvent.Started -> Unit
+                        is AiEvent.Delta -> Unit
+                        is AiEvent.Completed -> {
+                            terminal = true
+                            reduceInto(KeyboardAction.AiCandidatesUpdated(parseAiCandidates(event.text)))
+                        }
+                        is AiEvent.Failed -> {
+                            terminal = true
+                            reduceInto(KeyboardAction.AiCandidatesFailed(event.message))
+                        }
+                    }
+                }
+                if (!terminal && token == aiToken) {
+                    reduceInto(KeyboardAction.AiCandidatesFailed("AI 词库没有返回候选"))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (token == aiToken) {
+                    reduceInto(KeyboardAction.AiCandidatesFailed("AI 词库暂时不可用"))
+                }
+            }
+        }
+    }
+
+    private fun parseAiCandidates(raw: String): List<String> = raw
+        .lineSequence()
+        .map { line ->
+            line.trim()
+                .trim('-', '*', '#', '`', '"', '“', '”', '「', '」')
+                .replace(Regex("^[0-9]+[.)、\\s]+"), "")
+                .trim()
+        }
+        .filter { it.isNotEmpty() && it.length <= 24 && it.any { c -> c in '\u4e00'..'\u9fff' } }
+        .distinct()
+        .take(6)
+        .toList()
 
     private fun startAi(panel: AiPanelUiState) {
         val tone = panel.tone ?: return

@@ -72,9 +72,11 @@ import com.bitap.keyboard.ai.AiRewriteService
 import com.bitap.keyboard.ai.AiRuntimeState
 import com.bitap.keyboard.settings.BitapSettings
 import com.bitap.keyboard.settings.DarkMode
+import com.bitap.keyboard.settings.KeyboardTheme
 import com.bitap.keyboard.settings.SettingsRepository
 import com.bitap.keyboard.settings.ThemeFamily
 import com.bitap.keyboard.ui.theme.BitapTheme
+import com.bitap.keyboard.ui.theme.keyboardPalette
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -189,6 +191,8 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     KeyboardHeightSection(
                         settings = settings,
+                        darkTheme = darkTheme,
+                        onKeyboardTheme = repository::setKeyboardTheme,
                         onHeightScale = repository::setKeyboardHeightScale,
                     )
                 }
@@ -441,6 +445,8 @@ private fun AppearanceSection(
 @Composable
 private fun KeyboardHeightSection(
     settings: BitapSettings,
+    darkTheme: Boolean,
+    onKeyboardTheme: (KeyboardTheme) -> Unit,
     onHeightScale: (Float) -> Unit,
 ) {
     val palette = BitapTheme.palette
@@ -449,9 +455,33 @@ private fun KeyboardHeightSection(
     }
     BitapSectionTitle(
         title = "键盘",
-        subtitle = "整块键盘高度：键帽与底部安全区一起调整，避免和系统快捷栏重叠",
+        subtitle = "键盘有自己的主题与整体高度；与上方 App 外观分开设置",
     )
     BitapCard {
+        Text(
+            text = "键盘主题",
+            color = palette.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            KeyboardTheme.entries.forEach { theme ->
+                KeyboardThemeCard(
+                    theme = theme,
+                    darkTheme = darkTheme,
+                    selected = settings.keyboardTheme == theme,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onKeyboardTheme(theme) },
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -505,6 +535,74 @@ private fun KeyboardHeightSection(
 }
 
 @Composable
+private fun KeyboardThemeCard(
+    theme: KeyboardTheme,
+    darkTheme: Boolean,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val palette = keyboardPalette(theme, darkTheme)
+    val shape = RoundedCornerShape(16.dp)
+    val backgroundModifier = if (palette.isGlass) {
+        Modifier.background(
+            Brush.verticalGradient(listOf(palette.background, palette.elevatedSurface)),
+        )
+    } else {
+        Modifier.background(palette.background)
+    }
+    Column(
+        modifier = modifier
+            .height(104.dp)
+            .clip(shape)
+            .then(backgroundModifier)
+            .border(if (selected) 2.dp else 1.dp, if (selected) palette.accent else palette.hairline, shape)
+            .clickable(onClick = onClick)
+            .padding(9.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = theme.label,
+                color = palette.textPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = "已选择键盘主题",
+                    tint = palette.accent,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        Text(
+            text = theme.tagline,
+            color = palette.textSecondary,
+            fontSize = 8.sp,
+            lineHeight = 10.sp,
+            maxLines = 2,
+            modifier = Modifier.padding(top = 3.dp),
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(palette.key)
+                        .border(0.5.dp, palette.hairline, RoundedCornerShape(3.dp)),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun InputSection(
     settings: BitapSettings,
     onAiEnabled: (Boolean) -> Unit,
@@ -513,12 +611,12 @@ private fun InputSection(
 ) {
     BitapSectionTitle(
         title = "输入与 AI",
-        subtitle = "AI 永不自动触发；每次改写都由你点击开始",
+        subtitle = "AI 作为本地词库参与候选，不自动触发、不改写整段文字",
     )
     BitapCard {
         BitapSettingRow(
-            title = "本地 AI 改写",
-            description = "仅在点击候选条 ✦ 时调用本地模型",
+            title = "本地 AI 词库",
+            description = "仅在点击候选条 ✦ 时调用本地模型生成候选",
             trailing = { BitapSwitch(checked = settings.aiEnabled, onCheckedChange = onAiEnabled) },
         )
         BitapDivider()

@@ -54,6 +54,9 @@ interface AiRewriteService {
     /** One request at a time; calling again cancels the previous request. */
     fun rewrite(text: String, tone: RewriteTone): Flow<AiEvent>
 
+    /** AI used as a local Chinese lexicon: pinyin + context -> candidate words. */
+    fun suggestCandidates(pinyin: String, context: String): Flow<AiEvent>
+
     fun cancel()
 
     fun close()
@@ -68,6 +71,8 @@ class LocalAiRewriteService(context: Context) : AiRewriteService {
     override suspend fun importModel(uri: Uri): Result<AiModelInfo> = delegate.importModel(uri)
     override fun deleteModel() = delegate.deleteModel()
     override fun rewrite(text: String, tone: RewriteTone): Flow<AiEvent> = delegate.rewrite(text, tone)
+    override fun suggestCandidates(pinyin: String, context: String): Flow<AiEvent> =
+        delegate.suggestCandidates(pinyin, context)
     override fun cancel() = delegate.cancel()
     override fun close() = delegate.close()
 }

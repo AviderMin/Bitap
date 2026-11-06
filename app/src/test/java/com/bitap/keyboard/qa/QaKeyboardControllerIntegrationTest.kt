@@ -186,6 +186,9 @@ class QaKeyboardControllerIntegrationTest {
         override fun rewrite(text: String, tone: RewriteTone): Flow<AiEvent> =
             flowOf(AiEvent.Completed("ok"))
 
+        override fun suggestCandidates(pinyin: String, context: String): Flow<AiEvent> =
+            flowOf(AiEvent.Completed("你好\n您好"))
+
         override fun cancel() = Unit
 
         override fun close() = Unit

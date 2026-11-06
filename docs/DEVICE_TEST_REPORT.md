@@ -39,6 +39,9 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 | D12 | 主题持久化 | 切换主题/深色后重启 Activity | PASS，SharedPreferences 保存 `theme_family` / `dark_mode` |
 | D13 | 键盘高度 | 首页「键盘整体高度」从 100% 拖到 125%，再打开 Via 键盘 | PASS，Settings 保存 `keyboard_height=1.25`，键盘整体增高、无裁切；再改回 100% 也生效 |
 | D14 | 系统快捷键栏 | 125% 高度下检查底部「收起 / 选择键盘」系统栏 | PASS，键盘通过 `WindowInsets.navigationBars` 为系统栏预留底部安全区，底部按键不再与系统栏重叠 |
+| D15 | 独立 App | 打开系统应用抽屉 | PASS，可见独立 **Bitap** 图标；点击可进入首页/设置（不是只有 IME 服务） |
+| D16 | App/键盘主题分离 | App 选 Glasmio，键盘切到纸白/墨玉 | PASS，App 保持 Glasmio 光效，键盘按自己的纸白/墨玉主题渲染，互不串联 |
+| D17 | AI 词库入口 | 输入 `nihao`，点候选条 `✦ AI` | PARTIAL：按钮进入加载省略态，但本次未返回候选；请求链路已接通，需继续调试 prompt/解析 |
 
 ## 3. 截图证据
 
@@ -50,6 +53,9 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [键盘高度设置：100% → 125%](evidence/bitap-height-setting.png)
 - [125% 高度下的 Via Bitap 键盘](evidence/bitap-keyboard-height-125.png)
 - [为底部系统快捷键栏预留安全区后的键盘](evidence/bitap-keyboard-navsafe-125.png)
+- [独立 Bitap App：系统应用抽屉](evidence/bitap-app-drawer.png)
+- [App/键盘主题分离设置](evidence/bitap-keyboard-theme-settings.png)
+- [独立的 Ink 键盘主题](evidence/bitap-ink-keyboard.png)
 
 ## 4. 说明
 
