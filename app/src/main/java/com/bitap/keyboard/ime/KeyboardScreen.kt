@@ -76,6 +76,7 @@ private val LocalKeyboardRowGap = staticCompositionLocalOf { 0.dp }
 fun KeyboardScreen(
     state: KeyboardUiState,
     onAction: (KeyboardAction) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalBitapPalette.current
@@ -138,7 +139,12 @@ fun KeyboardScreen(
                         .background(palette.textSecondary.copy(alpha = 0.28f)),
                 )
             }
-            CandidateBar(state = state, onAction = onAction, haptic = haptic)
+            CandidateBar(
+                state = state,
+                onAction = onAction,
+                haptic = haptic,
+                onOpenSettings = onOpenSettings,
+            )
             when (state.layer) {
                 KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
                 KeyboardLayer.Numbers -> SymbolLayout(
@@ -169,8 +175,10 @@ private fun CandidateBar(
     state: KeyboardUiState,
     onAction: (KeyboardAction) -> Unit,
     haptic: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
+    Column(modifier = Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -263,6 +271,35 @@ private fun CandidateBar(
                 )
             }
         }
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .clickable {
+                    haptic()
+                    onOpenSettings()
+                }
+                .semantics { contentDescription = "打开 Bitap 设置" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = "⚙", color = palette.textSecondary, fontSize = 18.sp)
+        }
+    }
+    val aiStatus = when {
+        state.aiCandidatesLoading -> "AI 词库思考中…"
+        !state.aiCandidatesError.isNullOrBlank() -> state.aiCandidatesError
+        else -> null
+    }
+    if (aiStatus != null) {
+        Text(
+            text = aiStatus,
+            color = if (state.aiCandidatesError.isNullOrBlank()) palette.accent else palette.danger,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+        )
+    }
     }
 }
 

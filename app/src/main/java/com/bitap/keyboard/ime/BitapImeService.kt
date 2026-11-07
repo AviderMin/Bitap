@@ -1,5 +1,6 @@
 package com.bitap.keyboard.ime
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
@@ -19,6 +20,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import com.bitap.keyboard.BitapApplication
+import com.bitap.keyboard.MainActivity
 import com.bitap.keyboard.core.AndroidTextSession
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.settings.DarkMode
@@ -106,6 +108,12 @@ class BitapImeService :
                     KeyboardScreen(
                         state = state,
                         onAction = controller::dispatch,
+                        onOpenSettings = {
+                            startActivity(
+                                Intent(this@BitapImeService, MainActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                            )
+                        },
                     )
                 }
             }
