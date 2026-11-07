@@ -32,8 +32,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -70,9 +68,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import com.bitap.keyboard.ai.RewriteTone
-import com.bitap.keyboard.core.AiPanelUiState
-import com.bitap.keyboard.core.AiStatus
 import com.bitap.keyboard.core.Candidate
 import com.bitap.keyboard.core.InputLanguage
 import com.bitap.keyboard.core.KeyboardAction
@@ -480,167 +475,6 @@ private fun CandidateChip(
 }
 
 @Composable
-private fun AiPanel(
-    panel: AiPanelUiState,
-    onAction: (KeyboardAction) -> Unit,
-    haptic: () -> Unit,
-) {
-    val palette = LocalBitapPalette.current
-    AnimatedVisibility(
-        visible = panel.visible,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 2.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(palette.elevatedSurface)
-                .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-                .heightIn(max = 260.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "✦ AI 改写", color = palette.accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.weight(1f))
-                if (panel.isRunning) {
-                    PanelTextButton(text = "取消", onClick = {
-                        haptic()
-                        onAction(KeyboardAction.AiCancel)
-                    })
-                }
-            }
-            if (panel.source.isNotEmpty()) {
-                Text(
-                    text = panel.source,
-                    color = palette.textSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                )
-            }
-            if (panel.isRunning) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp),
-                    color = palette.accent,
-                    trackColor = palette.hairline,
-                )
-            }
-            if (panel.status != AiStatus.Unavailable) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    RewriteTone.entries.forEach { tone ->
-                        ToneChip(
-                            label = tone.label,
-                            selected = panel.tone == tone,
-                            onClick = {
-                                haptic()
-                                onAction(KeyboardAction.AiToneChosen(tone))
-                            },
-                        )
-                    }
-                }
-            }
-            when (panel.status) {
-                AiStatus.Thinking -> Text(
-                    text = "本地思考中…",
-                    color = palette.textSecondary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                AiStatus.Streaming, AiStatus.Completed -> {
-                    if (panel.result.isNotEmpty()) {
-                        Text(
-                            text = panel.result,
-                            color = palette.textPrimary,
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState())
-                                .padding(vertical = 4.dp),
-                        )
-                    }
-                }
-
-                AiStatus.Failed -> Text(
-                    text = panel.error ?: "这次没想好",
-                    color = palette.danger,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                AiStatus.Unavailable -> Text(
-                    text = panel.error ?: "本地模型未就绪",
-                    color = palette.textSecondary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                AiStatus.Idle -> Text(
-                    text = panel.error ?: "选择一种改写方式",
-                    color = palette.textSecondary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PanelTextButton(text = "放弃", onClick = {
-                    haptic()
-                    onAction(KeyboardAction.AiDismiss)
-                })
-                Spacer(modifier = Modifier.width(6.dp))
-                PanelAccentButton(
-                    text = "插入",
-                    enabled = panel.canInsert,
-                    onClick = {
-                        haptic()
-                        onAction(KeyboardAction.AiInsert)
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToneChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val palette = LocalBitapPalette.current
-    val shape = RoundedCornerShape(999.dp)
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(if (selected) palette.accent else palette.functionKey)
-            .border(0.5.dp, if (selected) palette.accent else palette.hairline, shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp)
-            .semantics { contentDescription = "改写动作 " + label },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = if (selected) palette.onAccent else palette.textPrimary,
-            fontSize = 12.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
 private fun PanelTextButton(text: String, onClick: () -> Unit) {
     val palette = LocalBitapPalette.current
     Box(
@@ -653,28 +487,6 @@ private fun PanelTextButton(text: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text = text, color = palette.textSecondary, fontSize = 13.sp)
-    }
-}
-
-@Composable
-private fun PanelAccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    val palette = LocalBitapPalette.current
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (enabled) palette.accent else palette.functionKey)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp)
-            .semantics { contentDescription = "插入改写结果" },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = if (enabled) palette.onAccent else palette.textSecondary.copy(alpha = 0.5f),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-        )
     }
 }
 
