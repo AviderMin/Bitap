@@ -3,6 +3,7 @@ package com.bitap.keyboard.core
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.min
 
@@ -27,7 +28,47 @@ import kotlin.math.min
 class PinyinEngine private constructor(
     private var index: Index?,
     private var userLexiconStore: UserLexiconStore? = null,
+    private val tuning: EngineTuning = EngineTuning(),
 ) {
+
+    /**
+     * Test-visible scoring/budget knobs. Production always uses [EngineTuning]
+     * defaults; the diagnostic test builds extra views over the same index to
+     * measure ablations in one JVM run without changing global state.
+     */
+    internal data class EngineTuning(
+        val beamSize: Int = MAX_LATTICE_PATHS,
+        val entriesPerKey: Int = MAX_ENTRIES_PER_KEY,
+        val contextWeight: Double = CONTEXT_WEIGHT,
+        /** Minimum corpus bigram count before a boundary score is trusted. */
+        val contextGateMinBigram: Int = 0,
+        /** Score used for a boundary whose evidence is below the gate. */
+        val contextUnseenPenalty: Double = 0.0,
+        val corpusWordNgramWeight: Double = WORD_NGRAM_WEIGHT,
+        val dictionaryWordNgramWeight: Double = DICTIONARY_WORD_NGRAM_WEIGHT,
+        /** Weight of the average corpus-trigram log probability of the whole sentence. */
+        val sentenceCorpusWeight: Double = SENTENCE_CORPUS_WEIGHT,
+        /** Weight of the average dictionary-bigram log probability of the whole sentence. */
+        val sentenceDictionaryWeight: Double = SENTENCE_DICTIONARY_WEIGHT,
+        val wordInsertionCompensation: Double = WORD_INSERTION_COMPENSATION,
+        val partialQuota: Int = PARTIAL_QUOTA,
+        /** Bonus for a partial selection whose coverage is near the target share. */
+        val partialCoverageWeight: Double = PARTIAL_COVERAGE_WEIGHT,
+        val partialCoverageTarget: Double = PARTIAL_COVERAGE_TARGET,
+        val partialCoverageMinInput: Int = PARTIAL_COVERAGE_MIN_INPUT,
+        /** Number of best partial picks shown before the tail of long full sentences. */
+        val partialEarlySlotCount: Int = PARTIAL_EARLY_SLOT_COUNT,
+        /** Keep only the best path per last word before applying the beam. */
+        val dedupeBeamByLastWord: Boolean = false,
+        /** Queries at least this long use the long-input rerank terms below. */
+        val longInputThreshold: Int = LONG_INPUT_THRESHOLD,
+        /** Sum of dictionary character-bigram word-internal scores over segments. */
+        val longWordDictionaryWeight: Double = 0.0,
+        /** Average dictionary character-bigram score over the whole sentence. */
+        val longSentenceDictionaryWeight: Double = 0.0,
+        /** Average corpus character-trigram score over the whole sentence. */
+        val longSentenceCorpusWeight: Double = 0.0,
+    )
 
     private val selectionLock = Any()
     private val selectionCounts = HashMap<String, Int>()
@@ -95,8 +136,127 @@ class PinyinEngine private constructor(
                 shouldContinue = shouldContinue,
             )
         }
-        return collector.toCandidates(cappedLimit, parsed.consumedLength, selectionWeights)
+        return collector.toCandidates(
+            cappedLimit,
+            parsed.consumedLength,
+            selectionWeights,
+            tuning.partialQuota,
+            tuning.partialEarlySlotCount,
+            tuning.longInputThreshold,
+        )
     }
+
+    // ------------------------------------------------------------------
+    // Test-only diagnostics (not used by production decoding)
+    // ------------------------------------------------------------------
+
+    private data class DebugOptions(
+        val beamSize: Int,
+        val entriesPerKey: Int,
+        val fullPathSink: MutableList<DebugPath>,
+        val partialPathSink: MutableList<DebugPath>,
+    )
+
+    internal data class DebugCandidate(
+        val word: String,
+        val score: Double,
+        val consumed: Int,
+        val isCorrection: Boolean,
+        val isPrefix: Boolean,
+    )
+
+    /** One lattice path with its word segmentation, for diagnosis only. */
+    internal data class DebugPath(
+        val text: String,
+        val segments: List<String>,
+        val score: Double,
+        val wordCount: Int,
+        /** Composing characters consumed by the path prefix. */
+        val consumed: Int = 0,
+    )
+
+    /** Aggregate character n-gram statistics of one candidate sentence. */
+    internal data class DebugNgramStats(
+        val length: Int,
+        val charAvg: Double,
+        val bigramAvg: Double,
+        val trigramAvg: Double,
+        val trigramHitRate: Double,
+    )
+
+    internal data class DebugSearchResult(
+        val finalCandidates: List<Candidate>,
+        val collected: List<DebugCandidate>,
+        /** All full-sentence paths that survived the lattice before the candidate cap. */
+        val latticeFullTexts: List<String>,
+        /** Full-sentence paths with segmentation and score, sorted by score. */
+        val latticePaths: List<DebugPath>,
+        /** Partial paths at every position, sorted per position by score. */
+        val partialPaths: List<DebugPath>,
+    )
+
+    /**
+     * Runs the normal decoder with configurable beam/entry limits and returns
+     * pre-ranking candidate pools. Test-only; production [search] behaviour is
+     * unchanged because the defaults are never used from production paths.
+     */
+    internal fun debugSearch(
+        input: String,
+        beamSize: Int = -1,
+        entriesPerKey: Int = -1,
+    ): DebugSearchResult {
+        val effectiveBeam = if (beamSize > 0) beamSize else tuning.beamSize
+        val effectiveEntries = if (entriesPerKey > 0) entriesPerKey else tuning.entriesPerKey
+        val parsed = parseQuery(input)
+        val current = index
+            ?: return DebugSearchResult(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        if (parsed.segments.isEmpty()) {
+            return DebugSearchResult(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        }
+        val collector = CandidateCollector()
+        val sink = ArrayList<DebugPath>()
+        val partialSink = ArrayList<DebugPath>()
+        val options = DebugOptions(effectiveBeam, effectiveEntries, sink, partialSink)
+        if (parsed.segments.size > 1) {
+            collectSegmented(parsed, current, snapshotUserEntries(), collector) { true }
+        } else {
+            collectContinuous(
+                query = parsed.segments.single(),
+                current = current,
+                userSnapshot = snapshotUserEntries(),
+                collector = collector,
+                shouldContinue = { true },
+                debug = options,
+            )
+        }
+        return DebugSearchResult(
+            finalCandidates = collector.toCandidates(
+                MAX_CANDIDATES,
+                parsed.consumedLength,
+                emptyMap(),
+                tuning.partialQuota,
+                tuning.partialEarlySlotCount,
+                tuning.longInputThreshold,
+            ),
+            collected = collector.snapshot().map {
+                DebugCandidate(it.word, it.score, it.consumed, it.isCorrection, it.isPrefix)
+            },
+            latticeFullTexts = sink.map { it.text },
+            latticePaths = sink,
+            partialPaths = partialSink,
+        )
+    }
+
+    /** Aggregate corpus character n-gram statistics for one candidate text (diagnostics only). */
+    internal fun debugNgramStats(text: String): DebugNgramStats? =
+        index?.ngramModel?.sentenceStats(text)
+
+    /** Frequency of a dictionary word, or null when absent (diagnostics only). */
+    internal fun debugWordFrequency(word: String): Long? = index?.wordFrequency?.get(word)
+
+    /** Returns a view over the same immutable index with different tuning (diagnostics only). */
+    internal fun withTuning(tuning: EngineTuning): PinyinEngine =
+        PinyinEngine(index, userLexiconStore, tuning)
 
     // ------------------------------------------------------------------
     // Query parsing
@@ -156,6 +316,8 @@ class PinyinEngine private constructor(
         private val byWord = HashMap<String, Ranked>()
         private var counter = 0
 
+        fun snapshot(): List<Ranked> = byWord.values.toList()
+
         fun bestFullScore(totalConsumed: Int): Double =
             byWord.values.filter { it.consumed >= totalConsumed }.maxOfOrNull { it.score } ?: Double.NEGATIVE_INFINITY
 
@@ -172,6 +334,9 @@ class PinyinEngine private constructor(
             limit: Int,
             totalConsumed: Int,
             selectionWeights: Map<String, Int>,
+            partialQuota: Int = PARTIAL_QUOTA,
+            partialEarlySlotCount: Int = 0,
+            longInputThreshold: Int = LONG_INPUT_THRESHOLD,
         ): List<Candidate> {
             if (byWord.isEmpty()) return emptyList()
             // Learning only re-orders full-coverage candidates; partial prefix
@@ -205,10 +370,29 @@ class PinyinEngine private constructor(
             }
             // Reserve a slice for prefix selections so a long full-sentence
             // candidate page can never hide "我"/"我爱" style partial picks.
-            val partialReserve = min(PARTIAL_QUOTA, maxOf(1, limit / 4))
+            val partialReserve = min(partialQuota, maxOf(1, limit / 4))
             val fullBudget = maxOf(1, limit - partialReserve)
-            full.take(fullBudget).forEach { out += it.toCandidate() }
-            partial.take(partialReserve).forEach { out += it.toCandidate() }
+            val earlyPartial = if (
+                partialEarlySlotCount > 0 &&
+                totalConsumed >= longInputThreshold &&
+                full.isNotEmpty() && partial.isNotEmpty()
+            ) {
+                min(partialEarlySlotCount, partial.size)
+            } else {
+                0
+            }
+            if (earlyPartial > 0) {
+                val earlyFull = min(3, fullBudget)
+                full.take(earlyFull).forEach { out += it.toCandidate() }
+                partial.take(earlyPartial).forEach { out += it.toCandidate() }
+                full.drop(earlyFull).take(fullBudget - earlyFull)
+                    .forEach { out += it.toCandidate() }
+                partial.drop(earlyPartial).take(partialReserve - earlyPartial)
+                    .forEach { out += it.toCandidate() }
+            } else {
+                full.take(fullBudget).forEach { out += it.toCandidate() }
+                partial.take(partialReserve).forEach { out += it.toCandidate() }
+            }
             if (out.size < limit) {
                 full.drop(fullBudget).forEach { ranked -> if (out.size < limit) out += ranked.toCandidate() }
                 partial.drop(partialReserve).forEach { ranked -> if (out.size < limit) out += ranked.toCandidate() }
@@ -235,6 +419,7 @@ class PinyinEngine private constructor(
         userSnapshot: Map<String, List<Entry>>,
         collector: CandidateCollector,
         shouldContinue: () -> Boolean,
+        debug: DebugOptions? = null,
     ) {
         val n = query.length
         val lnTotal = current.lnTotalFrequency
@@ -281,7 +466,17 @@ class PinyinEngine private constructor(
 
         // Word-lattice sentence candidates (full paths and partial prefixes).
         if (shouldContinue()) {
-            collectLattice(query, current, userSnapshot, collector, shouldContinue)
+            collectLattice(
+                query = query,
+                index = current,
+                userSnapshot = userSnapshot,
+                collector = collector,
+                shouldContinue = shouldContinue,
+                beamSize = debug?.beamSize ?: -1,
+                entriesPerKey = debug?.entriesPerKey ?: -1,
+                fullPathSink = debug?.fullPathSink,
+                partialPathSink = debug?.partialPathSink,
+            )
         }
 
         // Shorthand / mixed-pinyin index built from dictionary syllables.
@@ -322,8 +517,11 @@ class PinyinEngine private constructor(
      */
     private fun entryBaseScore(entry: Entry, index: Index): Double {
         val base = wordBaseScore(entry.frequency, entry.word.length, index.lnTotalFrequency)
-        val internal = index.ngramModel?.wordInternalScore(entry.word) ?: 0.0
-        return base + WORD_NGRAM_WEIGHT * internal
+        val corpusInternal = index.ngramModel?.wordInternalScore(entry.word) ?: 0.0
+        val dictionaryInternal = index.bigramModel?.wordInternalScore(entry.word) ?: 0.0
+        return base +
+            tuning.corpusWordNgramWeight * corpusInternal +
+            tuning.dictionaryWordNgramWeight * dictionaryInternal
     }
 
     /**
@@ -355,7 +553,7 @@ class PinyinEngine private constructor(
      * single-character and rare-word penalties still control over-segmentation.
      */
     private fun wordBaseScore(frequency: Long, wordLength: Int, lnTotal: Double): Double =
-        ln(frequency.toDouble() + 1.0) - (lnTotal - WORD_INSERTION_COMPENSATION) +
+        ln(frequency.toDouble() + 1.0) - (lnTotal - tuning.wordInsertionCompensation) +
             WORD_LENGTH_BONUS * (wordLength - 1).coerceAtLeast(0)
 
     private fun exactWordScore(entry: Entry, index: Index): Double {
@@ -371,8 +569,8 @@ class PinyinEngine private constructor(
         val score: Double,
         val wordCount: Int,
     ) {
-        fun text(): String {
-            if (previous == null) return word
+        fun segments(): List<String> {
+            if (previous == null) return emptyList()
             val parts = ArrayList<String>(wordCount)
             var node: PathNode? = this
             while (node != null && node.previous != null) {
@@ -380,8 +578,10 @@ class PinyinEngine private constructor(
                 node = node.previous
             }
             parts.reverse()
-            return parts.joinToString("")
+            return parts
         }
+
+        fun text(): String = segments().joinToString("")
     }
 
     /**
@@ -399,7 +599,13 @@ class PinyinEngine private constructor(
         userSnapshot: Map<String, List<Entry>>,
         collector: CandidateCollector,
         shouldContinue: () -> Boolean,
+        beamSize: Int = -1,
+        entriesPerKey: Int = -1,
+        fullPathSink: MutableList<DebugPath>? = null,
+        partialPathSink: MutableList<DebugPath>? = null,
     ) {
+        val effectiveBeam = if (beamSize > 0) beamSize else tuning.beamSize
+        val effectiveEntries = if (entriesPerKey > 0) entriesPerKey else tuning.entriesPerKey
         val n = query.length
         val buckets = Array(n + 1) { ArrayList<PathNode>() }
         buckets[0].add(PathNode("", null, 0.0, 0))
@@ -410,7 +616,17 @@ class PinyinEngine private constructor(
             val paths = buckets[position]
             if (paths.isEmpty()) continue
             if (!shouldContinue()) return
-            val beam = paths.sortedByDescending { it.score }.take(MAX_LATTICE_PATHS)
+            val candidates = if (tuning.dedupeBeamByLastWord && paths.size > effectiveBeam) {
+                val bestByWord = HashMap<String, PathNode>(paths.size)
+                paths.forEach { path ->
+                    val previous = bestByWord[path.word]
+                    if (previous == null || path.score > previous.score) bestByWord[path.word] = path
+                }
+                bestByWord.values.sortedByDescending { it.score }
+            } else {
+                paths.sortedByDescending { it.score }
+            }
+            val beam = candidates.take(effectiveBeam)
             var length = 1
             val maxLength = min(maxKeyLength, n - position)
             while (length <= maxLength) {
@@ -420,7 +636,7 @@ class PinyinEngine private constructor(
                 if (entries.isNotEmpty()) {
                     val previousWord = beam.firstOrNull()?.word ?: ""
                     val wordScoreCache = HashMap<String, Double>()
-                    for (entry in entries.take(MAX_ENTRIES_PER_KEY)) {
+                    for (entry in entries.take(effectiveEntries)) {
                         if (entry.word.isEmpty()) continue
                         val base = wordScoreCache.getOrPut(entry.word) {
                             latticeWordScore(entry, index) + index.numeralExpressionBonus(entry.word)
@@ -444,11 +660,63 @@ class PinyinEngine private constructor(
             }
         }
 
+        // Diagnostic-only: expose every full path that survived the lattice
+        // before the production candidate cap, so tests can separate "not
+        // generated" from "pruned later".
+        if (fullPathSink != null) {
+            val seenSink = HashSet<String>()
+            buckets[n].sortedByDescending { it.score }.forEach { path ->
+                if (path.wordCount == 0) return@forEach
+                if (seenSink.size >= MAX_DEBUG_FULL_PATHS) return@forEach
+                if (seenSink.add(path.text())) {
+                    fullPathSink += DebugPath(path.text(), path.segments(), path.score, path.wordCount, n)
+                }
+            }
+        }
+
+        // Partial selections first: for long input the full-candidate list can
+        // exceed its cap, and a partial prefix must not disappear just because
+        // many complete sentences exist. Their score is per-character so short
+        // and longer partials compare fairly, plus a mild coverage bonus that
+        // makes a useful first-segment prefix visible on long input.
+        if (partialPathSink != null) {
+            for (position in 1 until n) {
+                if (buckets[position].isEmpty()) continue
+                buckets[position].sortedByDescending { it.score }
+                    .take(MAX_PARTIAL_PATHS_PER_POSITION)
+                    .forEach { path ->
+                        if (path.wordCount == 0) return@forEach
+                        partialPathSink += DebugPath(
+                            path.text(), path.segments(), path.score, path.wordCount, position,
+                        )
+                    }
+            }
+        }
+        if (!shouldContinue()) return
+        for (position in 1 until n) {
+            if (buckets[position].isEmpty()) continue
+            buckets[position].sortedByDescending { it.score }
+                .take(MAX_PARTIAL_PATHS_PER_POSITION)
+                .forEach { path ->
+                    if (path.wordCount == 0) return@forEach
+                    collector.add(
+                        Ranked(
+                            word = path.text(),
+                            pinyin = query.substring(0, position),
+                            score = partialSelectionScore(path.score, position, n),
+                            consumed = position,
+                            frequency = path.wordCount.toLong(),
+                            order = 0,
+                        ),
+                    )
+                }
+        }
+
         // Complete sentence candidates.
         val seenFull = HashSet<String>()
         var emitted = 0
         buckets[n].sortedByDescending { it.score }.forEach { path ->
-            if (emitted >= MAX_FULL_CANDIDATES) return
+            if (emitted >= MAX_FULL_CANDIDATES) return@forEach
             if (path.wordCount == 0) return@forEach
             val text = path.text()
             if (!seenFull.add(text)) return@forEach
@@ -457,7 +725,7 @@ class PinyinEngine private constructor(
                 Ranked(
                     word = text,
                     pinyin = query,
-                    score = path.score + sentenceBonus,
+                    score = path.score + sentenceBonus + sentenceRerankBonus(text, path.segments(), n),
                     consumed = n,
                     frequency = path.wordCount.toLong(),
                     order = 0,
@@ -475,6 +743,11 @@ class PinyinEngine private constructor(
                 .take(MAX_PARTIAL_PATHS_PER_POSITION)
                 .forEach { path ->
                     if (path.wordCount == 0) return@forEach
+                    if (partialPathSink != null) {
+                        partialPathSink += DebugPath(
+                            path.text(), path.segments(), path.score, path.wordCount, position,
+                        )
+                    }
                     collector.add(
                         Ranked(
                             word = path.text(),
@@ -506,6 +779,52 @@ class PinyinEngine private constructor(
     }
 
     /** Generic collocation bonus between two adjacent words. */
+    /**
+     * Score of a partial selection: per-character path score plus a generic
+     * coverage bonus, because consuming more of a long typing context is more
+     * useful to the user than a very short prefix with a similar ratio.
+     */
+    private fun partialSelectionScore(pathScore: Double, position: Int, total: Int): Double {
+        val base = pathScore / position.coerceAtLeast(1)
+        if (total < tuning.partialCoverageMinInput || tuning.partialCoverageWeight == 0.0) return base
+        val coverage = position.toDouble() / total
+        val target = tuning.partialCoverageTarget.coerceAtLeast(1e-3)
+        val closeness = (1.0 - abs(coverage - target) / target).coerceAtLeast(0.0)
+        return base + tuning.partialCoverageWeight * closeness
+    }
+
+    /**
+     * Sentence-level rerank of a complete candidate: average character n-gram
+     * log probabilities over the whole text (inside words included), weighted
+     * and applied only when the tuning weight is non-zero.
+     */
+    private fun sentenceRerankBonus(text: String, segments: List<String>, queryLength: Int): Double {
+        if (text.isEmpty()) return 0.0
+        var bonus = 0.0
+        if (tuning.sentenceCorpusWeight != 0.0) {
+            val stats = index?.ngramModel?.sentenceStats(text) ?: return bonus
+            bonus += tuning.sentenceCorpusWeight * stats.trigramAvg
+        }
+        if (tuning.sentenceDictionaryWeight != 0.0) {
+            bonus += tuning.sentenceDictionaryWeight * (index?.bigramModel?.sentenceAvgScore(text) ?: 0.0)
+        }
+        if (queryLength >= tuning.longInputThreshold) {
+            if (tuning.longWordDictionaryWeight != 0.0) {
+                val model = index?.bigramModel ?: return bonus
+                bonus += tuning.longWordDictionaryWeight * segments.sumOf { model.wordInternalScore(it) }
+            }
+            if (tuning.longSentenceDictionaryWeight != 0.0) {
+                bonus += tuning.longSentenceDictionaryWeight *
+                    (index?.bigramModel?.sentenceAvgScore(text) ?: 0.0)
+            }
+            if (tuning.longSentenceCorpusWeight != 0.0) {
+                bonus += tuning.longSentenceCorpusWeight *
+                    (index?.ngramModel?.sentenceStats(text)?.trigramAvg ?: 0.0)
+            }
+        }
+        return bonus
+    }
+
     private fun boundaryBonus(index: Index, previous: String, next: String): Double {
         var bonus = 0.0
         val compoundLength = previous.length + next.length
@@ -517,7 +836,12 @@ class PinyinEngine private constructor(
         }
         val ngram = index.ngramModel
         if (ngram != null) {
-            bonus += CONTEXT_WEIGHT * ngram.contextScore(previous, next)
+            bonus += tuning.contextWeight * ngram.contextScore(
+                previous,
+                next,
+                tuning.contextGateMinBigram,
+                tuning.contextUnseenPenalty,
+            )
         } else {
             index.bigramModel?.let { bonus += BIGRAM_WEIGHT * it.score(previous.last(), next.first()) }
         }
@@ -1118,11 +1442,63 @@ class PinyinEngine private constructor(
         }
 
         /**
+         * Whole-sentence character n-gram averages, used by the full-sentence
+         * reranker and by diagnosis. Every character transition is counted,
+         * including transitions inside dictionary words, so the model judges
+         * the sentence as text rather than as a chain of word edges.
+         */
+        fun sentenceStats(text: String): DebugNgramStats {
+            if (text.isEmpty()) return DebugNgramStats(0, 0.0, 0.0, 0.0, 0.0)
+            var charSum = 0.0
+            for (char in text) charSum += charPrior(char)
+            var bigramSum = 0.0
+            var trigramSum = 0.0
+            var trigramHits = 0
+            val bigramCount = (text.length - 1).coerceAtLeast(1)
+            val trigramCount = (text.length - 2).coerceAtLeast(1)
+            for (index in 0 until text.length - 1) {
+                val first = text[index]
+                val second = text[index + 1]
+                bigramSum += ln(
+                    ((bigramCounts[bigramKey(first, second)] ?: 0L) + 0.5) /
+                        ((charCounts[first] ?: 0L).toDouble() + vocabulary),
+                )
+            }
+            for (index in 0 until text.length - 2) {
+                val first = text[index]
+                val second = text[index + 1]
+                val third = text[index + 2]
+                val trigram = trigramCounts[trigramKey(first, second, third)] ?: 0L
+                val context = bigramCounts[bigramKey(first, second)] ?: 0L
+                if (trigram >= MIN_TRIGRAM_CONTEXT) {
+                    trigramSum += ln((trigram + 0.5) / (context.toDouble() + 0.5))
+                    trigramHits++
+                } else {
+                    trigramSum += ln(
+                        (context + 0.5) / ((charCounts[first] ?: 0L).toDouble() + vocabulary),
+                    ) - NGRAM_BACKOFF_PENALTY
+                }
+            }
+            return DebugNgramStats(
+                length = text.length,
+                charAvg = charSum / text.length,
+                bigramAvg = bigramSum / bigramCount,
+                trigramAvg = trigramSum / trigramCount,
+                trigramHitRate = trigramHits.toDouble() / trigramCount,
+            )
+        }
+
+        /**
          * Log probability of seeing [nextWord] after [previousWord], backed off
          * from a character trigram (last two characters of the previous word +
          * first character of the next) to a character bigram.
          */
-        fun contextScore(previousWord: String, nextWord: String): Double {
+        fun contextScore(
+            previousWord: String,
+            nextWord: String,
+            gateMinBigram: Int = 0,
+            unseenPenalty: Double = 0.0,
+        ): Double {
             if (previousWord.isEmpty() || nextWord.isEmpty()) return 0.0
             val first = nextWord[0]
             val last = previousWord[previousWord.length - 1]
@@ -1137,6 +1513,7 @@ class PinyinEngine private constructor(
                     return ln((trigramCount + 0.5) / (contextCount.toDouble() + 0.5))
                 }
             }
+            if (gateMinBigram > 0 && bigramCount < gateMinBigram) return unseenPenalty
             return bigramScore
         }
 
@@ -1165,6 +1542,26 @@ class PinyinEngine private constructor(
             return ln((count + 0.5) / (denominator.toDouble() + vocabularySize))
         }
 
+        /** Average internal character-bigram score of a dictionary word. */
+        fun wordInternalScore(word: String): Double {
+            if (word.length < 2) return 0.0
+            var sum = 0.0
+            for (index in 0 until word.length - 1) {
+                sum += score(word[index], word[index + 1])
+            }
+            return sum / (word.length - 1)
+        }
+
+        /** Average character-bigram score across one complete sentence. */
+        fun sentenceAvgScore(text: String): Double {
+            if (text.length < 2) return 0.0
+            var sum = 0.0
+            for (index in 0 until text.length - 1) {
+                sum += score(text[index], text[index + 1])
+            }
+            return sum / (text.length - 1)
+        }
+
         companion object {
             fun bigramKey(first: Char, second: Char): Long =
                 (first.code.toLong() shl 32) or second.code.toLong()
@@ -1189,8 +1586,9 @@ class PinyinEngine private constructor(
         private const val MAX_SEGMENT_OPTIONS = 8
         private const val MAX_SEGMENT_COMBINATIONS = 512
         private const val MAX_LATTICE_KEY_LENGTH = 32
-        private const val MAX_LATTICE_PATHS = 32
-        private const val MAX_ENTRIES_PER_KEY = 4
+        private const val MAX_LATTICE_PATHS = 64
+        private const val MAX_DEBUG_FULL_PATHS = 4_000
+        private const val MAX_ENTRIES_PER_KEY = 8
         private const val MAX_FULL_CANDIDATES = 96
         private const val MAX_PARTIAL_PATHS_PER_POSITION = 4
         private const val MAX_SHORTHAND_ENTRIES = 96
@@ -1234,7 +1632,22 @@ class PinyinEngine private constructor(
         private const val CHAR_FREQ_WEIGHT = 0.8
         /** Weight of the corpus character-bigram score inside a word. */
         private const val WORD_NGRAM_WEIGHT = 0.35
+        /** Weight of the dictionary-trained character-bigram score inside a word. */
+        private const val DICTIONARY_WORD_NGRAM_WEIGHT = 0.4
+        /** Weight of a complete candidate's average corpus trigram log probability. */
+        private const val SENTENCE_CORPUS_WEIGHT = 0.0
+        /** Weight of a complete candidate's average dictionary bigram log probability. */
+        private const val SENTENCE_DICTIONARY_WEIGHT = 0.0
+        /** Coverage bonus for partial selections on long input. */
+        private const val PARTIAL_COVERAGE_WEIGHT = 4.0
+        /** Preferred share of the input covered by a first-segment partial pick. */
+        private const val PARTIAL_COVERAGE_TARGET = 0.36
+        private const val PARTIAL_COVERAGE_MIN_INPUT = 24
+        private const val PARTIAL_EARLY_SLOT_COUNT = 1
+        /** Input length above which sentence-level rerank terms may apply. */
+        private const val LONG_INPUT_THRESHOLD = 24
         private const val MIN_TRIGRAM_CONTEXT = 3L
+        private const val NGRAM_BACKOFF_PENALTY = 3.0
         private const val NUMERAL_MEASURE_BONUS = 3.0
         private const val NUMERAL_CONTINUATION_BONUS = 3.0
         private const val MIN_SINGLE_CHAR_AGGREGATE = 20_000L
@@ -1253,6 +1666,12 @@ class PinyinEngine private constructor(
             lines: Sequence<String>,
             store: UserLexiconStore? = null,
         ): PinyinEngine = PinyinEngine(buildIndex(lines), store)
+
+        /** Builds an engine with explicit tuning; used by the ablation tests. */
+        internal fun fromLinesWithTuning(
+            lines: Sequence<String>,
+            tuning: EngineTuning,
+        ): PinyinEngine = PinyinEngine(buildIndex(lines), null, tuning)
 
         /** Builds an empty engine; useful before assets are loaded. */
         fun empty(store: UserLexiconStore? = null): PinyinEngine = PinyinEngine(null, store)
