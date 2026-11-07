@@ -543,14 +543,17 @@ object KeyboardReducer {
         )
     }
 
-    private fun aiCandidatesFailed(state: KeyboardUiState, message: String): Reduction = Reduction(
-        state.copy(
-            aiCandidates = emptyList(),
-            aiCandidatesFor = "",
-            aiCandidatesLoading = false,
-            aiCandidatesError = message,
-        ),
-    )
+    private fun aiCandidatesFailed(state: KeyboardUiState, message: String): Reduction {
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
+        return Reduction(
+            state.copy(
+                aiCandidates = emptyList(),
+                aiCandidatesFor = "",
+                aiCandidatesLoading = false,
+                aiCandidatesError = message,
+            ),
+        )
+    }
 
     private fun aiCandidateTapped(state: KeyboardUiState, word: String): Reduction {
         if (word.isBlank()) return Reduction(state)
