@@ -11,10 +11,9 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,9 +36,14 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,7 +53,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,12 +64,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.bitap.keyboard.ai.RewriteTone
 import com.bitap.keyboard.core.AiPanelUiState
 import com.bitap.keyboard.core.AiStatus
+import com.bitap.keyboard.core.Candidate
 import com.bitap.keyboard.core.InputLanguage
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardLayer
@@ -184,6 +195,13 @@ private fun CandidateBar(
     onOpenSettings: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
+    var candidatesExpanded by remember { mutableStateOf(false) }
+    var candidatePage by remember { mutableIntStateOf(0) }
+    val expandedPageSize = 6
+    LaunchedEffect(state.candidates) {
+        candidatePage = 0
+        if (state.candidates.isEmpty()) candidatesExpanded = false
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier
@@ -253,6 +271,27 @@ private fun CandidateBar(
             )
         }
 
+        if (state.candidates.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable {
+                        haptic()
+                        candidatesExpanded = !candidatesExpanded
+                    }
+                    .semantics {
+                        contentDescription = if (candidatesExpanded) "收起候选列表" else "展开候选列表"
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = if (candidatesExpanded) "⌃" else "⌄",
+                    color = if (candidatesExpanded) palette.accent else palette.textSecondary,
+                    fontSize = 14.sp,
+                )
+            }
+        }
         if (state.aiEnabled) {
             val ready = state.aiReady
             Box(
@@ -291,6 +330,24 @@ private fun CandidateBar(
             Text(text = "⚙", color = palette.textSecondary, fontSize = 18.sp)
         }
     }
+        AnimatedVisibility(
+            visible = candidatesExpanded && state.candidates.isNotEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            CandidateExpandedPanel(
+                candidates = state.candidates,
+                page = candidatePage,
+                pageSize = expandedPageSize,
+                onPageChange = { candidatePage = it },
+                onCandidateClick = { index ->
+                    haptic()
+                    onAction(KeyboardAction.CandidateTapped(index))
+                },
+                haptic = haptic,
+            )
+        }
+    }
     val aiStatus = when {
         state.aiCandidatesLoading -> "AI 词库思考中…"
         !state.aiCandidatesError.isNullOrBlank() -> state.aiCandidatesError
@@ -306,6 +363,85 @@ private fun CandidateBar(
             modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
         )
     }
+}
+
+@Composable
+private fun CandidateExpandedPanel(
+    candidates: List<Candidate>,
+    page: Int,
+    pageSize: Int,
+    onPageChange: (Int) -> Unit,
+    onCandidateClick: (Int) -> Unit,
+    haptic: () -> Unit,
+) {
+    val palette = LocalBitapPalette.current
+    val pageCount = ((candidates.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+    val currentPage = page.coerceIn(0, pageCount - 1)
+    val pageStart = currentPage * pageSize
+    val pageItems = candidates.drop(pageStart).take(pageSize)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(palette.elevatedSurface)
+            .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
+            .padding(8.dp)
+            .heightIn(max = 196.dp),
+    ) {
+        pageItems.chunked(3).forEachIndexed { chunkIndex, rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                rowItems.forEachIndexed { itemIndex, candidate ->
+                    val globalIndex = pageStart + chunkIndex * 3 + itemIndex
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        CandidateChip(
+                            label = candidate.word,
+                            description = "候选词 " + candidate.word,
+                            accent = globalIndex == 0,
+                            onClick = {
+                                haptic()
+                                onCandidateClick(globalIndex)
+                            },
+                        )
+                    }
+                }
+                repeat(3 - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (candidates.size > pageSize) {
+                    "第 " + (currentPage + 1) + " / " + pageCount + " 页"
+                } else {
+                    "更多候选占位 · 本地词库已全部展示"
+                },
+                color = palette.textSecondary,
+                fontSize = 11.sp,
+                modifier = Modifier.weight(1f),
+            )
+            if (currentPage > 0) {
+                PanelTextButton(text = "上一页", onClick = {
+                    haptic()
+                    onPageChange(currentPage - 1)
+                })
+            }
+            if (currentPage < pageCount - 1) {
+                PanelTextButton(text = "下一页", onClick = {
+                    haptic()
+                    onPageChange(currentPage + 1)
+                })
+            }
+        }
     }
 }
 
@@ -535,77 +671,220 @@ private fun PanelAccentButton(text: String, enabled: Boolean, onClick: () -> Uni
     }
 }
 
+/**
+ * One logical key in a row. The row owns hit-testing; this description only
+ * carries layout weight, visual state and the action to run on a successful tap.
+ */
+private data class KeyCap(
+    val label: String,
+    val description: String,
+    val weight: Float = 1f,
+    val isFunction: Boolean = false,
+    val isActive: Boolean = false,
+    val fontSize: TextUnit = 20.sp,
+    val showPressPreview: Boolean = false,
+    val longPressRepeat: (() -> Unit)? = null,
+    val onClick: () -> Unit,
+)
+
+/** Maps an x coordinate inside [widthPx] to the nearest key by weight. */
+private fun rowKeyIndexAt(x: Float, widthPx: Float, keys: List<KeyCap>): Int {
+    if (keys.isEmpty() || widthPx <= 0f) return -1
+    val totalWeight = keys.sumOf { it.weight.toDouble() }.toFloat()
+    if (totalWeight <= 0f) return -1
+    val clamped = x.coerceIn(0f, widthPx - 0.01f)
+    var cumulative = 0f
+    keys.forEachIndexed { index, key ->
+        cumulative += (key.weight / totalWeight) * widthPx
+        if (clamped < cumulative) return index
+    }
+    return keys.lastIndex
+}
+
+/**
+ * A row is the hit-testing unit: every pixel inside it belongs to the nearest
+ * key by weight, so the 2 dp visual gaps and the 3 dp vertical padding are no
+ * longer dead zones. The visual keycap stays inset and keeps the fixed 54 dp
+ * height.
+ *
+ * Gesture contract:
+ * - pointer down selects the nearest key and shows its pressed state;
+ * - horizontal movement selects the nearest sibling under the finger (basic
+ *   slide-out / neighbour correction);
+ * - vertical movement more than 48 dp outside the row cancels the gesture;
+ * - release commits exactly one key, except after a long-press repeat fired.
+ */
+@Composable
+private fun KeyRow(
+    keys: List<KeyCap>,
+    modifier: Modifier = Modifier,
+) {
+    var pressedIndex by remember { mutableIntStateOf(-1) }
+    val currentKeys = rememberUpdatedState(keys)
+    val pointerScope = rememberCoroutineScope()
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val rowKeys = currentKeys.value
+                    val rowWidth = size.width.toFloat()
+                    var activeIndex = rowKeyIndexAt(down.position.x, rowWidth, rowKeys)
+                    if (activeIndex < 0) return@awaitEachGesture
+                    pressedIndex = activeIndex
+
+                    var repeatJob: Job? = null
+                    var repeated = false
+
+                    fun stopRepeat() {
+                        repeatJob?.cancel()
+                        repeatJob = null
+                        repeated = false
+                    }
+
+                    fun startRepeat(index: Int) {
+                        stopRepeat()
+                        val repeat = rowKeys.getOrNull(index)?.longPressRepeat ?: return
+                        repeatJob = pointerScope.launch {
+                            delay(400)
+                            repeated = true
+                            while (isActive) {
+                                repeat()
+                                delay(55)
+                            }
+                        }
+                    }
+
+                    startRepeat(activeIndex)
+
+                    var released = false
+                    var cancelled = false
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                released = true
+                                break
+                            }
+                            val outsideRow = change.position.y < -48.dp.toPx() ||
+                                change.position.y > size.height + 48.dp.toPx()
+                            if (outsideRow) {
+                                if (!cancelled) {
+                                    cancelled = true
+                                    stopRepeat()
+                                    pressedIndex = -1
+                                }
+                            } else {
+                                if (cancelled) {
+                                    cancelled = false
+                                    startRepeat(activeIndex)
+                                }
+                                val nextIndex = rowKeyIndexAt(change.position.x, rowWidth, rowKeys)
+                                if (nextIndex != activeIndex && nextIndex >= 0) {
+                                    activeIndex = nextIndex
+                                    pressedIndex = nextIndex
+                                    startRepeat(nextIndex)
+                                }
+                            }
+                            change.consume()
+                        }
+                    } finally {
+                        stopRepeat()
+                        pressedIndex = -1
+                    }
+                    if (released && !cancelled && !repeated) {
+                        rowKeys.getOrNull(activeIndex)?.onClick?.invoke()
+                    }
+                }
+            },
+    ) {
+        keys.forEachIndexed { index, key ->
+            KeyButton(
+                key = key,
+                modifier = Modifier.weight(key.weight),
+                isPressed = pressedIndex == index,
+                onPress = key.onClick,
+            )
+        }
+    }
+}
+
 @Composable
 private fun KeyButton(
-    label: String,
-    description: String,
+    key: KeyCap,
     modifier: Modifier = Modifier,
-    isFunction: Boolean = false,
-    isActive: Boolean = false,
-    fontSize: TextUnit = 20.sp,
-    onLongPressRepeat: (() -> Unit)? = null,
-    onClick: () -> Unit,
+    isPressed: Boolean,
+    onPress: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
-    val interaction = remember { MutableInteractionSource() }
-    val pointerScope = rememberCoroutineScope()
-    val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.96f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = 0.85f, stiffness = 700f),
         label = "keyScale",
     )
     val shape = RoundedCornerShape(if (palette.isGlass) 12.dp else 10.dp)
-    val background = when {
-        isActive -> palette.keyPressed
-        isFunction -> palette.functionKey
+    val restBackground = when {
+        key.isActive -> palette.keyPressed
+        key.isFunction -> palette.functionKey
         else -> palette.key
     }
-    Box(
-        modifier = modifier
-            .padding(horizontal = 2.dp, vertical = 3.dp)
-            .heightIn(min = LocalKeyboardKeyHeight.current)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .background(background)
-            .border(0.5.dp, palette.hairline, shape)
-            .then(
-                if (onLongPressRepeat == null) {
-                    Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
-                } else {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                var repeated = false
-                                val repeatJob = pointerScope.launch {
-                                    delay(400)
-                                    repeated = true
-                                    while (isActive) {
-                                        onLongPressRepeat()
-                                        delay(55)
-                                    }
-                                }
-                                tryAwaitRelease()
-                                repeatJob.cancel()
-                                if (!repeated) onClick()
-                            },
-                        )
+    Box(modifier = modifier.zIndex(if (isPressed) 2f else 0f)) {
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 2.dp, vertical = 3.dp)
+                .heightIn(min = LocalKeyboardKeyHeight.current)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clip(shape)
+                .background(if (isPressed) palette.keyPressed else restBackground)
+                .border(0.5.dp, palette.hairline, shape)
+                .semantics {
+                    contentDescription = key.description
+                    role = Role.Button
+                    onClick {
+                        onPress()
+                        true
                     }
                 },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = key.label,
+                color = if (key.isActive) palette.accent else palette.textPrimary,
+                fontSize = key.fontSize,
+                fontWeight = if (key.isFunction) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 1,
             )
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = if (isActive) palette.accent else palette.textPrimary,
-            fontSize = fontSize,
-            fontWeight = if (isFunction) FontWeight.Medium else FontWeight.Normal,
-            maxLines = 1,
-        )
+        }
+        if (isPressed && key.showPressPreview) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-52).dp)
+                    .zIndex(3f)
+                    .width(48.dp)
+                    .height(54.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(palette.elevatedSurface)
+                    .border(0.5.dp, palette.hairline, RoundedCornerShape(12.dp))
+                    .semantics { contentDescription = "按键预览 " + key.label },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = key.label,
+                    color = palette.textPrimary,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -615,65 +894,60 @@ private fun LetterLayout(
     press: (KeyboardAction) -> Unit,
 ) {
     val upper = state.shift != ShiftState.Off
+    val shiftDescription = when (state.shift) {
+        ShiftState.Off -> "切换到大写"
+        ShiftState.Shifted -> "开启大写锁定"
+        ShiftState.Locked -> "关闭大写锁定"
+    }
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
         verticalArrangement = Arrangement.spacedBy(LocalKeyboardRowGap.current),
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            QwertyRows[0].forEach { letter ->
-                KeyButton(
-                    label = if (upper) letter.uppercase() else letter,
-                    description = "字母 " + letter.uppercase(),
-                    modifier = Modifier.weight(1f),
-                    onClick = { press(KeyboardAction.AppendInput(letter)) },
+        KeyRow(keys = QwertyRows[0].map { letter -> letterKey(letter, upper, press) })
+        KeyRow(
+            keys = QwertyRows[1].map { letter -> letterKey(letter, upper, press) },
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        KeyRow(
+            keys = buildList {
+                add(
+                    KeyCap(
+                        label = if (state.shift == ShiftState.Locked) "⇪" else "⇧",
+                        description = shiftDescription,
+                        weight = 1.5f,
+                        isFunction = true,
+                        isActive = state.shift != ShiftState.Off,
+                        fontSize = 18.sp,
+                        onClick = { press(KeyboardAction.ShiftTapped(System.currentTimeMillis())) },
+                    ),
                 )
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            QwertyRows[1].forEach { letter ->
-                KeyButton(
-                    label = if (upper) letter.uppercase() else letter,
-                    description = "字母 " + letter.uppercase(),
-                    modifier = Modifier.weight(1f),
-                    onClick = { press(KeyboardAction.AppendInput(letter)) },
+                QwertyRows[2].forEach { letter -> add(letterKey(letter, upper, press)) }
+                add(
+                    KeyCap(
+                        label = "⌫",
+                        description = "删除",
+                        weight = 1.5f,
+                        isFunction = true,
+                        fontSize = 20.sp,
+                        longPressRepeat = { press(KeyboardAction.Backspace) },
+                        onClick = { press(KeyboardAction.Backspace) },
+                    ),
                 )
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth()) {
-            val shiftDescription = when (state.shift) {
-                ShiftState.Off -> "切换到大写"
-                ShiftState.Shifted -> "开启大写锁定"
-                ShiftState.Locked -> "关闭大写锁定"
-            }
-            KeyButton(
-                label = if (state.shift == ShiftState.Locked) "⇪" else "⇧",
-                description = shiftDescription,
-                modifier = Modifier.weight(1.5f),
-                isFunction = true,
-                isActive = state.shift != ShiftState.Off,
-                fontSize = 18.sp,
-                onClick = { press(KeyboardAction.ShiftTapped(System.currentTimeMillis())) },
-            )
-            QwertyRows[2].forEach { letter ->
-                KeyButton(
-                    label = if (upper) letter.uppercase() else letter,
-                    description = "字母 " + letter.uppercase(),
-                    modifier = Modifier.weight(1f),
-                    onClick = { press(KeyboardAction.AppendInput(letter)) },
-                )
-            }
-            KeyButton(
-                label = "⌫",
-                description = "删除",
-                modifier = Modifier.weight(1.5f),
-                isFunction = true,
-                fontSize = 20.sp,
-                onLongPressRepeat = { press(KeyboardAction.Backspace) },
-                onClick = { press(KeyboardAction.Backspace) },
-            )
-        }
+            },
+        )
     }
 }
+
+private fun letterKey(
+    letter: String,
+    upper: Boolean,
+    press: (KeyboardAction) -> Unit,
+): KeyCap = KeyCap(
+    label = if (upper) letter.uppercase() else letter,
+    description = "字母 " + letter.uppercase(),
+    showPressPreview = true,
+    onClick = { press(KeyboardAction.AppendInput(letter)) },
+)
 
 @Composable
 private fun SymbolLayout(
@@ -689,50 +963,53 @@ private fun SymbolLayout(
         verticalArrangement = Arrangement.spacedBy(LocalKeyboardRowGap.current),
     ) {
         rows.forEachIndexed { index, row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (index == 1) 6.dp else 0.dp),
-            ) {
-                row.forEach { symbol ->
-                    KeyButton(
+            KeyRow(
+                keys = row.map { symbol ->
+                    KeyCap(
                         label = symbol,
                         description = "符号 " + symbol,
-                        modifier = Modifier.weight(1f),
                         fontSize = 18.sp,
                         onClick = { press(KeyboardAction.AppendInput(symbol)) },
                     )
-                }
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth()) {
-            KeyButton(
-                label = switchLabel,
-                description = switchDescription,
-                modifier = Modifier.weight(1.4f),
-                isFunction = true,
-                fontSize = 14.sp,
-                onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
+                },
+                modifier = Modifier.padding(horizontal = if (index == 1) 6.dp else 0.dp),
             )
-            bottomRow.forEach { symbol ->
-                KeyButton(
-                    label = symbol,
-                    description = "符号 " + symbol,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 18.sp,
-                    onClick = { press(KeyboardAction.AppendInput(symbol)) },
+        }
+        KeyRow(
+            keys = buildList {
+                add(
+                    KeyCap(
+                        label = switchLabel,
+                        description = switchDescription,
+                        weight = 1.4f,
+                        isFunction = true,
+                        fontSize = 14.sp,
+                        onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
+                    ),
                 )
-            }
-            KeyButton(
-                label = "⌫",
-                description = "删除",
-                modifier = Modifier.weight(1.4f),
-                isFunction = true,
-                fontSize = 20.sp,
-                onLongPressRepeat = { press(KeyboardAction.Backspace) },
-                onClick = { press(KeyboardAction.Backspace) },
-            )
-        }
+                bottomRow.forEach { symbol ->
+                    add(
+                        KeyCap(
+                            label = symbol,
+                            description = "符号 " + symbol,
+                            fontSize = 18.sp,
+                            onClick = { press(KeyboardAction.AppendInput(symbol)) },
+                        ),
+                    )
+                }
+                add(
+                    KeyCap(
+                        label = "⌫",
+                        description = "删除",
+                        weight = 1.4f,
+                        isFunction = true,
+                        fontSize = 20.sp,
+                        longPressRepeat = { press(KeyboardAction.Backspace) },
+                        onClick = { press(KeyboardAction.Backspace) },
+                    ),
+                )
+            },
+        )
     }
 }
 
@@ -751,54 +1028,57 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
     }
     val comma = if (chinese) "，" else ","
     val period = if (chinese) "。" else "."
-    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 1.dp)) {
-        KeyButton(
-            label = layerLabel,
-            description = if (state.layer == KeyboardLayer.Symbols) "切换到字母键盘" else "切换到符号键盘",
-            modifier = Modifier.weight(1.1f),
-            isFunction = true,
-            fontSize = 14.sp,
-            onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
-        )
-        KeyButton(
-            label = "中/英",
-            description = "切换中英文",
-            modifier = Modifier.weight(1f),
-            isFunction = true,
-            fontSize = 12.sp,
-            onClick = { press(KeyboardAction.ToggleLanguage) },
-        )
-        KeyButton(
-            label = comma,
-            description = "逗号",
-            modifier = Modifier.weight(0.9f),
-            fontSize = 18.sp,
-            onClick = { press(KeyboardAction.AppendInput(comma)) },
-        )
-        KeyButton(
-            label = "空格",
-            description = "空格",
-            modifier = Modifier.weight(4.4f),
-            isFunction = true,
-            fontSize = 14.sp,
-            onClick = { press(KeyboardAction.Space) },
-        )
-        KeyButton(
-            label = period,
-            description = "句号",
-            modifier = Modifier.weight(0.9f),
-            fontSize = 18.sp,
-            onClick = { press(KeyboardAction.AppendInput(period)) },
-        )
-        KeyButton(
-            label = "↵",
-            description = "回车",
-            modifier = Modifier.weight(1.2f),
-            isFunction = true,
-            fontSize = 20.sp,
-            onClick = { press(KeyboardAction.Enter) },
-        )
-    }
+    KeyRow(
+        keys = listOf(
+            KeyCap(
+                label = layerLabel,
+                description = if (state.layer == KeyboardLayer.Symbols) "切换到字母键盘" else "切换到符号键盘",
+                weight = 1.1f,
+                isFunction = true,
+                fontSize = 14.sp,
+                onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
+            ),
+            KeyCap(
+                label = "中/英",
+                description = "切换中英文",
+                weight = 1f,
+                isFunction = true,
+                fontSize = 12.sp,
+                onClick = { press(KeyboardAction.ToggleLanguage) },
+            ),
+            KeyCap(
+                label = comma,
+                description = "逗号",
+                weight = 0.9f,
+                fontSize = 18.sp,
+                onClick = { press(KeyboardAction.AppendInput(comma)) },
+            ),
+            KeyCap(
+                label = "空格",
+                description = "空格",
+                weight = 4.4f,
+                isFunction = true,
+                fontSize = 14.sp,
+                onClick = { press(KeyboardAction.Space) },
+            ),
+            KeyCap(
+                label = period,
+                description = "句号",
+                weight = 0.9f,
+                fontSize = 18.sp,
+                onClick = { press(KeyboardAction.AppendInput(period)) },
+            ),
+            KeyCap(
+                label = "↵",
+                description = "回车",
+                weight = 1.2f,
+                isFunction = true,
+                fontSize = 20.sp,
+                onClick = { press(KeyboardAction.Enter) },
+            ),
+        ),
+        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
+    )
 }
 
 private val QwertyRows: List<List<String>> = listOf(
