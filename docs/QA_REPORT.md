@@ -1,6 +1,8 @@
 # Bitap 0.1 QA 验收报告
 
-版本：0.1 ｜ 负责人：qa-dev ｜ 日期：2026-11-06 ｜ 任务：task-5（T4 构建验收、测试与 QA 报告）
+版本：0.1 ｜ 负责人：qa-dev ｜ 最终更新：2026-11-07（task-35 / S09） ｜ 原始任务：task-5（T4 构建验收、测试与 QA 报告）
+
+> **最终状态（2026-11-07，task-35 S09 更新）**：源码 HEAD `57aba07`（S01–S08 已完成）；最终 demo APK `dist/bitap-0.1.0-demo.apk` 为 **27,625,815 bytes，SHA-256 `33DC1AE2E40B74D58AC932DE6D9EBBF39341F7C74EC71F73EB6397A23EEC8665`（2026-11-07 14:46）**；`:app:testDebugUnitTest` **260 tests / 0 failures / 0 errors / 0 skipped**（新增 `QaS09CrossModuleRegressionTest` 14 tests）。真机设备 `22021211RC` / Android 16 已可用，A6/A8/S09 真机记录见 [QA_DEVICE_SMOKE.md](QA_DEVICE_SMOKE.md) 与 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。**下方 §2.1–§4 的 213 tests、无设备/BLOCKED 与旧 APK 数字是 2026-11-06 历史快照，不代表最终状态。**
 
 > 2026-11-06 23:26 起用户在真机 `22021211RC` 上关闭安全锁屏，Lead 已补做 Via 浏览器真机冒烟测试，结果见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。本文 §2.7 保留首轮“锁屏导致 BLOCKED”快照，最终真机结论以 DEVICE_TEST_REPORT 为准。
 
@@ -28,7 +30,9 @@
 
 ## 2. 必跑命令与结果
 
-### 2.1 单元测试
+### 2.1 单元测试（2026-11-06 历史快照）
+
+> 以下是 task-5 时点的 213 tests 记录；最终 260 tests / 0 failures 见顶部“最终状态”。
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest --console=plain
@@ -205,7 +209,9 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 
 ---
 
-## 4. 验收矩阵 A1–A12
+## 4. 验收矩阵 A1–A12（2026-11-06 历史快照）
+
+> 本节“无设备/BLOCKED”是 task-5 当时的状态；2026-11-07 真机已可用，A6/A8/S09 的实际真机结果见 [QA_DEVICE_SMOKE.md](QA_DEVICE_SMOKE.md)，S07 见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md) §8。以下内容不删除，作为历史记录。
 
 > 图例：**PASS** = 已实际执行并通过；**BLOCKED** = 本机无设备/无模型，无法执行，不伪造通过；**静态审查** = 只完成代码/产物层检查，不等同于运行时通过。
 
@@ -299,7 +305,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ```powershell
 cd D:\Projects\Github\Bitap
 
-# 1) 单元测试（期望 213 tests / 0 failures）
+# 1) 单元测试（最终期望 260 tests / 0 failures；2026-11-06 快照为 213）
 .\gradlew.bat :app:testDebugUnitTest --console=plain
 
 # 2) Lint（期望 0 errors / 14 warnings）
@@ -318,4 +324,4 @@ APK：`app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-*报告生成：qa-dev，2026-11-06（最终版，含 A12 修复后的全量复验）。所有数字取自本机实际命令输出与 JUnit XML 统计；无设备项已明确标记 BLOCKED。*
+*报告生成：qa-dev，2026-11-06；最终更新 2026-11-07（task-35 S09）。所有数字取自本机实际命令输出与 JUnit XML 统计；历史无设备项已标记 BLOCKED，最终真机结果见 QA_DEVICE_SMOKE.md。*

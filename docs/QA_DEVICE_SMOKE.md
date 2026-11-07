@@ -1,6 +1,6 @@
 # Bitap 0.1 A6 最终真机冒烟与截图验收
 
-日期：2026-11-07 12:45–13:00（Asia/Shanghai）｜负责人：qa-dev｜任务：task-11
+日期：2026-11-07 12:45–13:00（Asia/Shanghai），最终更新 2026-11-07 16:40（task-35）｜负责人：qa-dev｜任务：task-11 / task-13 / task-35
 
 > 本报告只记录实际执行过的操作与观察结果。自动化点击和截图已保留在 `docs/evidence/`。未完成验证的项目明确标记 PARTIAL / GAP，不写成 PASS。
 
@@ -118,3 +118,22 @@ Caused by: java.lang.ClassNotFoundException: Didn't find class
 ---
 
 *qa-dev，2026-11-07。所有结论来自 adb 自动化点击/截图与 logcat；未验证项已按要求标记 PARTIAL/GAP。A8 证据文件：`docs/evidence/bitap-a8-*.png`。*
+
+## 7. 最终 APK 与 S09 复验（2026-11-07，task-35）
+
+最终 APK：dist/bitap-0.1.0-demo.apk，27,625,815 bytes，SHA-256 33DC1AE2E40B74D58AC932DE6D9EBBF39341F7C74EC71F73EB6397A23EEC8665（2026-11-07 14:46）。
+源码：HEAD 57aba07（S01–S08 已完成）。
+设备：22021211RC / Android 16 / API 36，默认输入法 Bitap。
+
+| # | 场景 | 操作 | 结果 | 证据 |
+| --- | --- | --- | --- | --- |
+| S09-1 | 小屏 | wm size 720x1600、wm density 320 后打开 Via 键盘 | PASS：键盘完整显示，候选条/字母行/功能行未被裁切 | [截图](evidence/bitap-s09-small-screen.png) |
+| S09-2 | 横屏 | 转屏 90° 后打开 Via 键盘（2400×1080） | PARTIAL/GAP：键盘可显示且按键完整，但键盘占满几乎全部高度，编辑区几乎不可见；不作为可用性 PASS | [截图](evidence/bitap-s09-landscape.png) |
+| S09-3 | 大字体 1.3× | font_scale 1.3 后打开 Via 键盘 | PASS：候选条与按键文字放大后仍可读、无裁切 | [截图](evidence/bitap-s09-large-font.png) |
+| S09-4 | 长句 | JVM：真实词库 jintiantianqihenhao | PASS（JVM）：QaS09CrossModuleRegressionTest.s09_longSentenceCandidateCommitsAsOneWholeText 断言实际编辑框文本为「今天天气很好」；未在真机重复输入长句 | — |
+
+设备测试后已恢复默认 wm size / density / font_scale=1.0 / 竖屏。S01–S08 的跨模块 JVM 断言（实际编辑框文本/状态）见 QaS09CrossModuleRegressionTest：S01 切层、S02 pending 队列、S03 partial 标点、S04 清除运行引擎、S05 真实词库部分候选、S06 pending 学习、S07 AI 原文替换、S08 signed+decimal。
+
+---
+
+*qa-dev，2026-11-07（task-35 最终更新）。A6/A8 的截图对应早期 APK（955b/508f）并在各节注明；最终 APK 的 S09 复验见本节和 QA_REPORT 顶部最终状态。未验证项已按要求标记 PARTIAL/GAP。S09 证据：docs/evidence/bitap-s09-*.png。*
