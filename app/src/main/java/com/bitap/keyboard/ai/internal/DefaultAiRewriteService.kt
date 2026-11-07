@@ -228,9 +228,8 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     ) {
         try {
             if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
-            val system = "你是 Bitap 输入法的本地中文词库引擎。根据拼音和上下文，按可能性从高到低输出最多 5 个中文候选词或短语，每行一个。不要解释、不要编号、不要使用 Markdown、不要输出标点。"
-            val user = "拼音：$pinyin\n上文：${context.ifBlank { "（无）" }}\n只输出候选词，每行一个。"
-            engine.rewrite(modelPath, system, user).collect { event ->
+            val prompt = AiLexiconPromptBuilder.build(pinyin, context)
+            engine.rewrite(modelPath, prompt.system, prompt.user).collect { event ->
                 when (event) {
                     is AiEvent.Started -> {
                         _runtimeState.value = AiRuntimeState.Busy
@@ -238,8 +237,13 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
                     }
                     is AiEvent.Delta -> output.send(event)
                     is AiEvent.Completed -> {
+                        val candidates = AiCandidateParser.parse(event.text)
                         _runtimeState.value = AiRuntimeState.Ready
-                        output.send(event)
+                        if (candidates.isEmpty()) {
+                            output.send(AiEvent.Failed(AI_LEXICON_EMPTY_MESSAGE))
+                        } else {
+                            output.send(AiEvent.Completed(AiCandidateParser.format(candidates)))
+                        }
                     }
                     is AiEvent.Failed -> {
                         _runtimeState.value = AiRuntimeState.Error
@@ -270,6 +274,10 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         }
         job?.cancel()
         engine.cancel()
+    }
+
+    private companion object {
+        const val AI_LEXICON_EMPTY_MESSAGE = "AI 词库没有返回候选"
     }
 
     private fun failureMessage(reason: AiResultSanitizer.FailureReason): String = when (reason) {
