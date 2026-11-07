@@ -5,6 +5,89 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 
+/**
+ * Bounded Unicode grapheme-cluster boundary handling for editor deletion.
+ *
+ * Android's [InputConnection.deleteSurroundingText] counts UTF-16 code units,
+ * not user-visible characters. This helper keeps one backspace from splitting
+ * surrogate pairs, ZWJ emoji, skin-tone modifiers, regional-indicator flags,
+ * variation selectors and combining marks.
+ */
+internal object UnicodeGrapheme {
+    private const val ZWJ = 0x200D
+    private const val VARIATION_SELECTOR_START = 0xFE00
+    private const val VARIATION_SELECTOR_END = 0xFE0F
+    private const val VARIATION_SELECTOR_SUPPLEMENT_START = 0xE0100
+    private const val VARIATION_SELECTOR_SUPPLEMENT_END = 0xE01EF
+    private const val EMOJI_MODIFIER_START = 0x1F3FB
+    private const val EMOJI_MODIFIER_END = 0x1F3FF
+    private const val REGIONAL_INDICATOR_START = 0x1F1E6
+    private const val REGIONAL_INDICATOR_END = 0x1F1FF
+    private const val TAG_START = 0xE0020
+    private const val TAG_END = 0xE007E
+    private const val TAG_CANCEL = 0xE007F
+
+    /** UTF-16 length of the last user-visible character in [text]. */
+    fun lastGraphemeLength(text: String): Int {
+        if (text.isEmpty()) return 0
+        val codePoints = toCodePoints(text)
+        var start = codePoints.size - 1
+        while (start > 0 && joins(codePoints, start - 1, start)) {
+            start--
+        }
+        return text.length - text.offsetByCodePoints(0, start)
+    }
+
+    /** Returns [text] with its last user-visible character removed. */
+    fun dropLastGrapheme(text: String): String {
+        val length = lastGraphemeLength(text)
+        return if (length <= 0) text else text.dropLast(length)
+    }
+
+    private fun toCodePoints(text: String): IntArray {
+        val out = IntArray(text.length)
+        var count = 0
+        var index = 0
+        while (index < text.length) {
+            val codePoint = text.codePointAt(index)
+            out[count++] = codePoint
+            index += Character.charCount(codePoint)
+        }
+        return out.copyOf(count)
+    }
+
+    private fun joins(codePoints: IntArray, previous: Int, current: Int): Boolean {
+        val prev = codePoints[previous]
+        val curr = codePoints[current]
+        if (prev == ZWJ || curr == ZWJ) return true
+        if (isExtend(curr)) return true
+        if (isRegionalIndicator(curr) && isRegionalIndicator(prev)) {
+            var runLength = 0
+            var index = current
+            while (index >= 0 && isRegionalIndicator(codePoints[index])) {
+                runLength++
+                index--
+            }
+            return runLength % 2 == 0
+        }
+        return false
+    }
+
+    private fun isExtend(codePoint: Int): Boolean {
+        if (codePoint in VARIATION_SELECTOR_START..VARIATION_SELECTOR_END) return true
+        if (codePoint in VARIATION_SELECTOR_SUPPLEMENT_START..VARIATION_SELECTOR_SUPPLEMENT_END) return true
+        if (codePoint in EMOJI_MODIFIER_START..EMOJI_MODIFIER_END) return true
+        if (codePoint in TAG_START..TAG_END || codePoint == TAG_CANCEL) return true
+        val type = Character.getType(codePoint)
+        return type == Character.NON_SPACING_MARK.toInt() ||
+            type == Character.COMBINING_SPACING_MARK.toInt() ||
+            type == Character.ENCLOSING_MARK.toInt()
+    }
+
+    private fun isRegionalIndicator(codePoint: Int): Boolean =
+        codePoint in REGIONAL_INDICATOR_START..REGIONAL_INDICATOR_END
+}
+
 /** Snapshot of the editor content around the cursor. */
 data class EditorTextSnapshot(
     val selected: String?,
@@ -78,8 +161,10 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
             input.commitText("", 1)
             return
         }
-        val before = input.getTextBeforeCursor(2, 0)?.toString().orEmpty()
-        val deleteCount = if (before.length >= 2 && Character.isSurrogatePair(before[0], before[1])) 2 else 1
+        // Read a bounded suffix only; grapheme segmentation below never scans
+        // the whole editor. 64 UTF-16 units cover even long ZWJ/tag sequences.
+        val before = input.getTextBeforeCursor(64, 0)?.toString().orEmpty()
+        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before).coerceAtLeast(if (before.isEmpty()) 1 else 0)
         input.deleteSurroundingText(deleteCount, 0)
     }
 
