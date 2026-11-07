@@ -102,7 +102,7 @@ class PinyinEngineTest {
                 "wo\t我\t300",
                 "ai\t爱\t200",
                 "ha\t哈\t50",
-                "woaiha\t窝爱哈\t100",
+                "woaiha\t窝爱哈\t5",
             ),
         )
         val before = engine.search("woaiha")

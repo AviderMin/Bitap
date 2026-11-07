@@ -258,6 +258,8 @@ data class Candidate(
     val pinyin: String = "",
     val frequency: Long = 0L,
     val consumedInputLength: Int = 0,
+    /** True for a lightweight typo-correction candidate; the UI marks it as 纠错. */
+    val isCorrection: Boolean = false,
 )
 
 /** AI panel lifecycle inside the keyboard. */

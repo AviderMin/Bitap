@@ -91,6 +91,17 @@ private val KeyboardDockShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24
 private val LocalKeyboardKeyHeight = staticCompositionLocalOf { 54.dp }
 private val LocalKeyboardRowGap = staticCompositionLocalOf { 0.dp }
 
+/**
+ * Pure layout policy for the expanded candidate panel.
+ *
+ * Compact (landscape/tiny window) must render the panel as a floating overlay so
+ * it never contributes to the keyboard Column height; portrait keeps the inline
+ * expanding panel. Extracted as pure functions so the policy is JVM-testable.
+ */
+internal fun usesCandidatePanelOverlay(compact: Boolean): Boolean = compact
+
+internal fun candidatePanelMaxHeightDp(compact: Boolean): Int = if (compact) 120 else 220
+
 @Composable
 fun KeyboardScreen(
     state: KeyboardUiState,
@@ -101,6 +112,10 @@ fun KeyboardScreen(
     val palette = LocalBitapPalette.current
     val view = LocalView.current
     val configuration = LocalConfiguration.current
+    // Candidate panel state is hoisted here so compact (landscape) mode can
+    // render the expanded panel as an overlay instead of adding keyboard height.
+    var candidatesExpanded by remember { mutableStateOf(false) }
+    var candidatePage by remember { mutableIntStateOf(0) }
     // T06: in landscape/tiny windows the classic 54 dp rows + candidate strips
     // cover the editor. Compact mode keeps the row hit target at 48 dp
     // (42 dp keycap + 6 dp vertical padding) while reducing paddings, removing
@@ -133,7 +148,7 @@ fun KeyboardScreen(
         LocalKeyboardKeyHeight provides keyHeight,
         LocalKeyboardRowGap provides rowGap,
     ) {
-        Column(
+        Box(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(KeyboardDockShape)
@@ -151,6 +166,9 @@ fun KeyboardScreen(
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = if (compact) 2.dp else 5.dp, bottom = if (compact) 2.dp else 4.dp + bottomLift),
+        ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(rowGap),
         ) {
             if (!compact) {
@@ -177,6 +195,10 @@ fun KeyboardScreen(
                 haptic = haptic,
                 onOpenSettings = onOpenSettings,
                 compact = compact,
+                candidatesExpanded = candidatesExpanded,
+                onCandidatesExpandedChange = { candidatesExpanded = it },
+                candidatePage = candidatePage,
+                onCandidatePageChange = { candidatePage = it },
             )
             when (state.layer) {
                 KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
@@ -204,6 +226,25 @@ fun KeyboardScreen(
             }
             FunctionRow(state = state, press = press)
         }
+        // P0 landscape fix: the expanded panel is an overlay anchored above the
+        // fixed bottom function row. It never adds layout height, so the key area
+        // and the bottom row stay on screen and the IME window does not resize.
+        if (usesCandidatePanelOverlay(compact)) {
+            CandidatePanelOverlay(
+                state = state,
+                expanded = candidatesExpanded,
+                page = candidatePage,
+                onPageChange = { candidatePage = it },
+                onCandidateClick = { index ->
+                    haptic()
+                    onAction(KeyboardAction.CandidateTapped(index))
+                },
+                onDismiss = { candidatesExpanded = false },
+                haptic = haptic,
+                modifier = Modifier.align(Alignment.BottomCenter).zIndex(10f),
+            )
+        }
+        }
     }
 }
 
@@ -214,23 +255,25 @@ private fun CandidateBar(
     haptic: () -> Unit,
     onOpenSettings: () -> Unit,
     compact: Boolean = false,
+    candidatesExpanded: Boolean = false,
+    onCandidatesExpandedChange: (Boolean) -> Unit = {},
+    candidatePage: Int = 0,
+    onCandidatePageChange: (Int) -> Unit = {},
 ) {
     val palette = LocalBitapPalette.current
     val candidateScrollState = rememberScrollState()
-    var candidatesExpanded by remember { mutableStateOf(false) }
-    var candidatePage by remember { mutableIntStateOf(0) }
     val expandedPageSize = if (compact) 3 else 6
     val candidateVersion = state.candidates.firstOrNull()?.word
     // R11: a new composition/result set starts at the first candidate instead of
     // leaving the previous scroll position at the end of the old result list.
     LaunchedEffect(state.composing, state.candidatesFor, candidateVersion, state.candidates.size) {
-        candidatePage = 0
+        onCandidatePageChange(0)
         candidateScrollState.scrollTo(0)
-        if (state.candidates.isEmpty()) candidatesExpanded = false
+        if (state.candidates.isEmpty()) onCandidatesExpandedChange(false)
     }
     // Collapse the expanded candidate page whenever the composition changes.
     LaunchedEffect(state.composing) {
-        candidatesExpanded = false
+        onCandidatesExpandedChange(false)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
     if (!compact && state.composing.isNotEmpty()) {
@@ -312,8 +355,13 @@ private fun CandidateBar(
                     state.candidates.forEachIndexed { index, candidate ->
                         CandidateChip(
                             label = candidate.word,
-                            description = "候选词 " + candidate.word,
+                            description = if (candidate.isCorrection) {
+                                "纠错候选 " + candidate.word
+                            } else {
+                                "候选词 " + candidate.word
+                            },
                             accent = index == 0,
+                            isCorrection = candidate.isCorrection,
                             onClick = {
                                 haptic()
                                 onAction(KeyboardAction.CandidateTapped(index))
@@ -353,7 +401,7 @@ private fun CandidateBar(
                     .clip(RoundedCornerShape(999.dp))
                     .clickable {
                         haptic()
-                        candidatesExpanded = !candidatesExpanded
+                        onCandidatesExpandedChange(!candidatesExpanded)
                     }
                     .semantics {
                         contentDescription = if (candidatesExpanded) "收起候选列表" else "展开候选列表"
@@ -369,24 +417,32 @@ private fun CandidateBar(
         }
         if (state.aiEnabled) {
             val ready = state.aiReady
+            val aiLoading = state.aiCandidatesLoading
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .alpha(if (ready) 1f else 0.45f)
+                    .alpha(if (ready || aiLoading) 1f else 0.45f)
                     .clip(RoundedCornerShape(999.dp))
                     .clickable {
                         haptic()
-                        onAction(KeyboardAction.RequestAiCandidates)
+                        // P0: while loading the same entry is an explicit cancel.
+                        onAction(
+                            if (aiLoading) KeyboardAction.AiCancel else KeyboardAction.RequestAiCandidates,
+                        )
                     }
                     .semantics {
-                        contentDescription = if (ready) "AI 词库候选" else "AI 词库未就绪，点击查看提示"
+                        contentDescription = when {
+                            aiLoading -> "取消 AI 词库请求"
+                            ready -> "AI 词库候选"
+                            else -> "AI 词库未就绪，点击查看提示"
+                        }
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (state.aiCandidatesLoading) "…" else "✦ AI",
-                    color = if (ready) palette.accent else palette.textSecondary,
-                    fontSize = 12.sp,
+                    text = if (aiLoading) "取消 AI" else "✦ AI",
+                    color = if (ready || aiLoading) palette.accent else palette.textSecondary,
+                    fontSize = if (aiLoading) 10.sp else 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -405,23 +461,28 @@ private fun CandidateBar(
             Text(text = "⚙", color = palette.textSecondary, fontSize = 18.sp)
         }
     }
-        AnimatedVisibility(
-            visible = candidatesExpanded && state.candidates.isNotEmpty(),
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
-            CandidateExpandedPanel(
-                candidates = state.candidates,
-                page = candidatePage,
-                pageSize = expandedPageSize,
-                compact = compact,
-                onPageChange = { candidatePage = it },
-                onCandidateClick = { index ->
-                    haptic()
-                    onAction(KeyboardAction.CandidateTapped(index))
-                },
-                haptic = haptic,
-            )
+        // Portrait keeps the inline panel. Compact (landscape) renders the same
+        // panel as a fixed-height overlay in KeyboardScreen so it can never push
+        // the key rows or the bottom function row off screen.
+        if (!compact) {
+            AnimatedVisibility(
+                visible = candidatesExpanded && state.candidates.isNotEmpty(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                CandidateExpandedPanel(
+                    candidates = state.candidates,
+                    page = candidatePage,
+                    pageSize = expandedPageSize,
+                    compact = compact,
+                    onPageChange = onCandidatePageChange,
+                    onCandidateClick = { index ->
+                        haptic()
+                        onAction(KeyboardAction.CandidateTapped(index))
+                    },
+                    haptic = haptic,
+                )
+            }
         }
     }
     val aiStatus = when {
@@ -450,6 +511,8 @@ private fun CandidateExpandedPanel(
     onPageChange: (Int) -> Unit,
     onCandidateClick: (Int) -> Unit,
     haptic: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
     val palette = LocalBitapPalette.current
     val pageCount = ((candidates.size + pageSize - 1) / pageSize).coerceAtLeast(1)
@@ -458,14 +521,17 @@ private fun CandidateExpandedPanel(
     val pageItems = candidates.drop(pageStart).take(pageSize)
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(palette.elevatedSurface)
             .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
+            // In compact mode this panel floats over the keys; consume blank-area
+            // taps so they cannot leak to the key row underneath.
+            .then(if (compact) Modifier.clickable { } else Modifier)
             .padding(8.dp)
-            .heightIn(max = if (compact) 120.dp else 220.dp)
+            .heightIn(max = candidatePanelMaxHeightDp(compact).dp)
             .verticalScroll(rememberScrollState()),
     ) {
         pageItems.forEachIndexed { itemIndex, candidate ->
@@ -479,9 +545,14 @@ private fun CandidateExpandedPanel(
                 CandidateChip(
                     modifier = Modifier.fillMaxWidth(),
                     label = candidate.word,
-                    description = "候选词 " + candidate.word,
+                    description = if (candidate.isCorrection) {
+                        "纠错候选 " + candidate.word
+                    } else {
+                        "候选词 " + candidate.word
+                    },
                     accent = globalIndex == 0,
                     maxLines = 3,
+                    isCorrection = candidate.isCorrection,
                     onClick = {
                         haptic()
                         onCandidateClick(globalIndex)
@@ -515,7 +586,51 @@ private fun CandidateExpandedPanel(
                     onPageChange(currentPage + 1)
                 })
             }
+            if (onDismiss != null) {
+                PanelTextButton(text = "收起候选", onClick = {
+                    haptic()
+                    onDismiss()
+                })
+            }
         }
+    }
+}
+
+/**
+ * P0 landscape overlay: fixed-height, scrollable candidate panel drawn above the
+ * key area but below the candidate bar and above the bottom function row. Because
+ * it is a Box sibling (not a Column child) it cannot change the IME window height.
+ */
+@Composable
+private fun CandidatePanelOverlay(
+    state: KeyboardUiState,
+    expanded: Boolean,
+    page: Int,
+    onPageChange: (Int) -> Unit,
+    onCandidateClick: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    haptic: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = expanded && state.candidates.isNotEmpty(),
+        modifier = modifier,
+        enter = fadeIn(),
+        exit = fadeOut(),
+    ) {
+        CandidateExpandedPanel(
+            candidates = state.candidates,
+            page = page,
+            pageSize = 3,
+            compact = true,
+            onPageChange = onPageChange,
+            onCandidateClick = onCandidateClick,
+            haptic = haptic,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, bottom = 50.dp),
+            onDismiss = onDismiss,
+        )
     }
 }
 
@@ -626,6 +741,7 @@ private fun CandidateChip(
     description: String,
     accent: Boolean,
     maxLines: Int = 1,
+    isCorrection: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
@@ -638,14 +754,24 @@ private fun CandidateChip(
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            color = if (accent) palette.accent else palette.textPrimary,
-            fontSize = 18.sp,
-            fontWeight = if (accent) FontWeight.Medium else FontWeight.Normal,
-            maxLines = maxLines,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = label,
+                color = if (accent) palette.accent else palette.textPrimary,
+                fontSize = 18.sp,
+                fontWeight = if (accent) FontWeight.Medium else FontWeight.Normal,
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (isCorrection) {
+                Text(
+                    text = "纠错",
+                    color = palette.textSecondary,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

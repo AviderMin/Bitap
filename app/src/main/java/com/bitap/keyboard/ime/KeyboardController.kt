@@ -73,6 +73,13 @@ class KeyboardController(
             handleRawAiCandidateTap(action.word)
             return
         }
+        // P0: while an AI lexicon request is loading, tapping the ✦ AI entry again
+        // means "cancel". It must never restart the request or let the old result
+        // land after the user asked to stop.
+        if (action is KeyboardAction.RequestAiCandidates && _state.value.aiCandidatesLoading) {
+            cancelAi()
+            return
+        }
         val canReadContext = _state.value.aiEnabled && _state.value.editorInfo.aiContextAllowed
         val effective = if (
             action is KeyboardAction.AiPanelOpened &&

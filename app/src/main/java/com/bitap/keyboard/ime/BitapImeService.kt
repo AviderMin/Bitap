@@ -1,10 +1,13 @@
 package com.bitap.keyboard.ime
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -52,6 +55,9 @@ class BitapImeService :
     private lateinit var app: BitapApplication
     private lateinit var controller: KeyboardController
     private var inputView: ComposeView? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    /** Set when a rotation happened while the IME window was visible. */
+    private var restoreInputViewAfterConfigChange = false
 
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
@@ -132,6 +138,26 @@ class BitapImeService :
             ),
         )
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+        // Rotation best-effort: the host activity may be recreated while the IME
+        // window stays hidden. If the keyboard was visible before the config
+        // change, ask the system to show it again for the new input session.
+        if (restoreInputViewAfterConfigChange) {
+            restoreInputViewAfterConfigChange = false
+            mainHandler.postDelayed({ requestShowSelfBestEffort() }, 120)
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        if (isInputViewShown) restoreInputViewAfterConfigChange = true
+        super.onConfigurationChanged(newConfig)
+        if (restoreInputViewAfterConfigChange) {
+            mainHandler.postDelayed({ requestShowSelfBestEffort() }, 200)
+        }
+    }
+
+    private fun requestShowSelfBestEffort() {
+        if (isInputViewShown || window == null) return
+        runCatching { requestShowSelf(0) }
     }
 
     override fun onUpdateSelection(
@@ -168,6 +194,7 @@ class BitapImeService :
 
     override fun onWindowShown() {
         super.onWindowShown()
+        restoreInputViewAfterConfigChange = false
         attachOwnersToWindowDecor()
         configureWindowTransparency()
     }

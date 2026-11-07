@@ -656,6 +656,10 @@ object KeyboardReducer {
 
     private fun requestAiCandidates(state: KeyboardUiState): Reduction {
         if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
+        // A second request while one is loading is a cancel, not a restart. The
+        // controller turns RequestAiCandidates into cancelAi() in that case; this
+        // guard keeps a direct reducer caller from arming a duplicate request.
+        if (state.aiCandidatesLoading) return Reduction(state)
         return Reduction(
             state.copy(
                 aiCandidates = emptyList(),
@@ -787,15 +791,30 @@ object KeyboardReducer {
 
     private fun aiCancel(state: KeyboardUiState): Reduction {
         val panel = state.ai
-        if (!panel.visible) return Reduction(state)
+        val hasCandidateRequest = state.aiCandidatesLoading ||
+            state.aiCandidates.isNotEmpty() ||
+            state.aiCandidatesFor.isNotEmpty() ||
+            state.aiCandidatesError != null
+        // AiCancel is the single user-visible "stop AI" action: it must stop both
+        // the rewrite panel and an in-flight AI candidate request. If neither is
+        // active this is a no-op so repeated taps cannot reset unrelated state.
+        if (!panel.visible && !hasCandidateRequest) return Reduction(state)
         return Reduction(
             state.copy(
-                ai = panel.copy(
-                    tone = null,
-                    status = if (state.aiReady) AiStatus.Idle else AiStatus.Unavailable,
-                    result = "",
-                    error = null,
-                ),
+                ai = if (panel.visible) {
+                    panel.copy(
+                        tone = null,
+                        status = if (state.aiReady) AiStatus.Idle else AiStatus.Unavailable,
+                        result = "",
+                        error = null,
+                    )
+                } else {
+                    panel
+                },
+                aiCandidates = emptyList(),
+                aiCandidatesFor = "",
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
             ),
         )
     }
