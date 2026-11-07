@@ -1069,11 +1069,15 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
                 onClick = { press(KeyboardAction.AppendInput(period)) },
             ),
             KeyCap(
-                label = "↵",
-                description = "回车",
+                label = state.enterKeyLabel,
+                description = "回车键：" + state.enterKeyLabel,
                 weight = 1.2f,
                 isFunction = true,
-                fontSize = 20.sp,
+                fontSize = when {
+                    state.enterKeyLabel.length >= 3 -> 12.sp
+                    state.enterKeyLabel.length == 2 -> 14.sp
+                    else -> 20.sp
+                },
                 onClick = { press(KeyboardAction.Enter) },
             ),
         ),
