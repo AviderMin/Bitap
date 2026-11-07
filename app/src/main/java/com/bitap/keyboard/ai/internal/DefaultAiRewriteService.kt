@@ -229,7 +229,15 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         try {
             if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
             val prompt = AiLexiconPromptBuilder.build(pinyin, context)
-            engine.rewrite(modelPath, prompt.system, prompt.user).collect { event ->
+            engine.rewrite(
+                modelPath = modelPath,
+                systemPrompt = prompt.system,
+                userPrompt = prompt.user,
+                temperature = AiLexiconPromptBuilder.TEMPERATURE,
+                topK = AiLexiconPromptBuilder.TOP_K,
+                topP = AiLexiconPromptBuilder.TOP_P,
+                maxOutputTokens = AiLexiconPromptBuilder.MAX_OUTPUT_TOKENS,
+            ).collect { event ->
                 when (event) {
                     is AiEvent.Started -> {
                         _runtimeState.value = AiRuntimeState.Busy
@@ -237,12 +245,14 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
                     }
                     is AiEvent.Delta -> output.send(event)
                     is AiEvent.Completed -> {
-                        val candidates = AiCandidateParser.parse(event.text)
                         _runtimeState.value = AiRuntimeState.Ready
-                        if (candidates.isEmpty()) {
-                            output.send(AiEvent.Failed(AI_LEXICON_EMPTY_MESSAGE))
-                        } else {
-                            output.send(AiEvent.Completed(AiCandidateParser.format(candidates)))
+                        when (val outcome = AiLexiconQualityGate.evaluate(event.text, pinyin)) {
+                            is AiLexiconOutcome.Candidates -> {
+                                output.send(AiEvent.Completed(AiCandidateParser.format(outcome.words)))
+                            }
+                            is AiLexiconOutcome.Fallback -> {
+                                output.send(AiEvent.Failed(outcome.message))
+                            }
                         }
                     }
                     is AiEvent.Failed -> {
@@ -274,10 +284,6 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         }
         job?.cancel()
         engine.cancel()
-    }
-
-    private companion object {
-        const val AI_LEXICON_EMPTY_MESSAGE = "AI 词库没有返回候选"
     }
 
     private fun failureMessage(reason: AiResultSanitizer.FailureReason): String = when (reason) {

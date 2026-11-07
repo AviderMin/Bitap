@@ -1,7 +1,9 @@
 package com.bitap.keyboard.ai
 
 import com.bitap.keyboard.ai.internal.AiCandidateParser
+import com.bitap.keyboard.ai.internal.AiLexiconOutcome
 import com.bitap.keyboard.ai.internal.AiLexiconPromptBuilder
+import com.bitap.keyboard.ai.internal.AiLexiconQualityGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,6 +24,14 @@ class AiLexiconTest {
         assertEquals(48, AiLexiconPromptBuilder.normalizePinyin("a".repeat(100)).length)
         assertEquals(160, AiLexiconPromptBuilder.normalizeContext("b".repeat(300)).length)
         assertEquals("（无）", AiLexiconPromptBuilder.build("nihao", "   ").user.substringAfter("上文：").substringBefore("\n"))
+    }
+
+    @Test
+    fun lexiconSamplingIsGreedyAndShort() {
+        assertEquals(0.0, AiLexiconPromptBuilder.TEMPERATURE, 0.0)
+        assertEquals(1, AiLexiconPromptBuilder.TOP_K)
+        assertEquals(1.0, AiLexiconPromptBuilder.TOP_P, 0.0)
+        assertEquals(48, AiLexiconPromptBuilder.MAX_OUTPUT_TOKENS)
     }
 
     @Test
@@ -59,6 +69,38 @@ class AiLexiconTest {
     fun parserRemovesThinkBlockBeforeParsing() {
         val raw = "<think>思考</think>你好"
         assertEquals(listOf("你好"), AiCandidateParser.parse(raw))
+    }
+
+    @Test
+    fun parserForPinyinRejectsPinyinEcho() {
+        assertEquals(emptyList<String>(), AiCandidateParser.parseForPinyin("nihao", "nihao"))
+        assertEquals(listOf("你好"), AiCandidateParser.parseForPinyin("你好\nnihao", "nihao"))
+    }
+
+    @Test
+    fun parserForPinyinRejectsExampleLeakFromOtherQuery() {
+        // "苹果" belongs to the pingguo example, not to a nihao request.
+        assertEquals(emptyList<String>(), AiCandidateParser.parseForPinyin("苹果", "nihao"))
+        // The matching example is allowed when the query matches its pinyin.
+        assertEquals(listOf("苹果"), AiCandidateParser.parseForPinyin("苹果", "pingguo"))
+    }
+
+    @Test
+    fun qualityGateReturnsCandidatesForGoodOutput() {
+        val outcome = AiLexiconQualityGate.evaluate("你好\n你号", "nihao")
+        assertEquals(AiLexiconOutcome.Candidates(listOf("你好", "你号")), outcome)
+    }
+
+    @Test
+    fun qualityGateFallsBackForEchoOrUnrelatedOutput() {
+        assertEquals(
+            AiLexiconOutcome.Fallback(AiLexiconQualityGate.FALLBACK_MESSAGE),
+            AiLexiconQualityGate.evaluate("nihao", "nihao"),
+        )
+        assertEquals(
+            AiLexiconOutcome.Fallback(AiLexiconQualityGate.FALLBACK_MESSAGE),
+            AiLexiconQualityGate.evaluate("苹果", "nihao"),
+        )
     }
 
     @Test

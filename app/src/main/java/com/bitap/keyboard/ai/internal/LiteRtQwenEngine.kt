@@ -51,7 +51,15 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
      * Streams one rewrite request. Emits [AiEvent.Started], zero or more
      * [AiEvent.Delta] chunks and exactly one terminal event.
      */
-    fun rewrite(modelPath: String, systemPrompt: String, userPrompt: String): Flow<AiEvent> = flow {
+    fun rewrite(
+        modelPath: String,
+        systemPrompt: String,
+        userPrompt: String,
+        temperature: Double = TEMPERATURE,
+        topK: Int = TOP_K,
+        topP: Double = TOP_P,
+        maxOutputTokens: Int = MAX_OUTPUT_TOKENS,
+    ): Flow<AiEvent> = flow {
         val finalText = withTimeout(TIMEOUT_MS) {
             requestLock.withLock {
                 check(!closed) { "Engine is closed" }
@@ -61,12 +69,12 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
                     ConversationConfig(
                         systemInstruction = Contents.of(systemPrompt),
                         samplerConfig = SamplerConfig(
-                            topK = TOP_K,
-                            topP = TOP_P,
-                            temperature = TEMPERATURE,
+                            topK = topK,
+                            topP = topP,
+                            temperature = temperature,
                             seed = SEED,
                         ),
-                        maxOutputToken = MAX_OUTPUT_TOKENS,
+                        maxOutputToken = maxOutputTokens,
                         thinkingConfig = ThinkingConfig(enableThinking = false),
                     ),
                 )

@@ -10,7 +10,7 @@ package com.bitap.keyboard.ai.internal
 object AiCandidateParser {
 
     const val MAX_CANDIDATES: Int = 5
-    const val MAX_CANDIDATE_CHARS: Int = 24
+    const val MAX_CANDIDATE_CHARS: Int = 12
 
     private val NUMBERING = Regex("^[0-9０-９]+[.．、)）:：\\s]+")
     private val SEPARATORS = Regex("[\\s,，、;；]+")
@@ -44,6 +44,31 @@ object AiCandidateParser {
             }
         }
         return result.toList()
+    }
+
+    /**
+     * Parses output for a specific pinyin query and removes the two stable
+     * failure modes of the 0.6B model: echoing the pinyin, and leaking an
+     * example answer from the prompt for a different query.
+     */
+    fun parseForPinyin(
+        raw: String,
+        pinyin: String,
+        maxCandidates: Int = MAX_CANDIDATES,
+    ): List<String> {
+        if (maxCandidates <= 0) return emptyList()
+        val normalizedPinyin = AiLexiconPromptBuilder.normalizePinyin(pinyin)
+        val allowedExamples = AiLexiconPromptBuilder.EXAMPLE_CANDIDATES[normalizedPinyin].orEmpty()
+        val allExamples = AiLexiconPromptBuilder.EXAMPLE_CANDIDATES.values.flatten().toSet()
+        val candidates = parse(raw, maxCandidates + allExamples.size)
+        return candidates.asSequence()
+            .filter { candidate ->
+                candidate.lowercase() != normalizedPinyin &&
+                    (candidate !in allExamples || candidate in allowedExamples)
+            }
+            .distinct()
+            .take(maxCandidates)
+            .toList()
     }
 
     fun format(candidates: List<String>): String = candidates.joinToString("\n")
