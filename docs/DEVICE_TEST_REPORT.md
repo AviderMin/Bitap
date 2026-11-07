@@ -59,6 +59,8 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - [固定键帽 54dp、整体高度 120% 的键盘](evidence/bitap-keyboard-fixed-keys-120.png)
 - [深色模式圆角透明修复](evidence/bitap-dark-transparent-corners.png)
 - [双拇指功能行布局](evidence/bitap-thumb-layout.png)
+- [键盘设置齿轮与 AI 反馈入口](evidence/bitap-keyboard-settings-key.png)
+- [点击齿轮进入 Bitap 设置](evidence/bitap-settings-opened.png)
 - [独立 Bitap App：系统应用抽屉](evidence/bitap-app-drawer.png)
 - [App/键盘主题分离设置](evidence/bitap-keyboard-theme-settings.png)
 - [独立的 Ink 键盘主题](evidence/bitap-ink-keyboard.png)
