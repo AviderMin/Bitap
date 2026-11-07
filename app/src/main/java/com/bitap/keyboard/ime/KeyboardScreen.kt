@@ -70,6 +70,7 @@ import com.bitap.keyboard.ui.theme.LocalBitapPalette
  */
 private val KeyboardDockShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 private val LocalKeyboardKeyHeight = staticCompositionLocalOf { 54.dp }
+private val LocalKeyboardRowGap = staticCompositionLocalOf { 0.dp }
 
 @Composable
 fun KeyboardScreen(
@@ -94,7 +95,10 @@ fun KeyboardScreen(
         onAction(action)
     }
 
-    CompositionLocalProvider(LocalKeyboardKeyHeight provides keyHeight) {
+    CompositionLocalProvider(
+        LocalKeyboardKeyHeight provides keyHeight,
+        LocalKeyboardRowGap provides extraRowGap,
+    ) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
@@ -113,7 +117,6 @@ fun KeyboardScreen(
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = 5.dp, bottom = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(extraRowGap),
         ) {
             // A quiet visual dock line replaces the old hard top edge. It is
             // decorative, not a drag handle: height is controlled in Settings.
@@ -540,7 +543,10 @@ private fun LetterLayout(
     press: (KeyboardAction) -> Unit,
 ) {
     val upper = state.shift != ShiftState.Off
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+        verticalArrangement = Arrangement.spacedBy(LocalKeyboardRowGap.current),
+    ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             QwertyRows[0].forEach { letter ->
                 KeyButton(
@@ -605,7 +611,10 @@ private fun SymbolLayout(
     nextLayer: KeyboardLayer,
     press: (KeyboardAction) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+        verticalArrangement = Arrangement.spacedBy(LocalKeyboardRowGap.current),
+    ) {
         rows.forEachIndexed { index, row ->
             Row(
                 modifier = Modifier
