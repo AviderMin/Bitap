@@ -69,6 +69,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bitap.keyboard.ai.AiModelInfo
 import com.bitap.keyboard.ai.AiRewriteService
+import com.bitap.keyboard.core.UserLexiconStore
 import com.bitap.keyboard.ai.AiRuntimeState
 import com.bitap.keyboard.settings.BitapSettings
 import com.bitap.keyboard.settings.DarkMode
@@ -109,6 +110,8 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
     var importing by remember { mutableStateOf(false) }
     var importError by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showClearLexiconDialog by remember { mutableStateOf(false) }
+    var lexiconNotice by remember { mutableStateOf<String?>(null) }
 
     // Keep system bar icons readable when the in-app theme differs from the system theme.
     SideEffect {
@@ -208,6 +211,9 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                         },
                         onHaptics = repository::setHapticsEnabled,
                         onSound = repository::setSoundEnabled,
+                        onLearningEnabled = repository::setLearningEnabled,
+                        onClearLexicon = { showClearLexiconDialog = true },
+                        lexiconNotice = lexiconNotice,
                     )
                 }
             }
@@ -239,6 +245,30 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                 )
             }
         }
+    }
+
+    if (showClearLexiconDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearLexiconDialog = false },
+            title = { Text("清除本地学习词库？") },
+            text = { Text("将删除本机保存的候选选择记录与拼音映射；内置拼音词库和本地模型不受影响。重新打开键盘后生效。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearLexiconDialog = false
+                        UserLexiconStore.create(context).clear()
+                        lexiconNotice = "本地学习词库已清除"
+                    },
+                ) {
+                    Text(text = "清除", color = palette.danger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearLexiconDialog = false }) {
+                    Text(text = "取消", color = palette.accent)
+                }
+            },
+        )
     }
 
     if (showDeleteDialog) {
@@ -608,7 +638,11 @@ private fun InputSection(
     onAiEnabled: (Boolean) -> Unit,
     onHaptics: (Boolean) -> Unit,
     onSound: (Boolean) -> Unit,
+    onLearningEnabled: (Boolean) -> Unit,
+    onClearLexicon: () -> Unit,
+    lexiconNotice: String?,
 ) {
+    val palette = BitapTheme.palette
     BitapSectionTitle(
         title = "输入与 AI",
         subtitle = "AI 作为本地词库参与候选，不自动触发、不改写整段文字",
@@ -621,6 +655,24 @@ private fun InputSection(
         )
         BitapDivider()
         BitapSettingRow(
+            title = "本地候选学习",
+            description = "仅在本机记录你主动选择的候选词与拼音；关闭后不再写入",
+            trailing = { BitapSwitch(checked = settings.learningEnabled, onCheckedChange = onLearningEnabled) },
+        )
+        BitapDivider()
+        BitapSettingRow(
+            title = "清除本地学习词库",
+            description = "删除本机候选选择记录；内置词库与模型不受影响",
+            trailing = {
+                BitapTextButton(
+                    text = "清除",
+                    onClick = onClearLexicon,
+                    danger = true,
+                )
+            },
+        )
+        BitapDivider()
+        BitapSettingRow(
             title = "按键触觉反馈",
             description = "按键时短促振动，可在系统设置统一关闭",
             trailing = { BitapSwitch(checked = settings.hapticsEnabled, onCheckedChange = onHaptics) },
@@ -630,6 +682,14 @@ private fun InputSection(
             title = "按键声音",
             description = "默认关闭，保持安静",
             trailing = { BitapSwitch(checked = settings.soundEnabled, onCheckedChange = onSound) },
+        )
+    }
+    if (lexiconNotice != null) {
+        Text(
+            text = lexiconNotice,
+            color = palette.accent,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
