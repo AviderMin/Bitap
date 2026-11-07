@@ -47,25 +47,22 @@ object AiCandidateParser {
     }
 
     /**
-     * Parses output for a specific pinyin query and removes the two stable
-     * failure modes of the 0.6B model: echoing the pinyin, and leaking an
-     * example answer from the prompt for a different query.
+     * Single candidate entry point for AI lexicon output. Every candidate must
+     * be a clean Chinese word AND its dictionary pronunciation must be
+     * compatible with the pinyin query (prefix/completion allowed).
      */
     fun parseForPinyin(
         raw: String,
         pinyin: String,
+        dictionary: AiPinyinDictionary,
         maxCandidates: Int = MAX_CANDIDATES,
     ): List<String> {
         if (maxCandidates <= 0) return emptyList()
-        val normalizedPinyin = AiLexiconPromptBuilder.normalizePinyin(pinyin)
-        val allowedExamples = AiLexiconPromptBuilder.EXAMPLE_CANDIDATES[normalizedPinyin].orEmpty()
-        val allExamples = AiLexiconPromptBuilder.EXAMPLE_CANDIDATES.values.flatten().toSet()
-        val candidates = parse(raw, maxCandidates + allExamples.size)
+        val normalizedPinyin = AiPinyinDictionary.normalizePinyin(pinyin)
+        if (normalizedPinyin.isEmpty()) return emptyList()
+        val candidates = parse(raw, maxCandidates * 4 + 8)
         return candidates.asSequence()
-            .filter { candidate ->
-                candidate.lowercase() != normalizedPinyin &&
-                    (candidate !in allExamples || candidate in allowedExamples)
-            }
+            .filter { candidate -> dictionary.matches(candidate, normalizedPinyin) }
             .distinct()
             .take(maxCandidates)
             .toList()

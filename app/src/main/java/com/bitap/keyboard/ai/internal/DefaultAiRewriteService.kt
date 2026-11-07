@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Local AI rewrite service used by the IME and the settings screens.
@@ -41,6 +42,9 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     private val requestLock = Any()
 
     private var activeJob: Job? = null
+
+    @Volatile
+    private var pinyinDictionary: AiPinyinDictionary? = null
 
     override val modelInfo: StateFlow<AiModelInfo> = modelStore.modelInfo
 
@@ -228,6 +232,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     ) {
         try {
             if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
+            val dictionary = lexiconDictionary()
             val prompt = AiLexiconPromptBuilder.build(pinyin, context)
             engine.rewrite(
                 modelPath = modelPath,
@@ -246,7 +251,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
                     is AiEvent.Delta -> output.send(event)
                     is AiEvent.Completed -> {
                         _runtimeState.value = AiRuntimeState.Ready
-                        when (val outcome = AiLexiconQualityGate.evaluate(event.text, pinyin)) {
+                        when (val outcome = AiLexiconQualityGate.evaluate(event.text, pinyin, dictionary)) {
                             is AiLexiconOutcome.Candidates -> {
                                 output.send(AiEvent.Completed(AiCandidateParser.format(outcome.words)))
                             }
@@ -276,6 +281,20 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         }
     }
 
+    private suspend fun lexiconDictionary(): AiPinyinDictionary {
+        val existing = pinyinDictionary
+        if (existing != null) return existing
+        return withContext(Dispatchers.IO) {
+            val loaded = runCatching {
+                context.assets.open(PINYIN_DICT_ASSET).bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    AiPinyinDictionary.parse(lines)
+                }
+            }.getOrElse { AiPinyinDictionary.EMPTY }
+            pinyinDictionary = loaded
+            loaded
+        }
+    }
+
     private fun cancelActiveRequest() {
         val job = synchronized(requestLock) {
             val current = activeJob
@@ -289,5 +308,9 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     private fun failureMessage(reason: AiResultSanitizer.FailureReason): String = when (reason) {
         AiResultSanitizer.FailureReason.EMPTY -> "这次没想好，请重试"
         AiResultSanitizer.FailureReason.TOO_LONG -> "改写结果过长，请重试"
+    }
+
+    private companion object {
+        const val PINYIN_DICT_ASSET = "pinyin_dict.tsv"
     }
 }

@@ -27,12 +27,6 @@ object AiLexiconPromptBuilder {
     const val TOP_P: Double = 1.0
     const val MAX_OUTPUT_TOKENS: Int = 48
 
-    /** Example answers used in the prompt; also used to drop example leakage. */
-    val EXAMPLE_CANDIDATES: Map<String, Set<String>> = mapOf(
-        "nihao" to setOf("你好", "你号", "你豪"),
-        "pingguo" to setOf("苹果"),
-    )
-
     const val SYSTEM_PROMPT: String =
         "你是 Bitap 输入法的本地中文词库。根据拼音给出最多 5 个常用中文候选词，每行一个。\n" +
             "示例：\n" +

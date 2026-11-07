@@ -20,9 +20,11 @@ object AiLexiconQualityGate {
     fun evaluate(
         raw: String,
         pinyin: String,
+        dictionary: AiPinyinDictionary,
         maxCandidates: Int = AiCandidateParser.MAX_CANDIDATES,
     ): AiLexiconOutcome {
-        val words = AiCandidateParser.parseForPinyin(raw, pinyin, maxCandidates)
+        if (dictionary.size == 0) return AiLexiconOutcome.Fallback(FALLBACK_MESSAGE)
+        val words = AiCandidateParser.parseForPinyin(raw, pinyin, dictionary, maxCandidates)
         return if (words.isEmpty()) {
             AiLexiconOutcome.Fallback(FALLBACK_MESSAGE)
         } else {
