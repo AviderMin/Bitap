@@ -155,6 +155,8 @@ class BitapImeService :
             selectionEnd = newSelEnd,
             candidatesStart = candidatesStart,
             candidatesEnd = candidatesEnd,
+            oldSelectionStart = oldSelStart,
+            oldSelectionEnd = oldSelEnd,
         )
     }
 

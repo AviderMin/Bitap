@@ -33,6 +33,7 @@ object KeyboardReducer {
         is KeyboardAction.AiPanelOpened -> aiPanelOpened(state, action.source)
         is KeyboardAction.AiToneChosen -> aiToneChosen(state, action.tone)
         KeyboardAction.AiCancel -> aiCancel(state)
+        KeyboardAction.AiCandidatesCancelled -> aiCandidatesCancelled(state)
         is KeyboardAction.AiDelta -> aiDelta(state, action.text)
         is KeyboardAction.AiCompleted -> aiCompleted(state, action.text)
         is KeyboardAction.AiFailed -> aiFailed(state, action.message)
@@ -774,6 +775,15 @@ object KeyboardReducer {
             ),
         )
     }
+
+    private fun aiCandidatesCancelled(state: KeyboardUiState): Reduction = Reduction(
+        state.copy(
+            aiCandidates = emptyList(),
+            aiCandidatesFor = "",
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
+        ),
+    )
 
     private fun aiCancel(state: KeyboardUiState): Reduction {
         val panel = state.ai

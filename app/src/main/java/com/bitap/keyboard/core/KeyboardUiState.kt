@@ -436,6 +436,9 @@ sealed interface KeyboardAction {
 
     data object AiCancel : KeyboardAction
 
+    /** Cancel only the AI candidate request and clear its loading/candidate state. */
+    data object AiCandidatesCancelled : KeyboardAction
+
     data class AiDelta(val text: String) : KeyboardAction
 
     data class AiCompleted(val text: String) : KeyboardAction
