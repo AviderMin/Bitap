@@ -153,6 +153,7 @@ object KeyboardReducer {
                     Reduction(
                         state.copy(
                             composing = composing,
+                            compositionVersion = state.compositionVersion + 1,
                             candidates = emptyList(),
                             candidatesFor = "",
                             aiCandidates = emptyList(),
@@ -192,6 +193,7 @@ object KeyboardReducer {
         return Reduction(
             state.copy(
                 composing = composing,
+                compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
             ),
@@ -223,6 +225,9 @@ object KeyboardReducer {
     }
 
     private fun composingUpdated(state: KeyboardUiState, action: KeyboardAction.ComposingUpdated): Reduction {
+        // Old query results must never cross composition sessions even when the
+        // visible composing string happens to be identical (e.g. ni -> Space -> ni).
+        if (action.version != 0L && action.version != state.compositionVersion) return Reduction(state)
         if (action.composing != state.composing) return Reduction(state)
         val updated = state.copy(
             candidates = action.candidates.take(PinyinEngine.MAX_CANDIDATES),
@@ -305,7 +310,8 @@ object KeyboardReducer {
                 commitCandidateThenText(clearPending, candidate, pending.text)
             }
         }
-        return replayQueued(base.state, queued, base.commands, base.learnedSelection)
+        val baseLearned = base.learnedSelections.ifEmpty { listOfNotNull(base.learnedSelection) }
+        return replayQueued(base.state, queued, base.commands, baseLearned)
     }
 
     /**
@@ -317,22 +323,37 @@ object KeyboardReducer {
         state: KeyboardUiState,
         queued: List<KeyboardAction>,
         initialCommands: List<ImeCommand>,
-        learnedSelection: LearnedSelection?,
+        initialLearned: List<LearnedSelection>,
     ): Reduction {
-        if (queued.isEmpty()) return Reduction(state, initialCommands, learnedSelection)
+        if (queued.isEmpty()) {
+            return Reduction(
+                state = state,
+                commands = initialCommands,
+                learnedSelection = initialLearned.firstOrNull(),
+                learnedSelections = initialLearned,
+            )
+        }
         var current = state.copy(queuedActions = emptyList())
         val commands = initialCommands.toMutableList()
-        var learned = learnedSelection
+        val learned = initialLearned.toMutableList()
         queued.forEach { action ->
             val result = reduce(current, action)
             current = result.state
             commands += result.commands
-            if (learned == null) learned = result.learnedSelection
+            if (result.learnedSelections.isNotEmpty()) {
+                learned += result.learnedSelections
+            } else {
+                result.learnedSelection?.let(learned::add)
+            }
         }
+        // Keep any pending confirmation and its remaining queued suffix created
+        // during replay. Only the *consumed* queue was empty; a new asynchronous
+        // confirm owns everything appended after it.
         return Reduction(
-            current.copy(queuedActions = emptyList(), pendingComposing = ""),
-            commands,
-            learned,
+            state = current,
+            commands = commands,
+            learnedSelection = learned.firstOrNull(),
+            learnedSelections = learned,
         )
     }
 
@@ -353,9 +374,18 @@ object KeyboardReducer {
             add(ImeCommand.CommitText(text))
             if (remaining.isNotEmpty()) add(ImeCommand.SetComposingText(remaining))
         }
+        val learnedEvent = candidate?.let {
+            LearnedSelection(
+                word = it.word,
+                pinyin = it.pinyin.ifBlank { state.composing.take(consumed) },
+                source = "punctuation",
+                consumedInputLength = consumed,
+            )
+        }
         return Reduction(
             state.copy(
                 composing = remaining,
+                compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
@@ -367,14 +397,8 @@ object KeyboardReducer {
                 aiCandidatesError = null,
             ),
             commands,
-            learnedSelection = candidate?.let {
-                LearnedSelection(
-                    word = it.word,
-                    pinyin = it.pinyin.ifBlank { state.composing.take(consumed) },
-                    source = "punctuation",
-                    consumedInputLength = consumed,
-                )
-            },
+            learnedSelection = learnedEvent,
+            learnedSelections = listOfNotNull(learnedEvent),
         )
     }
 
@@ -394,9 +418,16 @@ object KeyboardReducer {
             if (remaining.isNotEmpty()) add(ImeCommand.SetComposingText(remaining))
         }
         val learnedPinyin = candidate.pinyin.ifBlank { state.composing.take(consumed) }
+        val learnedEvent = LearnedSelection(
+            word = candidate.word,
+            pinyin = learnedPinyin,
+            source = source,
+            consumedInputLength = consumed,
+        )
         return Reduction(
             state.copy(
                 composing = remaining,
+                compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
@@ -409,12 +440,8 @@ object KeyboardReducer {
                 shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
             ),
             commands,
-            learnedSelection = LearnedSelection(
-                word = candidate.word,
-                pinyin = learnedPinyin,
-                source = source,
-                consumedInputLength = consumed,
-            ),
+            learnedSelection = learnedEvent,
+            learnedSelections = listOf(learnedEvent),
         )
     }
 
@@ -434,6 +461,7 @@ object KeyboardReducer {
         return Reduction(
             state.copy(
                 composing = "",
+                compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
@@ -472,9 +500,12 @@ object KeyboardReducer {
             Reduction(
                 state.copy(
                     composing = "",
+                    compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
+                    pendingComposing = "",
+                    queuedActions = emptyList(),
                     aiCandidates = emptyList(),
                     aiCandidatesFor = "",
                     aiCandidatesLoading = false,
@@ -486,6 +517,7 @@ object KeyboardReducer {
             Reduction(
                 state.copy(
                     composing = remaining,
+                    compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
@@ -509,6 +541,7 @@ object KeyboardReducer {
             return Reduction(
                 state.copy(
                     composing = "",
+                    compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
@@ -542,6 +575,7 @@ object KeyboardReducer {
                 layer = info.preferredLayer,
                 shift = ShiftState.Off,
                 composing = "",
+                compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
@@ -603,6 +637,7 @@ object KeyboardReducer {
     private fun endComposition(state: KeyboardUiState): Reduction = Reduction(
         state.copy(
             composing = "",
+            compositionVersion = state.compositionVersion + 1,
             candidates = emptyList(),
             candidatesFor = "",
             pendingConfirmation = null,

@@ -169,6 +169,7 @@ class PinyinEngine private constructor(
         val frequency: Long,
         val group: Int,
         val consumedInputLength: Int = 0,
+        val pinyin: String = "",
     )
 
     /**
@@ -263,6 +264,7 @@ class PinyinEngine private constructor(
                         frequency = option.frequency,
                         group = GROUP_PHRASE,
                         consumedInputLength = firstSegmentLength,
+                        pinyin = parsed.segments.first(),
                     ),
                 )
             }
@@ -280,7 +282,7 @@ class PinyinEngine private constructor(
             .map { candidate ->
                 Candidate(
                     word = candidate.word,
-                    pinyin = parsed.segments.joinToString("'"),
+                    pinyin = candidate.pinyin.ifBlank { parsed.segments.joinToString("'") },
                     frequency = candidate.frequency,
                     consumedInputLength = if (candidate.consumedInputLength > 0) {
                         candidate.consumedInputLength

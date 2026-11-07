@@ -307,6 +307,8 @@ data class KeyboardUiState(
     val pendingComposing: String = "",
     /** Keys/actions received while a confirmation is pending, replayed in order. */
     val queuedActions: List<KeyboardAction> = emptyList(),
+    /** Monotonic composition session/version; changes even when text repeats. */
+    val compositionVersion: Long = 0L,
     /** Current editor configuration; reset on every onStartInput. */
     val editorInfo: EditorInputInfo = EditorInputInfo(),
     val ai: AiPanelUiState = AiPanelUiState(),
@@ -383,8 +385,12 @@ sealed interface KeyboardAction {
     /** A printable key was pressed. Letters become pinyin composing in Chinese mode. */
     data class AppendInput(val text: String) : KeyboardAction
 
-    /** Async pinyin query result. Ignored when [composing] no longer matches the state. */
-    data class ComposingUpdated(val composing: String, val candidates: List<Candidate>) : KeyboardAction
+    /** Async pinyin query result. Old sessions are rejected by compositionVersion. */
+    data class ComposingUpdated(
+        val composing: String,
+        val candidates: List<Candidate>,
+        val version: Long = 0L,
+    ) : KeyboardAction
 
     data class CandidateTapped(val index: Int) : KeyboardAction
 
@@ -460,9 +466,10 @@ sealed interface ImeCommand {
     data object SendEnter : ImeCommand
 }
 
-/** Result of one reducer step: next state, side effects, and optional learning attribution. */
+/** Result of one reducer step: next state, side effects, and ordered learning events. */
 data class Reduction(
     val state: KeyboardUiState,
     val commands: List<ImeCommand> = emptyList(),
     val learnedSelection: LearnedSelection? = null,
+    val learnedSelections: List<LearnedSelection> = emptyList(),
 )

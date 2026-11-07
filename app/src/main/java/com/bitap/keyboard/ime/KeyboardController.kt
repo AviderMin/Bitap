@@ -82,14 +82,16 @@ class KeyboardController(
         reduction.commands.forEach(::execute)
         recordLearnedSelection(reduction)
 
-        if (reduction.state.composing != previous.composing) {
+        if (reduction.state.composing != previous.composing ||
+            reduction.state.compositionVersion != previous.compositionVersion
+        ) {
             _state.value = _state.value.copy(
                 aiCandidates = emptyList(),
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
             )
             if (aiJob != null) cancelAi()
-            schedulePinyinQuery(reduction.state.composing)
+            schedulePinyinQuery(reduction.state.composing, reduction.state.compositionVersion)
         }
         if (previous.ai.visible && !reduction.state.ai.visible) {
             cancelAi()
@@ -109,7 +111,7 @@ class KeyboardController(
                 // S01: layer switches preserve composing; ensure a valid query
                 // result exists for that same composing even if no letter changes.
                 if (reduction.state.composing.isNotEmpty()) {
-                    schedulePinyinQuery(reduction.state.composing)
+                    schedulePinyinQuery(reduction.state.composing, reduction.state.compositionVersion)
                 }
             }
 
@@ -137,7 +139,7 @@ class KeyboardController(
     /** Called when the pinyin dictionary finished loading so a pending query can retry. */
     fun onPinyinReady() {
         val composing = _state.value.composing
-        if (composing.isNotEmpty()) schedulePinyinQuery(composing)
+        if (composing.isNotEmpty()) schedulePinyinQuery(composing, _state.value.compositionVersion)
     }
 
     /**
@@ -229,18 +231,23 @@ class KeyboardController(
      * fallbacks/cancelled confirmations carry no LearnedSelection.
      */
     private fun recordLearnedSelection(reduction: Reduction) {
-        val learned = reduction.learnedSelection ?: return
+        val learned = reduction.learnedSelections.ifEmpty {
+            listOfNotNull(reduction.learnedSelection)
+        }
+        if (learned.isEmpty()) return
         if (!settings.learningEnabled || !_state.value.editorInfo.allowsPersonalizedLearning) return
-        pinyinEngine.recordSelection(
-            word = learned.word,
-            pinyin = learned.pinyin,
-            source = learned.source,
-            persist = false,
-        )
+        learned.forEach { event ->
+            pinyinEngine.recordSelection(
+                word = event.word,
+                pinyin = event.pinyin,
+                source = event.source,
+                persist = false,
+            )
+        }
         scheduleUserLexiconPersist()
     }
 
-    private fun schedulePinyinQuery(composing: String) {
+    private fun schedulePinyinQuery(composing: String, version: Long = _state.value.compositionVersion) {
         pinyinJob?.cancel()
         if (composing.isEmpty()) return
         val token = ++pinyinQueryToken
@@ -255,7 +262,7 @@ class KeyboardController(
             if (!isActive || token != pinyinQueryToken) return@launch
             // Dispatch through the same path as user actions so a queued
             // confirmation executes its CommitText when the fresh result lands.
-            dispatch(KeyboardAction.ComposingUpdated(composing, candidates))
+            dispatch(KeyboardAction.ComposingUpdated(composing, candidates, version))
         }
     }
 
