@@ -92,4 +92,17 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - 新增 AiLexiconTest（9 个纯 JVM 测试）覆盖 prompt 上限/上下文保留和候选解析边界。
 
 **结论：D17 = PARTIAL。** 真机请求链路、加载、取消与错误提示可用，但本次 nihao 未返回可点选 AI 候选；不阻塞键盘自带拼音候选与 AI 润色。最终修复版在真机的复测受调试构建/安装冲突影响未完成；后续需换更强模型或继续调 prompt 后再验收。
+## 6. A10 AI 词库候选质量与降级复测（2026-11-07，task-15）
+
+设备 / 环境：22021211RC（Redmi K40S / lineage_munch），Android 16 / API 36；测试 APK 基于 HEAD 082b07e + 本轮 ai/** 修改（debug）；模型 bitap-qwen3-0.6b.litertlm（Qwen3-0.6B dynamic INT4）343,490,560 bytes。
+
+| 步骤 | 观察 | 耗时 |
+| --- | --- | --- |
+| Via 地址栏输入并提交 nihao，键盘候选「你好 你号 你灏 泥好」正常 | 本地拼音候选 PASS | 即时 |
+| 点候选条右侧 ✦ AI（composing 为空、rawContext=nihao） | 显示「AI 词库思考中…」 | 0.7 s 内 |
+| 等待终态 | 显示红色「AI 词库暂无合适候选，请直接使用本地候选」；键盘保持可用，本地候选不受影响，无崩溃、无网络请求 | 约 10.4 s 首次返回（约 22 s 时仍保持该提示；20 s 超时未触发） |
+
+**结论：PARTIAL（候选质量不达标，降级策略 PASS）。** 0.6B INT4 仍无法为 nihao 返回可靠候选：在临时 debug 观测中旧 prompt 回显 nihao、few-shot 下泄漏 pingguo 示例「苹果」。本轮将温度改为 0（topK=1、maxOutputTokens=48，采样参数可按请求传入），并加入 AiCandidateParser.parseForPinyin + AiLexiconQualityGate：拒绝拼音回显、其他 query 的示例泄漏、英文/数字/解释行；无可用中文候选时返回明确降级文案，不影响键盘自带拼音候选。真机已确认降级提示可见、输入不阻塞。
+
+**本轮测试：** .\gradlew.bat :app:testDebugUnitTest --console=plain --rerun-tasks → **BUILD SUCCESSFUL，150 tests / 0 failures / 0 errors / 0 skipped**（15 suites；AI 4 个套件共 36 tests：AiLexiconTest 14、AiPromptBuilderTest 6、AiResultSanitizerTest 12、ModelFileRulesTest 4）。
 
