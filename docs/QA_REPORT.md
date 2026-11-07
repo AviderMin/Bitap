@@ -2,7 +2,7 @@
 
 版本：0.1 ｜ 负责人：qa-dev ｜ 最终更新：2026-11-07（task-35 / S09） ｜ 原始任务：task-5（T4 构建验收、测试与 QA 报告）
 
-> **最终状态（2026-11-07，task-35 S09 更新）**：源码 HEAD `ff88648`（S01–S09 已完成）；最终 demo APK `dist/bitap-0.1.0-demo.apk` 为 **27,642,199 bytes，SHA-256 `5A083A7B1D936AB9D789E51ACD73E15F09192AB02AC1025CC923790D67CA03FF`**；`:app:testDebugUnitTest` **260 tests / 0 failures / 0 errors / 0 skipped**（新增 `QaS09CrossModuleRegressionTest` 14 tests）。真机设备 `22021211RC` / Android 16 已可用，A6/A8/S09 真机记录见 [QA_DEVICE_SMOKE.md](QA_DEVICE_SMOKE.md) 与 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。**下方 §2.1–§4 的 213 tests、无设备/BLOCKED 与旧 APK 数字是 2026-11-06/早期历史快照，不代表最终状态。**
+> **最终状态（2026-11-07，第三轮 T01–T07 更新）**：源码 HEAD `01ad5dd`（S01–S09 + T01–T07 已完成）；最终 demo APK `dist/bitap-0.1.0-demo.apk` 为 **27,642,199 bytes，SHA-256 `86630A1AC9121CBE4F68F80AEF711E769AC579FACBEE16116A454B6737CB2F15`**；`:app:testDebugUnitTest` **276 tests / 0 failures / 0 errors / 0 skipped**。真机设备 `22021211RC` / Android 16 已可用，A6/A8/S09 真机记录见 [QA_DEVICE_SMOKE.md](QA_DEVICE_SMOKE.md) 与 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。**下方 §2.1–§4 的 213/260 tests、无设备/BLOCKED 与旧 APK 数字是历史快照，不代表最终状态。**
 
 > 2026-11-06 23:26 起用户在真机 `22021211RC` 上关闭安全锁屏，Lead 已补做 Via 浏览器真机冒烟测试，结果见 [DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)。本文 §2.7 保留首轮“锁屏导致 BLOCKED”快照，最终真机结论以 DEVICE_TEST_REPORT 为准。
 
@@ -254,7 +254,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,642,199 bytes = 27.64 MB（十进制）/ 26.36 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `5A083A7B1D936AB9D789E51ACD73E15F09192AB02AC1025CC923790D67CA03FF`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,642,199 bytes = 27.64 MB（十进制）/ 26.36 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `86630A1AC9121CBE4F68F80AEF711E769AC579FACBEE16116A454B6737CB2F15`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
 - 本次门禁产物 `app-debug.apk` = 107,829,626 bytes（107.83 MB 十进制 / 102.84 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 
