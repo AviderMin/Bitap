@@ -94,6 +94,14 @@ class KeyboardController(
 
             KeyboardAction.RequestAiCandidates -> startAiCandidates()
             KeyboardAction.AiCancel -> cancelAi()
+            is KeyboardAction.ShowLayer -> {
+                // S01: layer switches preserve composing; ensure a valid query
+                // result exists for that same composing even if no letter changes.
+                if (reduction.state.composing.isNotEmpty()) {
+                    schedulePinyinQuery(reduction.state.composing)
+                }
+            }
+
             else -> Unit
         }
     }

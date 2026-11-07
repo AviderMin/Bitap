@@ -44,6 +44,9 @@ object KeyboardReducer {
     }
 
     private fun toggleLanguage(state: KeyboardUiState): Reduction {
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.ToggleLanguage)
+        }
         // Number/phone/password are hard language locks; Email/URL start in
         // English but may deliberately switch to Chinese search (R09).
         if (!state.editorInfo.supportsChineseInput) return Reduction(state)
@@ -85,16 +88,19 @@ object KeyboardReducer {
     }
 
     private fun showLayer(state: KeyboardUiState, layer: KeyboardLayer): Reduction {
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.ShowLayer(layer))
+        }
         if (layer == state.layer) return Reduction(state)
-        // R05: switching to the symbols/numbers layer must not commit an active
-        // pinyin composition. The separator key on those layers can then append
-        // to composing; ordinary symbols commit the composition when pressed.
+        // R05/S01: switching layers must not commit an active composition, and
+        // must not destroy candidates that still belong to the same composing.
+        val keepCandidates = state.candidatesFor == state.composing
         return Reduction(
             state.copy(
                 layer = layer,
                 shift = ShiftState.Off,
-                candidates = emptyList(),
-                candidatesFor = "",
+                candidates = if (keepCandidates) state.candidates else emptyList(),
+                candidatesFor = if (keepCandidates) state.candidatesFor else "",
                 lastShiftTapAt = 0L,
             ),
         )
@@ -102,6 +108,9 @@ object KeyboardReducer {
 
     private fun appendInput(state: KeyboardUiState, text: String): Reduction {
         if (text.isEmpty()) return Reduction(state)
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.AppendInput(text))
+        }
         if (state.language == InputLanguage.Chinese &&
             state.editorInfo.allowsChineseInput &&
             isPinyinSeparator(text)
@@ -175,40 +184,16 @@ object KeyboardReducer {
      * still active; a pending query uses the same queue as R03.
      */
     private fun commitCompositionThen(state: KeyboardUiState, text: String): Reduction {
-        if (state.composing.isEmpty()) {
-            return Reduction(
-                state.copy(
-                    aiCandidates = emptyList(),
-                    aiCandidatesFor = "",
-                    aiCandidatesLoading = false,
-                    aiCandidatesError = null,
-                    pendingConfirmation = null,
-                ),
-                listOf(ImeCommand.CommitText(text)),
-            )
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.AppendInput(text))
         }
-        if (state.pendingConfirmation != null) return Reduction(state)
-        if (state.candidatesFor != state.composing) {
+        if (state.composing.isNotEmpty() && state.candidatesFor != state.composing) {
             return queueConfirmation(state, PendingConfirmation.Punctuation(text))
         }
-        val currentCandidate = state.candidates.firstOrNull()
-        val commands = buildList {
-            add(ImeCommand.CommitText(currentCandidate?.word ?: state.composing))
-            add(ImeCommand.CommitText(text))
-        }
-        return Reduction(
-            state.copy(
-                composing = "",
-                candidates = emptyList(),
-                candidatesFor = "",
-                pendingConfirmation = null,
-                aiCandidates = emptyList(),
-                aiCandidatesFor = "",
-                aiCandidatesLoading = false,
-                aiCandidatesError = null,
-            ),
-            commands,
-        )
+        // Respect consumedInputLength for partial candidates: punctuation must
+        // never swallow the unconsumed suffix (e.g. nihaox + 你好(5) + ， -> x).
+        val candidate = if (state.composing.isNotEmpty()) state.candidates.firstOrNull() else null
+        return commitCandidateThenText(state, candidate, text)
     }
 
     private fun applyShift(text: String, shift: ShiftState): String = when (shift) {
@@ -238,7 +223,8 @@ object KeyboardReducer {
 
     /**
      * A confirmation action arrived while the latest pinyin query is still
-     * outstanding. Store it and hide old candidates, but emit no text command.
+     * outstanding. Store it with the composing snapshot and hide old candidates,
+     * but emit no text command.
      */
     private fun queueConfirmation(
         state: KeyboardUiState,
@@ -254,60 +240,106 @@ object KeyboardReducer {
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
                 pendingConfirmation = pending,
+                pendingComposing = state.composing,
             ),
         )
     }
+
+    private fun enqueueAction(state: KeyboardUiState, action: KeyboardAction): Reduction =
+        Reduction(state.copy(queuedActions = state.queuedActions + action))
 
     private fun resolvePending(
         state: KeyboardUiState,
         pending: PendingConfirmation,
     ): Reduction {
         val fresh = state.candidatesFor == state.composing
-        return when (pending) {
+        val queued = state.queuedActions
+        val clearPending = state.copy(
+            pendingConfirmation = null,
+            pendingComposing = "",
+            queuedActions = emptyList(),
+        )
+        val base = when (pending) {
             PendingConfirmation.Space -> when {
                 fresh && state.candidates.isNotEmpty() ->
-                    commitCandidate(state, state.candidates.first())
+                    commitCandidate(clearPending, state.candidates.first())
 
-                fresh -> commitRaw(state)
-                else -> Reduction(state.copy(pendingConfirmation = null))
+                fresh -> commitRaw(clearPending)
+                else -> Reduction(clearPending)
             }
 
             is PendingConfirmation.Candidate -> {
-                if (!fresh || state.candidates.isEmpty()) {
-                    // No fresh candidate exists; never silently commit raw pinyin
-                    // for a candidate tap. Leave the composition for the user.
-                    Reduction(state.copy(pendingConfirmation = null))
+                val candidate = if (!fresh) null else state.candidates.getOrNull(pending.index)
+                if (candidate == null) {
+                    // Never silently fall back to another candidate when the
+                    // candidate list changed while the query was outstanding.
+                    Reduction(clearPending)
                 } else {
-                    val candidate = state.candidates.getOrNull(pending.index)
-                        ?: state.candidates.first()
-                    commitCandidate(state, candidate)
+                    commitCandidate(clearPending, candidate)
                 }
             }
 
             is PendingConfirmation.Punctuation -> {
-                val commands = buildList {
-                    val text = if (fresh && state.candidates.isNotEmpty()) {
-                        state.candidates.first().word
-                    } else {
-                        state.composing
-                    }
-                    if (text.isNotEmpty()) add(ImeCommand.CommitText(text))
-                    add(ImeCommand.CommitText(pending.text))
-                }
-                Reduction(
-                    state.copy(
-                        composing = "",
-                        candidates = emptyList(),
-                        candidatesFor = "",
-                        pendingConfirmation = null,
-                        aiCandidates = emptyList(),
-                        aiCandidatesLoading = false,
-                        aiCandidatesError = null,
-                    ),
-                    commands,
-                )
+                val candidate = if (fresh) state.candidates.firstOrNull() else null
+                commitCandidateThenText(clearPending, candidate, pending.text)
             }
         }
+        return replayQueued(base.state, queued, base.commands)
+    }
+
+    /**
+     * Applies keys received while a confirmation was waiting, after the front
+     * confirmation has been committed. Ordering is preserved and no key is
+     * silently discarded.
+     */
+    private fun replayQueued(
+        state: KeyboardUiState,
+        queued: List<KeyboardAction>,
+        initialCommands: List<ImeCommand>,
+    ): Reduction {
+        if (queued.isEmpty()) return Reduction(state, initialCommands)
+        var current = state.copy(queuedActions = emptyList())
+        val commands = initialCommands.toMutableList()
+        queued.forEach { action ->
+            val result = reduce(current, action)
+            current = result.state
+            commands += result.commands
+        }
+        return Reduction(current.copy(queuedActions = emptyList(), pendingComposing = ""), commands)
+    }
+
+    private fun commitCandidateThenText(
+        state: KeyboardUiState,
+        candidate: Candidate?,
+        text: String,
+    ): Reduction {
+        val consumed = if (candidate != null && candidate.consumedInputLength in 1..state.composing.length) {
+            candidate.consumedInputLength
+        } else {
+            state.composing.length
+        }
+        val remaining = state.composing.drop(consumed)
+        val word = candidate?.word ?: state.composing
+        val commands = buildList {
+            if (word.isNotEmpty()) add(ImeCommand.CommitText(word))
+            add(ImeCommand.CommitText(text))
+            if (remaining.isNotEmpty()) add(ImeCommand.SetComposingText(remaining))
+        }
+        return Reduction(
+            state.copy(
+                composing = remaining,
+                candidates = emptyList(),
+                candidatesFor = "",
+                pendingConfirmation = null,
+                pendingComposing = "",
+                queuedActions = emptyList(),
+                aiCandidates = emptyList(),
+                aiCandidatesFor = "",
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+            ),
+            commands,
+        )
     }
 
     private fun commitCandidate(state: KeyboardUiState, candidate: Candidate): Reduction {
@@ -327,6 +359,8 @@ object KeyboardReducer {
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
+                pendingComposing = "",
+                queuedActions = emptyList(),
                 aiCandidates = emptyList(),
                 aiCandidatesFor = "",
                 aiCandidatesLoading = false,
@@ -348,6 +382,8 @@ object KeyboardReducer {
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
+                pendingComposing = "",
+                queuedActions = emptyList(),
                 aiCandidates = emptyList(),
                 aiCandidatesFor = "",
                 aiCandidatesLoading = false,
@@ -358,14 +394,17 @@ object KeyboardReducer {
     }
 
     private fun space(state: KeyboardUiState): Reduction = when {
+        state.pendingConfirmation != null -> enqueueAction(state, KeyboardAction.Space)
         state.composing.isEmpty() -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
-        state.pendingConfirmation != null -> Reduction(state)
         state.candidatesFor != state.composing -> queueConfirmation(state, PendingConfirmation.Space)
         state.candidates.isNotEmpty() -> commitCandidate(state, state.candidates.first())
         else -> commitRaw(state)
     }
 
     private fun backspace(state: KeyboardUiState): Reduction {
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.Backspace)
+        }
         if (state.composing.isEmpty()) {
             return Reduction(state, listOf(ImeCommand.DeleteBackward))
         }
@@ -394,6 +433,8 @@ object KeyboardReducer {
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
+                    pendingComposing = "",
+                    queuedActions = emptyList(),
                     aiCandidates = emptyList(),
                     aiCandidatesFor = "",
                     aiCandidatesLoading = false,
@@ -405,6 +446,9 @@ object KeyboardReducer {
     }
 
     private fun enter(state: KeyboardUiState): Reduction {
+        if (state.pendingConfirmation != null) {
+            return enqueueAction(state, KeyboardAction.Enter)
+        }
         if (state.composing.isNotEmpty()) {
             return Reduction(
                 state.copy(
@@ -412,6 +456,8 @@ object KeyboardReducer {
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
+                    pendingComposing = "",
+                    queuedActions = emptyList(),
                     aiCandidates = emptyList(),
                     aiCandidatesFor = "",
                     aiCandidatesLoading = false,
@@ -443,6 +489,8 @@ object KeyboardReducer {
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
+                pendingComposing = "",
+                queuedActions = emptyList(),
                 ai = AiPanelUiState(),
                 aiEnabled = action.aiSettingEnabled && info.aiContextAllowed,
                 aiCandidates = emptyList(),
@@ -502,6 +550,8 @@ object KeyboardReducer {
             candidates = emptyList(),
             candidatesFor = "",
             pendingConfirmation = null,
+            pendingComposing = "",
+            queuedActions = emptyList(),
             ai = AiPanelUiState(),
             aiCandidates = emptyList(),
             aiCandidatesFor = "",

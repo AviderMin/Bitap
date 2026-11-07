@@ -215,26 +215,21 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun symbolLayerKeepsComposingThenCommitsSymbolAfterFreshQuery() {
+    fun symbolLayerKeepsComposingThenCommitsSymbolWithFreshEmptyQuery() {
         val state = KeyboardUiState(composing = "ni", candidatesFor = "ni")
         val switched = reduce(state = state, action = KeyboardAction.ShowLayer(KeyboardLayer.Numbers))
         assertEquals(KeyboardLayer.Numbers, switched.state.layer)
         assertEquals("ni", switched.state.composing)
         assertTrue(switched.commands.isEmpty())
 
+        // candidatesFor == composing means this is a completed empty result:
+        // the symbol can commit the visible raw text plus "1" without waiting.
         val symbol = reduce(state = switched.state, action = KeyboardAction.AppendInput("1"))
-        assertTrue(symbol.commands.isEmpty())
-        assertTrue(symbol.state.pendingConfirmation is PendingConfirmation.Punctuation)
-
-        val resolved = reduce(
-            state = symbol.state,
-            action = KeyboardAction.ComposingUpdated("ni", listOf(Candidate("你", "ni", 100))),
-        )
         assertEquals(
-            listOf<ImeCommand>(ImeCommand.CommitText("你"), ImeCommand.CommitText("1")),
-            resolved.commands,
+            listOf<ImeCommand>(ImeCommand.CommitText("ni"), ImeCommand.CommitText("1")),
+            symbol.commands,
         )
-        assertEquals("", resolved.state.composing)
+        assertEquals("", symbol.state.composing)
     }
 
     @Test

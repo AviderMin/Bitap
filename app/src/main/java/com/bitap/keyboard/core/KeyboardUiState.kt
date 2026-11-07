@@ -257,6 +257,10 @@ data class KeyboardUiState(
     val candidates: List<Candidate> = emptyList(),
     /** Set when Space/Candidate/Punctuation waits for a fresh composing query. */
     val pendingConfirmation: PendingConfirmation? = null,
+    /** Snapshot of composing at the time the pending confirmation was created. */
+    val pendingComposing: String = "",
+    /** Keys/actions received while a confirmation is pending, replayed in order. */
+    val queuedActions: List<KeyboardAction> = emptyList(),
     /** Current editor configuration; reset on every onStartInput. */
     val editorInfo: EditorInputInfo = EditorInputInfo(),
     val ai: AiPanelUiState = AiPanelUiState(),
