@@ -11,6 +11,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -37,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +46,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,6 +56,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import com.bitap.keyboard.ai.RewriteTone
 import com.bitap.keyboard.core.AiPanelUiState
 import com.bitap.keyboard.core.AiStatus
@@ -537,10 +543,12 @@ private fun KeyButton(
     isFunction: Boolean = false,
     isActive: Boolean = false,
     fontSize: TextUnit = 20.sp,
+    onLongPressRepeat: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
     val interaction = remember { MutableInteractionSource() }
+    val pointerScope = rememberCoroutineScope()
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.96f else 1f,
@@ -564,7 +572,30 @@ private fun KeyButton(
             .clip(shape)
             .background(background)
             .border(0.5.dp, palette.hairline, shape)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .then(
+                if (onLongPressRepeat == null) {
+                    Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                } else {
+                    Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                var repeated = false
+                                val repeatJob = pointerScope.launch {
+                                    delay(viewConfiguration.longPressTimeoutMillis)
+                                    repeated = true
+                                    while (isActive) {
+                                        onLongPressRepeat()
+                                        delay(55)
+                                    }
+                                }
+                                tryAwaitRelease()
+                                repeatJob.cancel()
+                                if (!repeated) onClick()
+                            },
+                        )
+                    }
+                },
+            )
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
@@ -637,6 +668,7 @@ private fun LetterLayout(
                 modifier = Modifier.weight(1.5f),
                 isFunction = true,
                 fontSize = 20.sp,
+                onLongPressRepeat = { press(KeyboardAction.Backspace) },
                 onClick = { press(KeyboardAction.Backspace) },
             )
         }
@@ -697,6 +729,7 @@ private fun SymbolLayout(
                 modifier = Modifier.weight(1.4f),
                 isFunction = true,
                 fontSize = 20.sp,
+                onLongPressRepeat = { press(KeyboardAction.Backspace) },
                 onClick = { press(KeyboardAction.Backspace) },
             )
         }
