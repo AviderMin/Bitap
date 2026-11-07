@@ -18,6 +18,11 @@ class PinyinEngine private constructor(
 
     private val selectionLock = Any()
     private val selectionCounts = HashMap<String, Int>()
+    private val userEntries = LinkedHashMap<String, UserLexiconEntry>()
+
+    /** Session learning switch; controller updates it from settings + editor policy. */
+    var learningEnabled: Boolean = true
+        private set
 
     init {
         loadPersistedSelectionWeights()
@@ -89,9 +94,9 @@ class PinyinEngine private constructor(
             }
         }
 
-        current.entriesByPinyin[query]
-            ?.take(MAX_COLLECT_PER_GROUP)
-            ?.forEach { consider(it, GROUP_EXACT) }
+        entriesForPinyin(query, current)
+            .take(MAX_COLLECT_PER_GROUP)
+            .forEach { consider(it, GROUP_EXACT) }
 
         val prefixEntries = collectPrefixEntries(query, current)
         prefixEntries.forEach { consider(it, GROUP_PREFIX) }
@@ -165,7 +170,7 @@ class PinyinEngine private constructor(
     ): List<Candidate> {
         val lastSegmentIndex = parsed.segments.lastIndex
         val options = parsed.segments.mapIndexed { segmentIndex, segment ->
-            val exact = index.entriesByPinyin[segment].orEmpty()
+            val exact = entriesForPinyin(segment, index)
             val entries = if (segmentIndex == lastSegmentIndex && exact.isEmpty()) {
                 // Last syllable may be incomplete: allow a prefix lookup (xi'a,
                 // xi'ha) while earlier syllables must match exactly.
@@ -193,11 +198,11 @@ class PinyinEngine private constructor(
         // apostrophe boundary (西安 = xian, 你好 = nihao). Single-syllable words
         // such as 先/县 for "xian" are intentionally excluded here.
         val combined = parsed.segments.joinToString("")
-        index.entriesByPinyin[combined]
-            ?.asSequence()
-            ?.filter { it.word.length >= parsed.segments.size }
-            ?.take(MAX_SEGMENT_OPTIONS)
-            ?.forEach { entry ->
+        entriesForPinyin(combined, index)
+            .asSequence()
+            .filter { it.word.length >= parsed.segments.size }
+            .take(MAX_SEGMENT_OPTIONS)
+            .forEach { entry ->
                 consider(SegmentCandidate(entry.word, entry.frequency, GROUP_EXACT))
             }
 
@@ -243,6 +248,25 @@ class PinyinEngine private constructor(
             }
     }
 
+    private fun entriesForPinyin(pinyin: String, index: Index): List<Entry> {
+        val indexed = index.entriesByPinyin[pinyin].orEmpty()
+        val learned = synchronized(selectionLock) {
+            userEntries.values
+                .asSequence()
+                .filter { it.pinyin == pinyin }
+                .map { it.toEntry() }
+                .toList()
+        }
+        return if (learned.isEmpty()) indexed else indexed + learned
+    }
+
+    private fun UserLexiconEntry.toEntry(): Entry = Entry(
+        pinyin = pinyin,
+        word = word,
+        frequency = count.toLong(),
+        consumedInputLength = pinyin.length,
+    )
+
     private fun collectPrefixEntries(query: String, index: Index): List<Entry> {
         val prefixEntries = ArrayList<Entry>()
         var position = lowerBound(index.keys, query)
@@ -256,6 +280,14 @@ class PinyinEngine private constructor(
             position++
             scanned++
         }
+        val learnedPrefixes = synchronized(selectionLock) {
+            userEntries.values
+                .asSequence()
+                .filter { it.pinyin.isNotEmpty() && it.pinyin.startsWith(query) && it.pinyin.length > query.length }
+                .map { it.toEntry() }
+                .toList()
+        }
+        if (learnedPrefixes.isNotEmpty()) prefixEntries.addAll(learnedPrefixes)
         return prefixEntries
             .sortedWith(
                 compareByDescending<Entry> { it.frequency }
@@ -265,15 +297,45 @@ class PinyinEngine private constructor(
             .take(MAX_COLLECT_PER_GROUP)
     }
 
-    /** Records one explicit local/AI candidate choice for the current session. */
-    fun recordSelection(word: String) {
+    /** Enables/disables learning for the current input session (R08). */
+    fun setLearningEnabled(enabled: Boolean) {
+        learningEnabled = enabled
+    }
+
+    /**
+     * Records one explicit local/AI candidate choice.
+     *
+     * [pinyin] is the pronunciation used for the choice; when present it becomes
+     * a searchable user entry so AI-provided words absent from the bundled
+     * dictionary can be found after an IME restart. [persist] is false for the
+     * typing hot path: KeyboardController batches persistence off the main thread.
+     */
+    fun recordSelection(
+        word: String,
+        pinyin: String = "",
+        source: String = "user",
+        persist: Boolean = true,
+    ) {
+        if (!learningEnabled) return
         val key = word.trim()
         if (key.isEmpty()) return
+        val normalizedPinyin = normalize(pinyin)
         synchronized(selectionLock) {
-            val next = (selectionCounts[key] ?: 0) + 1
-            selectionCounts[key] = next.coerceAtMost(MAX_SELECTION_WEIGHT)
+            val next = ((selectionCounts[key] ?: 0) + 1).coerceAtMost(MAX_SELECTION_WEIGHT)
+            selectionCounts[key] = next
+            if (normalizedPinyin.isNotEmpty()) {
+                val entryKey = normalizedPinyin + "\t" + key
+                val existing = userEntries[entryKey]
+                userEntries[entryKey] = UserLexiconEntry(
+                    pinyin = normalizedPinyin,
+                    word = key,
+                    count = maxOf(next, existing?.count ?: 0),
+                    source = source,
+                )
+            }
+            pruneUserEntriesLocked()
         }
-        persistSelectionWeights()
+        if (persist) persistSelectionWeights()
     }
 
     /** Number of times [word] was explicitly selected in this session. */
@@ -281,34 +343,84 @@ class PinyinEngine private constructor(
         selectionCounts[word.trim()] ?: 0
     }
 
-    /** Clears both in-memory and persisted user selection memory. */
+    /** Number of distinct searchable pinyin->word entries currently retained. */
+    val userEntryCount: Int
+        get() = synchronized(selectionLock) { userEntries.size }
+
+    /** Clears both in-memory and persisted user selection memory on this engine. */
     fun clearSelectionMemory() {
-        synchronized(selectionLock) { selectionCounts.clear() }
+        synchronized(selectionLock) {
+            selectionCounts.clear()
+            userEntries.clear()
+        }
         runCatching { userLexiconStore?.clear() }
     }
 
-    /** Persists the current word counts if a store was attached. */
+    /** Applies a simple count decay; call periodically or from a maintenance path. */
+    fun decaySelectionWeights() {
+        synchronized(selectionLock) {
+            selectionCounts.keys.toList().forEach { key ->
+                val next = (selectionCounts[key] ?: 0) / 2
+                if (next <= 0) selectionCounts.remove(key) else selectionCounts[key] = next
+            }
+            userEntries.entries.toList().forEach { (key, entry) ->
+                val next = entry.count / 2
+                if (next <= 0) userEntries.remove(key) else userEntries[key] = entry.copy(count = next)
+            }
+        }
+        persistSelectionWeights()
+    }
+
+    /** Persists the current entries if a store was attached. */
     fun persistSelectionWeights() {
         val store = userLexiconStore ?: return
-        val snapshot = synchronized(selectionLock) { HashMap(selectionCounts) }
-        runCatching { store.save(snapshot) }
+        val entries = synchronized(selectionLock) {
+            val byKey = LinkedHashMap<String, UserLexiconEntry>()
+            userEntries.values.forEach { entry -> byKey[entry.pinyin + "\t" + entry.word] = entry }
+            val representedWords = byKey.values.mapTo(HashSet()) { it.word }
+            selectionCounts.forEach { (word, count) ->
+                if (word.isNotEmpty() && count > 0 && word !in representedWords) {
+                    byKey["\t" + word] = UserLexiconEntry(pinyin = "", word = word, count = count)
+                }
+            }
+            byKey.values.toList()
+        }
+        runCatching { store.saveEntries(entries) }
+    }
+
+    private fun pruneUserEntriesLocked() {
+        if (userEntries.size <= MAX_USER_ENTRIES) return
+        val keep = userEntries.entries
+            .sortedWith(
+                compareByDescending<Map.Entry<String, UserLexiconEntry>> { it.value.count }
+                    .thenBy { it.key },
+            )
+            .take(MAX_USER_ENTRIES)
+        userEntries.clear()
+        keep.forEach { (key, entry) -> userEntries[key] = entry }
     }
 
     private fun loadPersistedSelectionWeights() {
         val store = userLexiconStore ?: return
-        val persisted = runCatching { store.load() }.getOrDefault(emptyMap())
-        mergeSelectionWeights(persisted)
+        val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
+        mergeSelectionEntries(persisted)
     }
 
-    private fun mergeSelectionWeights(persisted: Map<String, Int>) {
+    private fun mergeSelectionEntries(persisted: List<UserLexiconEntry>) {
         if (persisted.isEmpty()) return
         synchronized(selectionLock) {
-            persisted.forEach { (word, count) ->
-                val normalizedWord = word.trim()
-                if (normalizedWord.isEmpty() || count <= 0) return@forEach
-                val capped = count.coerceAtMost(MAX_SELECTION_WEIGHT)
-                selectionCounts[normalizedWord] = maxOf(selectionCounts[normalizedWord] ?: 0, capped)
+            persisted.forEach { entry ->
+                val word = entry.word.trim()
+                val count = entry.count.coerceAtMost(MAX_SELECTION_WEIGHT)
+                if (word.isEmpty() || count <= 0) return@forEach
+                selectionCounts[word] = maxOf(selectionCounts[word] ?: 0, count)
+                val pinyin = normalize(entry.pinyin)
+                if (pinyin.isNotEmpty()) {
+                    val key = pinyin + "\t" + word
+                    userEntries[key] = entry.copy(pinyin = pinyin, word = word, count = count)
+                }
             }
+            pruneUserEntriesLocked()
         }
     }
 
@@ -355,7 +467,8 @@ class PinyinEngine private constructor(
                 val maxLength = minOf(maxKeyLength, n - position)
                 for (length in 1..maxLength) {
                     val key = input.substring(position, position + length)
-                    val entries = index.entriesByPinyin[key] ?: continue
+                    val entries = entriesForPinyin(key, index)
+                    if (entries.isEmpty()) continue
                     for (entry in entries.take(MAX_ENTRIES_PER_KEY)) {
                         if (entry.word.isEmpty()) continue
                         val nextWords = path.words + entry.word
@@ -403,10 +516,14 @@ class PinyinEngine private constructor(
      * what restores selection weights after an IME restart.
      */
     suspend fun loadFromAssets(context: Context) {
-        if (userLexiconStore == null) {
-            userLexiconStore = UserLexiconStore.create(context)
+        val store = userLexiconStore ?: UserLexiconStore.create(context).also {
+            userLexiconStore = it
         }
-        loadPersistedSelectionWeights()
+        // R08: user-lexicon decoding/loading is I/O work, not a main-thread read.
+        val persistedEntries = withContext(Dispatchers.IO) {
+            runCatching { store.loadEntries() }.getOrDefault(emptyList())
+        }
+        mergeSelectionEntries(persistedEntries)
         val loaded = withContext(Dispatchers.IO) {
             context.assets.open(ASSET_NAME).bufferedReader(Charsets.UTF_8).use { reader ->
                 buildIndex(reader.lineSequence())
@@ -436,6 +553,8 @@ class PinyinEngine private constructor(
         private const val MAX_SEGMENT_OPTIONS = 8
         private const val MAX_SEGMENT_COMBINATIONS = 512
         private const val MAX_SELECTION_WEIGHT = 1_000
+        /** User-lexicon capacity: least-used entries are evicted above this. */
+        const val MAX_USER_ENTRIES = 200
         private const val GROUP_EXACT = 3
         private const val GROUP_PREFIX = 2
         private const val GROUP_PHRASE = 1

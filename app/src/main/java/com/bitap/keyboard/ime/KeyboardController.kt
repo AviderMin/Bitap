@@ -48,6 +48,7 @@ class KeyboardController(
     private var pinyinJob: Job? = null
     private var aiJob: Job? = null
     private var aiToken = 0L
+    private var userLexiconPersistJob: Job? = null
 
     /** Single entry point for every keyboard event. */
     fun dispatch(action: KeyboardAction) {
@@ -97,6 +98,7 @@ class KeyboardController(
 
     fun onSettingsChanged(newSettings: BitapSettings) {
         settings = newSettings
+        applyLearningPolicy()
         if (!newSettings.aiEnabled) cancelAi()
         dispatch(KeyboardAction.HapticsChanged(newSettings.hapticsEnabled))
         dispatch(KeyboardAction.SoundChanged(newSettings.soundEnabled))
@@ -125,6 +127,26 @@ class KeyboardController(
         pinyinJob?.cancel()
         cancelAi()
         dispatch(KeyboardAction.EditorInfoChanged(editorInfo, settings.aiEnabled))
+        applyLearningPolicy()
+    }
+
+    /** Clears the running engine's in-memory and persisted user lexicon. */
+    fun clearUserLexicon() {
+        pinyinEngine.clearSelectionMemory()
+    }
+
+    private fun applyLearningPolicy() {
+        pinyinEngine.setLearningEnabled(
+            settings.learningEnabled && _state.value.editorInfo.allowsPersonalizedLearning,
+        )
+    }
+
+    private fun scheduleUserLexiconPersist() {
+        userLexiconPersistJob?.cancel()
+        userLexiconPersistJob = scope.launch {
+            delay(USER_LEXICON_PERSIST_DEBOUNCE_MS)
+            withContext(Dispatchers.IO) { pinyinEngine.persistSelectionWeights() }
+        }
     }
 
     fun onFinishInput() {
@@ -164,7 +186,10 @@ class KeyboardController(
     /** Releases coroutines and cancels any in-flight AI request when the service dies. */
     fun dispose() {
         pinyinJob?.cancel()
+        userLexiconPersistJob?.cancel()
         cancelAi()
+        // Persist synchronously only at service teardown, never on the key path.
+        runCatching { pinyinEngine.persistSelectionWeights() }
     }
 
     private fun execute(command: ImeCommand) {
@@ -187,23 +212,41 @@ class KeyboardController(
         reduction: Reduction,
         action: KeyboardAction,
     ) {
-        val selectedWord = when (action) {
+        val choice = when (action) {
             is KeyboardAction.CandidateTapped -> {
-                previous.candidates.getOrNull(action.index)?.word
+                previous.candidates.getOrNull(action.index)
                     ?.takeIf { previous.candidatesFor == previous.composing }
+                    ?.let { candidate ->
+                        Pair(candidate.word, candidate.pinyin.ifBlank { previous.composing })
+                    }
             }
 
-            is KeyboardAction.AiCandidateTapped -> action.word.takeIf { it.isNotBlank() }
-            KeyboardAction.Space -> previous.candidates.firstOrNull()?.word
+            is KeyboardAction.AiCandidateTapped -> action.word
+                .takeIf { it.isNotBlank() }
+                ?.let { word ->
+                    Pair(word, previous.aiCandidatesFor.ifBlank { previous.composing })
+                }
+
+            KeyboardAction.Space -> previous.candidates.firstOrNull()
                 ?.takeIf { previous.candidatesFor == previous.composing }
+                ?.let { candidate ->
+                    Pair(candidate.word, candidate.pinyin.ifBlank { previous.composing })
+                }
 
             else -> null
         } ?: return
         val committed = reduction.commands.any { command ->
-            command is ImeCommand.CommitText && command.text == selectedWord
+            command is ImeCommand.CommitText && command.text == choice.first
         }
-        if (committed) {
-            pinyinEngine.recordSelection(selectedWord)
+        val canLearn = settings.learningEnabled && _state.value.editorInfo.allowsPersonalizedLearning
+        if (committed && canLearn) {
+            pinyinEngine.recordSelection(
+                word = choice.first,
+                pinyin = choice.second,
+                source = if (action is KeyboardAction.AiCandidateTapped) "ai" else "candidate",
+                persist = false,
+            )
+            scheduleUserLexiconPersist()
         }
     }
 
@@ -348,5 +391,6 @@ class KeyboardController(
 
     private companion object {
         const val PINYIN_DEBOUNCE_MS = 30L
+        const val USER_LEXICON_PERSIST_DEBOUNCE_MS = 500L
     }
 }

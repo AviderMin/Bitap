@@ -68,6 +68,14 @@ data class EditorInputInfo(
     val aiContextAllowed: Boolean
         get() = !isPassword
 
+    /** IME_FLAG_NO_PERSONALIZED_LEARNING and password fields forbid learning. */
+    val allowsPersonalizedLearning: Boolean
+        get() = !isPassword &&
+            (imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) == 0
+
+    val learningAllowed: Boolean
+        get() = allowsPersonalizedLearning
+
     /** Only normal text fields enter pinyin composing; the other types force English. */
     val allowsChineseInput: Boolean
         get() = kind == EditorInputKind.Text
@@ -239,6 +247,9 @@ data class KeyboardUiState(
 
     val aiContextAllowed: Boolean
         get() = editorInfo.aiContextAllowed
+
+    val learningAllowed: Boolean
+        get() = editorInfo.allowsPersonalizedLearning
 }
 
 /** All user/UI events understood by [KeyboardReducer]. */

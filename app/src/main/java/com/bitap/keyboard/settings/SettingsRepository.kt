@@ -34,6 +34,10 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         prefs.edit().putBoolean(KEY_HAPTICS, value).apply()
     }
 
+    fun setLearningEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LEARNING, value).apply()
+    }
+
     fun setSoundEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_SOUND, value).apply()
     }
@@ -63,6 +67,7 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
             ?: DarkMode.System,
         aiEnabled = prefs.getBoolean(KEY_AI, true),
         hapticsEnabled = prefs.getBoolean(KEY_HAPTICS, true),
+        learningEnabled = prefs.getBoolean(KEY_LEARNING, true),
         soundEnabled = prefs.getBoolean(KEY_SOUND, false),
         smartPunctuation = prefs.getBoolean(KEY_PUNCTUATION, true),
         keyboardHeightScale = prefs.getFloat(KEY_KEYBOARD_HEIGHT, 1.0f).coerceIn(0.85f, 1.35f),
@@ -77,6 +82,7 @@ class SettingsRepository(context: Context) : SharedPreferences.OnSharedPreferenc
         const val KEY_DARK = "dark_mode"
         const val KEY_AI = "ai_enabled"
         const val KEY_HAPTICS = "haptics"
+        const val KEY_LEARNING = "learning_enabled"
         const val KEY_SOUND = "sound"
         const val KEY_PUNCTUATION = "smart_punctuation"
         const val KEY_KEYBOARD_HEIGHT = "keyboard_height"

@@ -22,6 +22,8 @@ data class BitapSettings(
     val darkMode: DarkMode = DarkMode.System,
     val aiEnabled: Boolean = true,
     val hapticsEnabled: Boolean = true,
+    /** Whether local candidate learning may write to the user lexicon. */
+    val learningEnabled: Boolean = true,
     val soundEnabled: Boolean = false,
     val smartPunctuation: Boolean = true,
     /** 0.85f = compact, 1.0f = standard, 1.35f = extra tall. */
