@@ -197,6 +197,7 @@ data class KeyboardUiState(
     val aiCandidatesLoading: Boolean = false,
     val aiCandidatesError: String? = null,
     val hapticsEnabled: Boolean = true,
+    val soundEnabled: Boolean = false,
     val keyboardHeightScale: Float = 1.0f,
     val lastShiftTapAt: Long = 0L,
 ) {
@@ -293,6 +294,8 @@ sealed interface KeyboardAction {
     data class AiAvailabilityChanged(val enabled: Boolean, val ready: Boolean) : KeyboardAction
 
     data class HapticsChanged(val enabled: Boolean) : KeyboardAction
+
+    data class SoundChanged(val enabled: Boolean) : KeyboardAction
 }
 
 /** Side effects emitted by the pure reducer; executed by KeyboardController via TextSession. */

@@ -40,6 +40,7 @@ object KeyboardReducer {
         KeyboardAction.AiDismiss -> aiDismiss(state)
         is KeyboardAction.AiAvailabilityChanged -> aiAvailabilityChanged(state, action)
         is KeyboardAction.HapticsChanged -> state.copy(hapticsEnabled = action.enabled).let { Reduction(it) }
+        is KeyboardAction.SoundChanged -> state.copy(soundEnabled = action.enabled).let { Reduction(it) }
     }
 
     private fun toggleLanguage(state: KeyboardUiState): Reduction {

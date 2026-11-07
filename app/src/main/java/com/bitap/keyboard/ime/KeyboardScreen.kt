@@ -1,6 +1,7 @@
 package com.bitap.keyboard.ime
 
 import android.view.HapticFeedbackConstants
+import android.view.SoundEffectConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -111,8 +112,14 @@ fun KeyboardScreen(
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
     }
+    val keySound = {
+        if (state.soundEnabled) {
+            view.playSoundEffect(SoundEffectConstants.CLICK)
+        }
+    }
     val press: (KeyboardAction) -> Unit = { action ->
         haptic()
+        keySound()
         onAction(action)
     }
 
