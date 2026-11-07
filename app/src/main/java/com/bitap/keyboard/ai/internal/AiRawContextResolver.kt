@@ -31,15 +31,19 @@ object AiRawContextResolver {
     private val TRAILING_PINYIN = Regex("[A-Za-z']+$")
 
     fun resolve(selected: String?, beforeCursor: String?): AiRawReplacement? {
-        val selection = selected?.trim()
-        if (!selection.isNullOrEmpty()) {
-            if (!isPinyinLike(selection)) return null
-            val query = AiPinyinDictionary.normalizePinyin(selection)
+        // T04: keep the exact selected text (including outer whitespace) as the
+        // replacement range; only the query is trimmed/normalized. The
+        // controller compares this exact string before touching the editor.
+        if (selected != null && selected.isNotEmpty()) {
+            if (selected.isBlank()) return null
+            val queryText = selected.trim()
+            if (!isPinyinLike(queryText)) return null
+            val query = AiPinyinDictionary.normalizePinyin(queryText)
             if (query.length !in 1..MAX_QUERY_CHARS) return null
             return AiRawReplacement(
                 query = query,
                 context = "",
-                original = selection,
+                original = selected,
                 selected = true,
             )
         }
@@ -59,5 +63,6 @@ object AiRawContextResolver {
     }
 
     private fun isPinyinLike(text: String): Boolean =
-        text.all { char -> char in 'a'..'z' || char in 'A'..'Z' || char == '\'' }
+        text.any { char -> char in 'a'..'z' || char in 'A'..'Z' } &&
+            text.all { char -> char in 'a'..'z' || char in 'A'..'Z' || char == '\'' || char.isWhitespace() }
 }

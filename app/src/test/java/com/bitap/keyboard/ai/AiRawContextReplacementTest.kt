@@ -42,6 +42,17 @@ class AiRawContextResolverTest {
     }
 
     @Test
+    fun selectedOriginalKeepsOuterWhitespaceWhileQueryIsNormalized() {
+        val plan = AiRawContextResolver.resolve(selected = "  Ni' Hao\n", beforeCursor = "")
+        assertEquals("nihao", plan?.query)
+        assertEquals("  Ni' Hao\n", plan?.original)
+        assertEquals(true, plan?.selected)
+
+        val whitespace = AiRawContextResolver.resolve(selected = "   \n ", beforeCursor = "nihao")
+        assertNull(whitespace)
+    }
+
+    @Test
     fun rejectsChineseSelectionAndMissingTrailingPinyin() {
         assertNull(AiRawContextResolver.resolve(selected = "你好", beforeCursor = "你好"))
         assertNull(AiRawContextResolver.resolve(selected = null, beforeCursor = "你好"))
@@ -98,6 +109,21 @@ class AiRawContextReplacementTest {
     @Test
     fun replacesSelectedPinyin() {
         val session = EditableTextSession("nihao", selectionStart = 0, selectionEnd = 5)
+        val controller = newController(session, PinyinEngine.empty())
+        try {
+            controller.controller.dispatch(KeyboardAction.RequestAiCandidates)
+            controller.scheduler.advanceUntilIdle()
+            controller.controller.dispatch(KeyboardAction.AiCandidateTapped("你好"))
+            assertEquals("你好", session.text)
+        } finally {
+            controller.scope.cancel()
+        }
+    }
+
+    @Test
+    fun replacesSelectedPinyinWithOuterWhitespace() {
+        val raw = "  nihao \n"
+        val session = EditableTextSession(raw, selectionStart = 0, selectionEnd = raw.length)
         val controller = newController(session, PinyinEngine.empty())
         try {
             controller.controller.dispatch(KeyboardAction.RequestAiCandidates)
