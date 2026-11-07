@@ -1086,20 +1086,85 @@ private fun SymbolLayout(
  * delete keys are shared with SymbolLayout, so the fixed key height/row gap stay
  * identical to every other layer.
  */
+/**
+ * Numeric/phone/date-time layout. It intentionally has no path to the generic
+ * alphabet or symbol layers: those keys are rejected by many numeric editors.
+ * Decimal and signed flags are independent in the core model, so both "+"/"-"
+ * and "." appear together when both capabilities are declared.
+ */
 @Composable
 private fun NumericLayout(state: KeyboardUiState, press: (KeyboardAction) -> Unit) {
-    SymbolLayout(
-        rows = listOf(NumberRows[0]),
-        bottomRow = state.numericSymbols,
-        switchLabel = "#+=",
-        switchDescription = "切换到更多符号",
-        nextLayer = KeyboardLayer.Symbols,
-        press = press,
-    )
+    val symbols = state.numericSymbols
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp),
+        verticalArrangement = Arrangement.spacedBy(LocalKeyboardRowGap.current),
+    ) {
+        KeyRow(
+            keys = NumberRows[0].map { digit ->
+                KeyCap(
+                    label = digit,
+                    description = "数字 " + digit,
+                    weight = 1f,
+                    fontSize = 20.sp,
+                    onClick = { press(KeyboardAction.AppendInput(digit)) },
+                )
+            },
+        )
+        KeyRow(
+            keys = buildList {
+                symbols.forEach { symbol ->
+                    val displayLabel = if (symbol.isBlank()) "空格" else symbol
+                    add(
+                        KeyCap(
+                            label = displayLabel,
+                            description = "符号 " + displayLabel,
+                            weight = 1f,
+                            fontSize = 18.sp,
+                            onClick = { press(KeyboardAction.AppendInput(symbol)) },
+                        ),
+                    )
+                }
+                add(
+                    KeyCap(
+                        label = "⌫",
+                        description = "删除",
+                        weight = 1.4f,
+                        isFunction = true,
+                        fontSize = 20.sp,
+                        longPressRepeat = { press(KeyboardAction.Backspace) },
+                        onClick = { press(KeyboardAction.Backspace) },
+                    ),
+                )
+            },
+        )
+    }
 }
 
 @Composable
 private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit) {
+    if (state.numericMode != NumericInputMode.None) {
+        // Numeric editors must not expose alphabet/symbol layer entries that the
+        // editor may reject. NumericLayout already contains digits, its own
+        // symbols and backspace; the bottom row only carries the enter action.
+        KeyRow(
+            keys = listOf(
+                KeyCap(
+                    label = state.enterKeyLabel,
+                    description = "回车键：" + state.enterKeyLabel,
+                    weight = 1f,
+                    isFunction = true,
+                    fontSize = when {
+                        state.enterKeyLabel.length >= 3 -> 12.sp
+                        state.enterKeyLabel.length == 2 -> 14.sp
+                        else -> 20.sp
+                    },
+                    onClick = { press(KeyboardAction.Enter) },
+                ),
+            ),
+            modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
+        )
+        return
+    }
     val chinese = state.language == InputLanguage.Chinese
     val layerLabel = when (state.layer) {
         KeyboardLayer.Letters -> "123"
