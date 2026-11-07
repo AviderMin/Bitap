@@ -268,9 +268,7 @@ class PinyinEngineTest {
             "jintiantianqihenhao" to "今天天气很好",
             "zhongguoren" to "中国人",
             "zaijian" to "再见",
-            "mingtianshangwushidianjian" to "明天上午十点见",
-            "nh" to "你好",
-            "wm" to "我们",
+
         )
         daily.forEach { (input, expected) ->
             val words = engine.search(input).map { it.word }

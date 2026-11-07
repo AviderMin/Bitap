@@ -123,7 +123,9 @@ class PinyinEngine private constructor(
 
         return collected.values
             .sortedWith(
-                compareByDescending<RankedEntry> { selectionWeights[it.entry.word] ?: 0 }
+                compareByDescending<RankedEntry> {
+                    (selectionWeights[it.entry.word] ?: 0).coerceAtMost(MAX_RANKING_SELECTION_WEIGHT)
+                }
                     .thenByDescending { it.group }
                     .thenByDescending { if (it.group == GROUP_PHRASE) 0L else it.entry.frequency }
                     .thenBy { it.order },
@@ -272,7 +274,9 @@ class PinyinEngine private constructor(
 
         return collected.values
             .sortedWith(
-                compareByDescending<SegmentCandidate> { selectionWeights[it.word] ?: 0 }
+                compareByDescending<SegmentCandidate> {
+                    (selectionWeights[it.word] ?: 0).coerceAtMost(MAX_RANKING_SELECTION_WEIGHT)
+                }
                     .thenByDescending { it.group }
                     .thenByDescending { it.frequency }
                     .thenBy { it.word.length }
@@ -572,10 +576,51 @@ class PinyinEngine private constructor(
                         if (entry.word.isEmpty()) continue
                         if (++steps > MAX_PHRASE_STEPS) return emptyList()
                         val nextWords = path.words + entry.word
+                        val singleCharPenalty = if (entry.word.length == 1) PHRASE_SINGLE_CHAR_PENALTY else 0.0
+                        val numberBonus = if (entry.word.length == 1 && entry.word[0] in NUMBER_CHARS) {
+                            PHRASE_NUMBER_CHAR_BONUS
+                        } else {
+                            0.0
+                        }
+                        val previousWord = path.words.lastOrNull()
+                        val measureBonus = if (
+                            entry.word.length == 1 && entry.word in TIME_MEASURES &&
+                            previousWord?.lastOrNull() in NUMBER_CHARS
+                        ) {
+                            PHRASE_MEASURE_BONUS
+                        } else {
+                            0.0
+                        }
+                        val timeVerbBonus = if (
+                            (entry.word == "见" && (previousWord == "点" || previousWord in TIME_WORDS)) ||
+                            (entry.word in COMMON_VERBS && previousWord in TIME_WORDS)
+                        ) {
+                            PHRASE_TIME_VERB_BONUS
+                        } else {
+                            0.0
+                        }
+                        val timeContextBonus = if (
+                            entry.word.length == 1 && entry.word[0] in NUMBER_CHARS &&
+                            previousWord in TIME_WORDS
+                        ) {
+                            PHRASE_TIME_CONTEXT_BONUS
+                        } else {
+                            0.0
+                        }
+                        val commonVerbBonus = if (
+                            entry.word.length == 1 && entry.word in COMMON_VERBS &&
+                            previousWord in SUBJECT_TIME_WORDS
+                        ) {
+                            PHRASE_COMMON_VERB_BONUS
+                        } else {
+                            0.0
+                        }
                         val score = path.score +
                             kotlin.math.ln(entry.frequency.toDouble() + 1.0) +
                             PHRASE_WORD_LENGTH_WEIGHT * entry.word.length -
-                            PHRASE_SEGMENT_PENALTY
+                            PHRASE_SEGMENT_PENALTY -
+                            singleCharPenalty + numberBonus + measureBonus + timeVerbBonus +
+                            timeContextBonus + commonVerbBonus
                         buckets[position + length].add(Path(position + length, nextWords, score))
                     }
                 }
@@ -707,6 +752,8 @@ class PinyinEngine private constructor(
         private const val MAX_SEGMENT_COMBINATIONS = 512
         private const val PARTIAL_QUOTA = 16
         private const val MAX_SELECTION_WEIGHT = 1_000
+        /** Ranking cap: learning gives priority, not unbounded dominance. */
+        private const val MAX_RANKING_SELECTION_WEIGHT = 8
         private const val DECAY_INTERVAL = 500
         /** User-lexicon capacity: least-used entries are evicted above this. */
         const val MAX_USER_ENTRIES = 200
@@ -717,10 +764,21 @@ class PinyinEngine private constructor(
         private const val MAX_PHRASE_KEY_LENGTH = 64
         private const val MAX_PHRASE_INPUT_LENGTH = 64
         private const val MAX_PHRASE_STEPS = 20_000
-        private const val MAX_PATHS_PER_POSITION = 16
-        private const val MAX_ENTRIES_PER_KEY = 5
-        private const val PHRASE_WORD_LENGTH_WEIGHT = 0.55
-        private const val PHRASE_SEGMENT_PENALTY = 8.0
+        private const val MAX_PATHS_PER_POSITION = 24
+        private const val MAX_ENTRIES_PER_KEY = 16
+        private const val PHRASE_WORD_LENGTH_WEIGHT = 1.2
+        private const val PHRASE_SEGMENT_PENALTY = 4.0
+        private const val PHRASE_SINGLE_CHAR_PENALTY = 8.0
+        private const val PHRASE_NUMBER_CHAR_BONUS = 0.0
+        private const val PHRASE_MEASURE_BONUS = 8.0
+        private const val PHRASE_TIME_VERB_BONUS = 6.0
+        private const val PHRASE_TIME_CONTEXT_BONUS = 8.0
+        private const val PHRASE_COMMON_VERB_BONUS = 6.0
+        private val NUMBER_CHARS = "零一二三四五六七八九十百千万亿两".toSet()
+        private val TIME_MEASURES = setOf("点", "年", "月", "日", "号", "岁", "分", "秒")
+        private val TIME_WORDS = setOf("上午", "下午", "晚上", "早上", "中午", "明天", "今天", "昨天")
+        private val SUBJECT_TIME_WORDS = setOf("我", "你", "他", "她", "我们", "你们", "他们", "今天", "明天", "昨天")
+        private val COMMON_VERBS = setOf("想", "要", "去", "来", "看", "吃", "说", "做", "买", "学", "见", "打")
 
         /** Builds an engine from raw TSV lines; used by JVM tests and [loadFromAssets]. */
         fun fromLines(

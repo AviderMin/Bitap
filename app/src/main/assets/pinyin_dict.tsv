@@ -4,10 +4,6 @@ woaini	我爱你	120000
 woxiangchifan	我想吃饭	120000
 jintiantianqihenhao	今天天气很好	120000
 zhongguoren	中国人	120000
-mingtianshangwushidianjian	明天上午十点见	120000
-nh	你好	80000
-wm	我们	80000
-mt	明天	50000
 # generated from jieba + pypinyin | pinyin	word	freq
 le	了	883634
 shi	是	796991
