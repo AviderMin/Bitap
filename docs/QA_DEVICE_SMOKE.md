@@ -93,4 +93,28 @@ Caused by: java.lang.ClassNotFoundException: Didn't find class
 
 ---
 
-*qa-dev，2026-11-07。所有结论来自 adb 自动化点击/截图与 logcat；未验证项已按要求标记 PARTIAL/GAP。*
+## 6. A8 邮箱/数字输入框与多指/长按边界（task-13，2026-11-07 13:10–13:20）
+
+**APK：** `dist/bitap-0.1.0-demo.apk` SHA-256 `648F6D96D73E8475945F00BB5D6A2DF2FFE9435AEFBF14E6A83266C7E92285FA`（27,593,047 bytes，13:11 安装）。
+**设备：** 同 A6（22021211RC / Android 16 / API 36，1080×2400）。
+
+**测试方法：** 本地 HTML 测试页（`input type=email / number / tel / text`，带 `enterkeyhint`）经 Python HTTP server + `adb reverse tcp:8766` 由 Via 打开（`http://127.0.0.1:8766/bitap-inputs.html`）；避免依赖 Gmail/拨号器自身的输入控件。
+
+| # | 场景 | 操作 | 结果 | 证据 |
+| --- | --- | --- | --- | --- |
+| A8-1 | 邮箱输入框布局 | 聚焦 `<input type="email">` | **PASS（布局）**：候选条显示「英文输入」，英文 QWERTY 布局（未进入拼音 composing）；回车键实际显示「下一步」 | [截图](evidence/bitap-a8-01-email-layout.png) |
+| A8-2 | 数字输入框布局 | 聚焦 `<input type="number">` | **PASS**：候选条「英文输入」，键盘为 Numbers 层（1–0 与 @#$%&*+() 符号）；回车键「下一步」；实际输入 12345，字段文本为 12345 | [布局](evidence/bitap-a8-02-number-layout.png)、[输入](evidence/bitap-a8-03-number-typed.png) |
+| A8-3 | 长按退格边界（400 ms 阈值） | 数字框输入 12345：100 ms 点按 / 300 ms 按压 / 900 ms 长按 | **PASS**：100 ms 删 1 位；300 ms（低于 400 ms 长按阈值）仅删 1 位；900 ms 连续删除至空；空态继续长按无崩溃 | [空态长按后](evidence/bitap-a8-04-number-longpress-empty.png) |
+| A8-4 | 双指同时点按 | 用 root `sendevent /dev/input/event2`（`fts_ts`）双 slot 同时按 q + w | **PARTIAL**：无崩溃、IME 进程存活（pid 30835），但实际只输入 1 个字符「q」——同时触点仅首指生效，未产生「qw」 | [截图](evidence/bitap-a8-05-multitouch-two-finger.png) |
+| A8-5 | 稳定性 | 上述全流程后检查 `logcat -b crash` | **PASS（当前包）**：13:00 之后无新增崩溃记录；Bitap 进程存活 | — |
+
+**结论：**
+- 邮箱、数字输入框的布局切换与数字输入 **PASS**；邮箱框实测进入英文 QWERTY，数字框实测进入 Numbers 层。
+- 回车标签实测为「下一步」（HTML `enterkeyhint=send/done` 在 Via/Chromium 下均落到 Next；输入类型布局本身正常）。这是**实际观察值**，不代表邮件应用会完全一致，需在真实邮件应用再确认。
+- 长按退格边界：400 ms 阈值行为符合预期（300 ms 视为单击、900 ms 连续删除）。
+- 双指同时点按：**未崩溃**，但只识别首指；如果产品要求双指同时按键输入，这是一个待产品确认的边界，不判 PASS。
+- 设备已在测试后让给 ai-dev 执行 task-15，本报告不包含 ai-dev 期间的任何设备状态。
+
+---
+
+*qa-dev，2026-11-07。所有结论来自 adb 自动化点击/截图与 logcat；未验证项已按要求标记 PARTIAL/GAP。A8 证据文件：`docs/evidence/bitap-a8-*.png`。*
