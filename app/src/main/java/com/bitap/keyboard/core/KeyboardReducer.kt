@@ -138,6 +138,10 @@ object KeyboardReducer {
                             composing = composing,
                             candidates = emptyList(),
                             candidatesFor = "",
+                            aiCandidates = emptyList(),
+                            aiCandidatesFor = "",
+                            aiCandidatesLoading = false,
+                            aiCandidatesError = null,
                         ),
                         listOf(ImeCommand.SetComposingText(composing)),
                     )
@@ -174,6 +178,7 @@ object KeyboardReducer {
             return Reduction(
                 state.copy(
                     aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
                     aiCandidatesLoading = false,
                     aiCandidatesError = null,
                     pendingConfirmation = null,
@@ -197,6 +202,7 @@ object KeyboardReducer {
                 candidatesFor = "",
                 pendingConfirmation = null,
                 aiCandidates = emptyList(),
+                aiCandidatesFor = "",
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
             ),
@@ -243,6 +249,7 @@ object KeyboardReducer {
                 candidates = emptyList(),
                 candidatesFor = "",
                 aiCandidates = emptyList(),
+                aiCandidatesFor = "",
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
                 pendingConfirmation = pending,
@@ -320,6 +327,7 @@ object KeyboardReducer {
                 candidatesFor = "",
                 pendingConfirmation = null,
                 aiCandidates = emptyList(),
+                aiCandidatesFor = "",
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
                 shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
@@ -339,6 +347,10 @@ object KeyboardReducer {
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,
+                aiCandidates = emptyList(),
+                aiCandidatesFor = "",
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
             ),
             listOf(ImeCommand.CommitText(state.composing)),
         )
@@ -367,6 +379,10 @@ object KeyboardReducer {
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
+                    aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
+                    aiCandidatesLoading = false,
+                    aiCandidatesError = null,
                 ),
                 listOf(ImeCommand.FinishComposing, ImeCommand.DeleteBackward),
             )
@@ -377,6 +393,10 @@ object KeyboardReducer {
                     candidates = emptyList(),
                     candidatesFor = "",
                     pendingConfirmation = null,
+                    aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
+                    aiCandidatesLoading = false,
+                    aiCandidatesError = null,
                 ),
                 listOf(ImeCommand.SetComposingText(remaining)),
             )
@@ -392,6 +412,7 @@ object KeyboardReducer {
                     candidatesFor = "",
                     pendingConfirmation = null,
                     aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
                     aiCandidatesLoading = false,
                     aiCandidatesError = null,
                 ),
@@ -424,6 +445,7 @@ object KeyboardReducer {
                 ai = AiPanelUiState(),
                 aiEnabled = action.aiSettingEnabled && info.aiContextAllowed,
                 aiCandidates = emptyList(),
+                aiCandidatesFor = "",
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
                 lastShiftTapAt = 0L,
@@ -440,7 +462,23 @@ object KeyboardReducer {
         state: KeyboardUiState,
         action: KeyboardAction.SelectionChanged,
     ): Reduction {
-        if (state.composing.isEmpty()) return Reduction(state)
+        if (state.composing.isEmpty()) {
+            // R07: even without composing, any cursor/selection move invalidates
+            // an AI-lexicon request or its displayed candidates.
+            val hasAiCandidates = state.aiCandidates.isNotEmpty() ||
+                state.aiCandidatesLoading ||
+                state.aiCandidatesError != null ||
+                state.aiCandidatesFor.isNotEmpty()
+            if (!hasAiCandidates) return Reduction(state)
+            return Reduction(
+                state.copy(
+                    aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
+                    aiCandidatesLoading = false,
+                    aiCandidatesError = null,
+                ),
+            )
+        }
         val hasCandidatesRegion = action.candidatesStart >= 0 &&
             action.candidatesEnd >= action.candidatesStart
         // The normal IME-own callback after setComposingText places a collapsed
@@ -465,6 +503,7 @@ object KeyboardReducer {
             pendingConfirmation = null,
             ai = AiPanelUiState(),
             aiCandidates = emptyList(),
+            aiCandidatesFor = "",
             aiCandidatesLoading = false,
             aiCandidatesError = null,
             shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
@@ -477,6 +516,7 @@ object KeyboardReducer {
         return Reduction(
             state.copy(
                 aiCandidates = emptyList(),
+                aiCandidatesFor = "",
                 aiCandidatesLoading = true,
                 aiCandidatesError = null,
             ),
@@ -484,6 +524,9 @@ object KeyboardReducer {
     }
 
     private fun aiCandidatesUpdated(state: KeyboardUiState, candidates: List<String>): Reduction {
+        // A late result for a closed AI setting or a forbidden password context
+        // must never reappear in the candidate strip.
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
         val cleaned = candidates.asSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && it.length <= 24 }
@@ -493,6 +536,7 @@ object KeyboardReducer {
         return Reduction(
             state.copy(
                 aiCandidates = cleaned,
+                aiCandidatesFor = state.composing,
                 aiCandidatesLoading = false,
                 aiCandidatesError = if (cleaned.isEmpty()) "AI 词库没有返回候选" else null,
             ),
@@ -501,6 +545,8 @@ object KeyboardReducer {
 
     private fun aiCandidatesFailed(state: KeyboardUiState, message: String): Reduction = Reduction(
         state.copy(
+            aiCandidates = emptyList(),
+            aiCandidatesFor = "",
             aiCandidatesLoading = false,
             aiCandidatesError = message,
         ),
@@ -508,6 +554,18 @@ object KeyboardReducer {
 
     private fun aiCandidateTapped(state: KeyboardUiState, word: String): Reduction {
         if (word.isBlank()) return Reduction(state)
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed || state.aiCandidatesLoading) {
+            return Reduction(state)
+        }
+        if (state.aiCandidates.none { it == word }) return Reduction(state)
+        // A candidate requested for an older composing session must not be
+        // committed after the composition has changed. Raw-context requests use
+        // aiCandidatesFor = "" and are only valid while composing is empty.
+        if (state.aiCandidatesFor != state.composing &&
+            (state.composing.isNotEmpty() || state.aiCandidatesFor.isNotEmpty())
+        ) {
+            return Reduction(state)
+        }
         return commitCandidate(state, word)
     }
 
@@ -640,6 +698,17 @@ object KeyboardReducer {
             )
             else -> state.ai
         }
-        return Reduction(state.copy(aiEnabled = action.enabled, aiReady = ready, ai = panel))
+        val clearAiCandidates = !action.enabled || !ready
+        return Reduction(
+            state.copy(
+                aiEnabled = action.enabled,
+                aiReady = ready,
+                ai = panel,
+                aiCandidates = if (clearAiCandidates) emptyList() else state.aiCandidates,
+                aiCandidatesFor = if (clearAiCandidates) "" else state.aiCandidatesFor,
+                aiCandidatesLoading = if (clearAiCandidates) false else state.aiCandidatesLoading,
+                aiCandidatesError = if (clearAiCandidates) null else state.aiCandidatesError,
+            ),
+        )
     }
 }

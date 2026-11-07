@@ -211,6 +211,8 @@ data class KeyboardUiState(
     val aiEnabled: Boolean = true,
     val aiReady: Boolean = false,
     val aiCandidates: List<String> = emptyList(),
+    /** Composing text the current [aiCandidates] belong to; empty for raw-context requests. */
+    val aiCandidatesFor: String = "",
     val aiCandidatesLoading: Boolean = false,
     val aiCandidatesError: String? = null,
     val hapticsEnabled: Boolean = true,

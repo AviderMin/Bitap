@@ -58,6 +58,7 @@ class KeyboardControllerCandidateMemoryTest {
         val scope = CoroutineScope(SupervisorJob())
         val controller = KeyboardController(scope, RecordingTextSession(), engine, StubAiService())
         try {
+            controller.dispatch(KeyboardAction.AiCandidatesUpdated(listOf("你好")))
             controller.dispatch(KeyboardAction.AiCandidateTapped("你好"))
             assertEquals(1, engine.selectionCount("你好"))
         } finally {

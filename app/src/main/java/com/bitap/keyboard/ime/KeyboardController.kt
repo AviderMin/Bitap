@@ -97,6 +97,7 @@ class KeyboardController(
 
     fun onSettingsChanged(newSettings: BitapSettings) {
         settings = newSettings
+        if (!newSettings.aiEnabled) cancelAi()
         dispatch(KeyboardAction.HapticsChanged(newSettings.hapticsEnabled))
         dispatch(KeyboardAction.SoundChanged(newSettings.soundEnabled))
         _state.value = _state.value.copy(
@@ -143,7 +144,13 @@ class KeyboardController(
         candidatesStart: Int,
         candidatesEnd: Int,
     ) {
-        if (_state.value.composing.isEmpty()) return
+        // R07: moving the cursor/selection invalidates an AI lexicon request even
+        // when there is no composing text (e.g. a raw-context request).
+        val aiRequestActive = aiJob != null ||
+            _state.value.aiCandidatesLoading ||
+            _state.value.aiCandidates.isNotEmpty() ||
+            _state.value.aiCandidatesError != null
+        if (aiRequestActive) cancelAi()
         dispatch(
             KeyboardAction.SelectionChanged(
                 selectionStart = selectionStart,
@@ -217,11 +224,12 @@ class KeyboardController(
         // Keep a running request alive while the engine reports Loading/Busy transitions.
         if (!ready && _state.value.ai.isRunning && aiRuntimeState == AiRuntimeState.Loading) return
         val enabled = settings.aiEnabled && _state.value.editorInfo.aiContextAllowed
+        if (!enabled) cancelAi()
         dispatch(KeyboardAction.AiAvailabilityChanged(enabled, ready))
     }
 
     private fun startAiCandidates() {
-        if (!settings.aiEnabled || !_state.value.editorInfo.aiContextAllowed) return
+        if (!settings.aiEnabled || !_state.value.aiEnabled || !_state.value.editorInfo.aiContextAllowed) return
         aiJob?.cancel()
         aiService.cancel()
         val composing = _state.value.composing
