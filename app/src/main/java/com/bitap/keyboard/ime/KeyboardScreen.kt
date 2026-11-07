@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -197,12 +198,21 @@ private fun CandidateBar(
     onOpenSettings: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
+    val candidateScrollState = rememberScrollState()
     var candidatesExpanded by remember { mutableStateOf(false) }
     var candidatePage by remember { mutableIntStateOf(0) }
     val expandedPageSize = 6
-    LaunchedEffect(state.candidates) {
+    val candidateVersion = state.candidates.firstOrNull()?.word
+    // R11: a new composition/result set starts at the first candidate instead of
+    // leaving the previous scroll position at the end of the old result list.
+    LaunchedEffect(state.composing, state.candidatesFor, candidateVersion, state.candidates.size) {
         candidatePage = 0
+        candidateScrollState.scrollTo(0)
         if (state.candidates.isEmpty()) candidatesExpanded = false
+    }
+    // Collapse the expanded candidate page whenever the composition changes.
+    LaunchedEffect(state.composing) {
+        candidatesExpanded = false
     }
     Column(modifier = Modifier.fillMaxWidth()) {
     if (state.composing.isNotEmpty()) {
@@ -211,6 +221,15 @@ private fun CandidateBar(
             onCommitRaw = {
                 haptic()
                 onAction(KeyboardAction.CommitRaw)
+            },
+        )
+    }
+    if (state.aiEnabled && state.aiCandidates.isNotEmpty()) {
+        AiCandidateStrip(
+            candidates = state.aiCandidates,
+            onCandidateClick = { word ->
+                haptic()
+                onAction(KeyboardAction.AiCandidateTapped(word))
             },
         )
     }
@@ -225,7 +244,7 @@ private fun CandidateBar(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(candidateScrollState),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -248,26 +267,6 @@ private fun CandidateBar(
                             onClick = {
                                 haptic()
                                 onAction(KeyboardAction.CandidateTapped(index))
-                            },
-                        )
-                    }
-                }
-                if (state.aiCandidates.isNotEmpty()) {
-                    Text(
-                        text = "AI",
-                        color = palette.accent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 6.dp, end = 2.dp),
-                    )
-                    state.aiCandidates.forEach { word ->
-                        CandidateChip(
-                            label = word,
-                            description = "AI 词库候选 " + word,
-                            accent = true,
-                            onClick = {
-                                haptic()
-                                onAction(KeyboardAction.AiCandidateTapped(word))
                             },
                         )
                     }
@@ -399,31 +398,28 @@ private fun CandidateExpandedPanel(
             .background(palette.elevatedSurface)
             .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
             .padding(8.dp)
-            .heightIn(max = 196.dp),
+            .heightIn(max = 220.dp)
+            .verticalScroll(rememberScrollState()),
     ) {
-        pageItems.chunked(3).forEachIndexed { chunkIndex, rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        pageItems.forEachIndexed { itemIndex, candidate ->
+            val globalIndex = pageStart + itemIndex
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                rowItems.forEachIndexed { itemIndex, candidate ->
-                    val globalIndex = pageStart + chunkIndex * 3 + itemIndex
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        CandidateChip(
-                            label = candidate.word,
-                            description = "候选词 " + candidate.word,
-                            accent = globalIndex == 0,
-                            onClick = {
-                                haptic()
-                                onCandidateClick(globalIndex)
-                            },
-                        )
-                    }
-                }
-                repeat(3 - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+                CandidateChip(
+                    modifier = Modifier.fillMaxWidth(),
+                    label = candidate.word,
+                    description = "候选词 " + candidate.word,
+                    accent = globalIndex == 0,
+                    maxLines = 3,
+                    onClick = {
+                        haptic()
+                        onCandidateClick(globalIndex)
+                    },
+                )
             }
         }
         Row(
@@ -451,6 +447,46 @@ private fun CandidateExpandedPanel(
                     haptic()
                     onPageChange(currentPage + 1)
                 })
+            }
+        }
+    }
+}
+
+/** Fixed AI lexicon strip: AI results stay discoverable even with 64 local candidates. */
+@Composable
+private fun AiCandidateStrip(
+    candidates: List<String>,
+    onCandidateClick: (String) -> Unit,
+) {
+    val palette = LocalBitapPalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .padding(start = 8.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "AI 词库",
+            color = palette.accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            candidates.forEach { word ->
+                CandidateChip(
+                    label = word,
+                    description = "AI 词库候选 " + word,
+                    accent = true,
+                    onClick = { onCandidateClick(word) },
+                )
             }
         }
     }
@@ -518,14 +554,16 @@ private fun ComposingStrip(
 
 @Composable
 private fun CandidateChip(
+    modifier: Modifier = Modifier,
     label: String,
     description: String,
     accent: Boolean,
+    maxLines: Int = 1,
     onClick: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
     Box(
-        modifier = Modifier
+        modifier = modifier
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(999.dp))
             .clickable(onClick = onClick)
@@ -538,7 +576,8 @@ private fun CandidateChip(
             color = if (accent) palette.accent else palette.textPrimary,
             fontSize = 18.sp,
             fontWeight = if (accent) FontWeight.Medium else FontWeight.Normal,
-            maxLines = 1,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

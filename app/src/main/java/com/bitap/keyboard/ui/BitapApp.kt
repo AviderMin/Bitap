@@ -455,7 +455,7 @@ private fun KeyboardHeightSection(
     }
     BitapSectionTitle(
         title = "键盘",
-        subtitle = "按键高度固定、每行上下间隙一致；滑杆只调整键盘底部留白",
+        subtitle = "按键高度固定、每行上下间隙一致；滑杆只调整键盘底部留白（抬升键盘）",
     )
     BitapCard {
         Text(
@@ -487,7 +487,7 @@ private fun KeyboardHeightSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "键盘整体高度",
+                text = "键盘底部留白 / 抬升幅度",
                 color = palette.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
@@ -501,7 +501,7 @@ private fun KeyboardHeightSection(
             )
         }
         Text(
-            text = "键帽固定 54dp，行间距固定 4dp；滑杆只增加键盘底部留白，用来抬高整块键盘并避让系统快捷栏。",
+            text = "键帽固定 54dp、行间距固定 4dp；百分比只增加键盘底部留白，不缩放按键，用来抬高整块键盘并避让系统快捷栏。",
             color = palette.textSecondary,
             fontSize = 12.sp,
             lineHeight = 17.sp,
