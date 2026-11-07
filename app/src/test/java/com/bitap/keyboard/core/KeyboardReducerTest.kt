@@ -215,14 +215,26 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun symbolLayerCommitsComposingAndTypesSymbolsDirectly() {
-        val state = KeyboardUiState(composing = "ni")
+    fun symbolLayerKeepsComposingThenCommitsSymbolAfterFreshQuery() {
+        val state = KeyboardUiState(composing = "ni", candidatesFor = "ni")
         val switched = reduce(state = state, action = KeyboardAction.ShowLayer(KeyboardLayer.Numbers))
         assertEquals(KeyboardLayer.Numbers, switched.state.layer)
-        assertEquals("ni", (switched.commands.single() as ImeCommand.CommitText).text)
+        assertEquals("ni", switched.state.composing)
+        assertTrue(switched.commands.isEmpty())
 
         val symbol = reduce(state = switched.state, action = KeyboardAction.AppendInput("1"))
-        assertEquals("1", (symbol.commands.single() as ImeCommand.CommitText).text)
+        assertTrue(symbol.commands.isEmpty())
+        assertTrue(symbol.state.pendingConfirmation is PendingConfirmation.Punctuation)
+
+        val resolved = reduce(
+            state = symbol.state,
+            action = KeyboardAction.ComposingUpdated("ni", listOf(Candidate("你", "ni", 100))),
+        )
+        assertEquals(
+            listOf<ImeCommand>(ImeCommand.CommitText("你"), ImeCommand.CommitText("1")),
+            resolved.commands,
+        )
+        assertEquals("", resolved.state.composing)
     }
 
     @Test

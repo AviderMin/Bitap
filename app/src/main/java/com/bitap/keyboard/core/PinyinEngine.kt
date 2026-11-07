@@ -27,6 +27,8 @@ class PinyinEngine private constructor(
         val pinyin: String,
         val word: String,
         val frequency: Long,
+        /** Number of composing characters this entry covers; derived for phrases. */
+        val consumedInputLength: Int = pinyin.length,
     )
 
     /** True once a dictionary has been loaded. */
@@ -57,7 +59,13 @@ class PinyinEngine private constructor(
         if (parsed.segments.size > 1) {
             return searchSegmented(parsed, current, cappedLimit, selectionWeights)
         }
-        return searchContinuous(parsed.segments.single(), current, cappedLimit, selectionWeights)
+        return searchContinuous(
+            query = parsed.segments.single(),
+            current = current,
+            cappedLimit = cappedLimit,
+            selectionWeights = selectionWeights,
+            consumedInputLength = parsed.consumedLength,
+        )
     }
 
     private fun searchContinuous(
@@ -65,6 +73,7 @@ class PinyinEngine private constructor(
         current: Index,
         cappedLimit: Int,
         selectionWeights: Map<String, Int>,
+        consumedInputLength: Int,
     ): List<Candidate> {
         val collected = LinkedHashMap<String, RankedEntry>()
         var insertionOrder = 0
@@ -99,10 +108,25 @@ class PinyinEngine private constructor(
                     .thenBy { it.order },
             )
             .take(cappedLimit)
-            .map { Candidate(it.entry.word, it.entry.pinyin, it.entry.frequency) }
+            .map { ranked ->
+                Candidate(
+                    word = ranked.entry.word,
+                    pinyin = ranked.entry.pinyin,
+                    frequency = ranked.entry.frequency,
+                    consumedInputLength = if (ranked.group == GROUP_PHRASE) {
+                        ranked.entry.consumedInputLength
+                    } else {
+                        consumedInputLength
+                    },
+                )
+            }
     }
 
-    private data class ParsedQuery(val segments: List<String>)
+    private data class ParsedQuery(
+        val segments: List<String>,
+        /** Characters consumed in the original composition, including separators. */
+        val consumedLength: Int,
+    )
 
     private fun parseQuery(input: String): ParsedQuery {
         val normalizedSeparators = input
@@ -113,7 +137,10 @@ class PinyinEngine private constructor(
             .split(Regex("[\\s'\\-]+"))
             .map { segment -> segment.filter { char -> char in 'a'..'z' || char in 'A'..'Z' }.lowercase() }
             .filter { it.isNotEmpty() }
-        return ParsedQuery(segments)
+        val consumedLength = normalizedSeparators.count { char ->
+            char in 'a'..'z' || char in 'A'..'Z' || char == '\''
+        }
+        return ParsedQuery(segments, consumedLength)
     }
 
     private data class SegmentCandidate(
@@ -136,11 +163,19 @@ class PinyinEngine private constructor(
         limit: Int,
         selectionWeights: Map<String, Int>,
     ): List<Candidate> {
-        val options = parsed.segments.map { segment ->
-            index.entriesByPinyin[segment]
-                ?.take(MAX_SEGMENT_OPTIONS)
-                ?.map { entry -> SegmentCandidate(entry.word, entry.frequency, GROUP_PHRASE) }
-                ?: emptyList()
+        val lastSegmentIndex = parsed.segments.lastIndex
+        val options = parsed.segments.mapIndexed { segmentIndex, segment ->
+            val exact = index.entriesByPinyin[segment].orEmpty()
+            val entries = if (segmentIndex == lastSegmentIndex && exact.isEmpty()) {
+                // Last syllable may be incomplete: allow a prefix lookup (xi'a,
+                // xi'ha) while earlier syllables must match exactly.
+                collectPrefixEntries(segment, index)
+            } else {
+                exact
+            }
+            entries.take(MAX_SEGMENT_OPTIONS).map { entry ->
+                SegmentCandidate(entry.word, entry.frequency, GROUP_PHRASE)
+            }
         }
         if (options.any { it.isEmpty() }) return emptyList()
 
@@ -203,6 +238,7 @@ class PinyinEngine private constructor(
                     word = candidate.word,
                     pinyin = parsed.segments.joinToString("'"),
                     frequency = candidate.frequency,
+                    consumedInputLength = parsed.consumedLength,
                 )
             }
     }
@@ -286,21 +322,35 @@ class PinyinEngine private constructor(
         val order: Int,
     )
 
+    /**
+     * Dynamic-programming phrase candidates. Besides the complete input this
+     * emits prefix candidates (consumedInputLength < input.length), which lets
+     * the user confirm the first half of a sentence and keep the rest composing.
+     *
+     * Budget: key length comes from the dictionary index (not a hard-coded 12),
+     * capped by MAX_PHRASE_KEY_LENGTH; paths per position and entries per key are
+     * bounded so a long input cannot explode the search.
+     */
     private fun phraseCandidates(
         input: String,
         index: Index,
         limit: Int,
     ): List<Entry> {
-        if (limit <= 0 || input.length < 2) return emptyList()
+        if (limit <= 0 || input.length < 2 || input.length > MAX_PHRASE_INPUT_LENGTH) {
+            return emptyList()
+        }
         data class Path(val position: Int, val words: List<String>, val score: Double)
 
         val n = input.length
         val buckets = Array(n + 1) { ArrayList<Path>() }
         buckets[0].add(Path(0, emptyList(), 0.0))
-        val maxKeyLength = minOf(MAX_WORD_KEY_LENGTH, n)
+        val maxKeyLength = minOf(index.maxKeyLength, MAX_PHRASE_KEY_LENGTH, n)
+        if (maxKeyLength <= 0) return emptyList()
 
         for (position in 0 until n) {
-            val paths = buckets[position].sortedByDescending { it.score }.take(MAX_PATHS_PER_POSITION)
+            val paths = buckets[position]
+                .sortedByDescending { it.score }
+                .take(MAX_PATHS_PER_POSITION)
             for (path in paths) {
                 val maxLength = minOf(maxKeyLength, n - position)
                 for (length in 1..maxLength) {
@@ -309,8 +359,10 @@ class PinyinEngine private constructor(
                     for (entry in entries.take(MAX_ENTRIES_PER_KEY)) {
                         if (entry.word.isEmpty()) continue
                         val nextWords = path.words + entry.word
-                        val score = path.score + kotlin.math.ln(entry.frequency.toDouble() + 1.0) +
-                            0.35 * entry.word.length - SEGMENT_PENALTY
+                        val score = path.score +
+                            kotlin.math.ln(entry.frequency.toDouble() + 1.0) +
+                            PHRASE_WORD_LENGTH_WEIGHT * entry.word.length -
+                            PHRASE_SEGMENT_PENALTY
                         buckets[position + length].add(Path(position + length, nextWords, score))
                     }
                 }
@@ -319,19 +371,25 @@ class PinyinEngine private constructor(
 
         val out = ArrayList<Entry>(limit)
         val outWords = HashSet<String>()
-        var added = 0
-        buckets[n]
-            .asSequence()
-            .filter { it.words.size >= 2 }
-            .sortedByDescending { it.score }
-            .forEach { path ->
-                val entry = Entry(input, path.words.joinToString(""), path.words.size.toLong())
-                if (outWords.add(entry.word)) {
-                    out.add(entry)
-                    added++
-                    if (added >= limit) return out
+        // Full-composition phrases first, then descending prefix lengths. This
+        // keeps the mature full-sentence candidate as the default while exposing
+        // prefix candidates for two-step selection.
+        for (position in n downTo 2) {
+            buckets[position]
+                .asSequence()
+                .filter { it.words.size >= 2 }
+                .sortedByDescending { it.score }
+                .forEach { path ->
+                    if (out.size >= limit) return out
+                    val entry = Entry(
+                        pinyin = input.substring(0, position),
+                        word = path.words.joinToString(""),
+                        frequency = path.words.size.toLong(),
+                        consumedInputLength = position,
+                    )
+                    if (outWords.add(entry.word)) out.add(entry)
                 }
-            }
+        }
         return out
     }
 
@@ -361,6 +419,7 @@ class PinyinEngine private constructor(
         val entriesByPinyin: Map<String, List<Entry>>,
         val keys: List<String>,
         val entryCount: Int,
+        val maxKeyLength: Int,
     )
 
     companion object {
@@ -380,10 +439,12 @@ class PinyinEngine private constructor(
         private const val GROUP_EXACT = 3
         private const val GROUP_PREFIX = 2
         private const val GROUP_PHRASE = 1
-        private const val MAX_WORD_KEY_LENGTH = 12
-        private const val MAX_PATHS_PER_POSITION = 8
+        private const val MAX_PHRASE_KEY_LENGTH = 64
+        private const val MAX_PHRASE_INPUT_LENGTH = 64
+        private const val MAX_PATHS_PER_POSITION = 16
         private const val MAX_ENTRIES_PER_KEY = 5
-        private const val SEGMENT_PENALTY = 15.0
+        private const val PHRASE_WORD_LENGTH_WEIGHT = 0.55
+        private const val PHRASE_SEGMENT_PENALTY = 8.0
 
         /** Builds an engine from raw TSV lines; used by JVM tests and [loadFromAssets]. */
         fun fromLines(
@@ -415,7 +476,9 @@ class PinyinEngine private constructor(
                     compareByDescending<Entry> { it.frequency }.thenBy { it.word },
                 )
             }
-            return Index(sorted, sorted.keys.sorted(), total)
+            val sortedKeys = sorted.keys.sorted()
+            val maxKeyLength = sortedKeys.maxOfOrNull { it.length } ?: 0
+            return Index(sorted, sortedKeys, total, maxKeyLength)
         }
 
         private fun lowerBound(keys: List<String>, target: String): Int {

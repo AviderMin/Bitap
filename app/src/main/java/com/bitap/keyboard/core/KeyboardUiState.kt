@@ -149,11 +149,17 @@ sealed interface PendingConfirmation {
     data class Punctuation(val text: String) : PendingConfirmation
 }
 
-/** One pinyin candidate. */
+/** One pinyin candidate.
+ *
+ * [consumedInputLength] is the number of composing characters this candidate
+ * covers. 0 means the whole current composition (legacy callers); phrase
+ * candidates may cover only a prefix so the rest stays editable and queryable.
+ */
 data class Candidate(
     val word: String,
     val pinyin: String = "",
     val frequency: Long = 0L,
+    val consumedInputLength: Int = 0,
 )
 
 /** AI panel lifecycle inside the keyboard. */
