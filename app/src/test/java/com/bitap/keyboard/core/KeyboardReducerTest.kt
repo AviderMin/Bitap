@@ -1,5 +1,7 @@
 package com.bitap.keyboard.core
 
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import com.bitap.keyboard.ai.RewriteTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -76,6 +78,22 @@ class KeyboardReducerTest {
         val result = reduce(state = state, action = KeyboardAction.Space)
         assertEquals("你好", (result.commands.single() as ImeCommand.CommitText).text)
         assertEquals("", result.state.composing)
+    }
+
+    @Test
+    fun punctuationWithStaleCandidatesCommitsRawPinyin() {
+        val state = KeyboardUiState(
+            composing = "nihao",
+            candidatesFor = "ni",
+            candidates = listOf(Candidate("你", "ni", 100)),
+        )
+        val result = reduce(state = state, action = KeyboardAction.AppendInput("，"))
+        assertEquals(
+            listOf<ImeCommand>(ImeCommand.CommitText("nihao"), ImeCommand.CommitText("，")),
+            result.commands,
+        )
+        assertEquals("", result.state.composing)
+        assertTrue(result.state.candidates.isEmpty())
     }
 
     @Test
@@ -285,5 +303,227 @@ class KeyboardReducerTest {
         assertFalse(result.state.aiEnabled)
         assertFalse(result.state.ai.visible)
         assertNotEquals(AiStatus.Completed, result.state.ai.status)
+    }
+
+    // ------------------------------------------------------------------
+    // A1: EditorInfo input types, enter actions and selection sync
+    // ------------------------------------------------------------------
+
+    @Test
+    fun editorInfoNumberUsesNumberLayerAndEnglish() {
+        val info = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL,
+            imeOptions = EditorInfo.IME_ACTION_DONE,
+        )
+        val result = reduce(action = KeyboardAction.EditorInfoChanged(info, aiSettingEnabled = true))
+        assertEquals(EditorInputKind.Number, result.state.editorInfo.kind)
+        assertEquals(KeyboardLayer.Numbers, result.state.layer)
+        assertEquals(InputLanguage.English, result.state.language)
+        assertEquals(EnterAction.Done, result.state.enterAction)
+        assertEquals("完成", result.state.enterAction.label)
+    }
+
+    @Test
+    fun editorInfoPhoneUsesNumberLayerAndNextAction() {
+        val info = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_PHONE,
+            imeOptions = EditorInfo.IME_ACTION_NEXT,
+        )
+        val result = reduce(action = KeyboardAction.EditorInfoChanged(info))
+        assertEquals(EditorInputKind.Phone, result.state.editorInfo.kind)
+        assertEquals(KeyboardLayer.Numbers, result.state.layer)
+        assertEquals(InputLanguage.English, result.state.language)
+        assertEquals(EnterAction.Next, result.state.enterAction)
+    }
+
+    @Test
+    fun editorInfoEmailAndUrlUseLettersEnglish() {
+        val email = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            imeOptions = EditorInfo.IME_ACTION_SEND,
+        )
+        val emailResult = reduce(action = KeyboardAction.EditorInfoChanged(email))
+        assertEquals(EditorInputKind.Email, emailResult.state.editorInfo.kind)
+        assertEquals(KeyboardLayer.Letters, emailResult.state.layer)
+        assertEquals(InputLanguage.English, emailResult.state.language)
+        assertEquals(EnterAction.Send, emailResult.state.enterAction)
+
+        val url = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
+            imeOptions = EditorInfo.IME_ACTION_GO,
+        )
+        val urlResult = reduce(action = KeyboardAction.EditorInfoChanged(url))
+        assertEquals(EditorInputKind.Url, urlResult.state.editorInfo.kind)
+        assertEquals(KeyboardLayer.Letters, urlResult.state.layer)
+        assertEquals(InputLanguage.English, urlResult.state.language)
+        assertEquals(EnterAction.Go, urlResult.state.enterAction)
+    }
+
+    @Test
+    fun editorInfoPasswordDisablesAiAndContextHints() {
+        val info = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            imeOptions = EditorInfo.IME_ACTION_DONE,
+        )
+        val result = reduce(
+            state = KeyboardUiState(aiEnabled = true, aiReady = true, composing = "ni", candidatesFor = "ni"),
+            action = KeyboardAction.EditorInfoChanged(info, aiSettingEnabled = true),
+        )
+        assertTrue(result.state.editorInfo.isPassword)
+        assertTrue(result.state.isPasswordInput)
+        assertFalse(result.state.aiEnabled)
+        assertEquals(KeyboardLayer.Letters, result.state.layer)
+        assertEquals(InputLanguage.English, result.state.language)
+        assertEquals("", result.state.composing)
+
+        val panel = reduce(state = result.state, action = KeyboardAction.AiPanelOpened("secret"))
+        assertFalse(panel.state.ai.visible)
+    }
+
+    @Test
+    fun numericPasswordUsesNumberLayerAndDisallowsContext() {
+        val info = EditorInputInfo.from(
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+            imeOptions = EditorInfo.IME_ACTION_NONE,
+        )
+        assertTrue(info.isPassword)
+        assertFalse(info.aiContextAllowed)
+        assertEquals(KeyboardLayer.Numbers, info.preferredLayer)
+        assertEquals(InputLanguage.English, info.preferredLanguage)
+    }
+
+    @Test
+    fun nonTextEditorCannotToggleToChinese() {
+        val state = KeyboardUiState(
+            language = InputLanguage.English,
+            editorInfo = EditorInputInfo.from(
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                EditorInfo.IME_ACTION_SEND,
+            ),
+        )
+        val result = reduce(state = state, action = KeyboardAction.ToggleLanguage)
+        assertEquals(InputLanguage.English, result.state.language)
+        assertTrue(result.commands.isEmpty())
+    }
+
+    @Test
+    fun editorInfoChangedClearsPreviousInputState() {
+        val previous = KeyboardUiState(
+            language = InputLanguage.English,
+            layer = KeyboardLayer.Numbers,
+            composing = "123",
+            candidatesFor = "123",
+            candidates = listOf(Candidate("一")),
+            aiCandidates = listOf("AI候选"),
+            aiCandidatesLoading = true,
+            aiCandidatesError = "旧错误",
+        )
+        val result = reduce(
+            state = previous,
+            action = KeyboardAction.EditorInfoChanged(
+                EditorInputInfo.from(InputType.TYPE_CLASS_TEXT, EditorInfo.IME_ACTION_NONE),
+                aiSettingEnabled = true,
+            ),
+        )
+        assertEquals(InputLanguage.Chinese, result.state.language)
+        assertEquals(KeyboardLayer.Letters, result.state.layer)
+        assertEquals("", result.state.composing)
+        assertTrue(result.state.candidates.isEmpty())
+        assertEquals("", result.state.candidatesFor)
+        assertTrue(result.state.aiCandidates.isEmpty())
+        assertFalse(result.state.aiCandidatesLoading)
+        assertEquals(null, result.state.aiCandidatesError)
+    }
+
+    @Test
+    fun enterActionMappingsCoverImeOptions() {
+        assertEquals(EnterAction.Enter, EditorInputInfo.from(0, 0).enterAction)
+        assertEquals(EnterAction.Search, EditorInputInfo.from(0, EditorInfo.IME_ACTION_SEARCH).enterAction)
+        assertEquals(EnterAction.Send, EditorInputInfo.from(0, EditorInfo.IME_ACTION_SEND).enterAction)
+        assertEquals(EnterAction.Next, EditorInputInfo.from(0, EditorInfo.IME_ACTION_NEXT).enterAction)
+        assertEquals(EnterAction.Done, EditorInputInfo.from(0, EditorInfo.IME_ACTION_DONE).enterAction)
+        assertEquals(EnterAction.Go, EditorInputInfo.from(0, EditorInfo.IME_ACTION_GO).enterAction)
+        assertEquals(EnterAction.Previous, EditorInputInfo.from(0, EditorInfo.IME_ACTION_PREVIOUS).enterAction)
+        assertEquals(
+            EnterAction.Enter,
+            EditorInputInfo.from(
+                0,
+                EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_ENTER_ACTION,
+            ).enterAction,
+        )
+    }
+
+    @Test
+    fun selectionOutsideComposingRegionClearsStaleComposing() {
+        val state = KeyboardUiState(
+            composing = "ni",
+            candidatesFor = "ni",
+            candidates = listOf(Candidate("你")),
+            aiCandidates = listOf("AI候选"),
+        )
+        val result = reduce(
+            state = state,
+            action = KeyboardAction.SelectionChanged(
+                selectionStart = 3,
+                selectionEnd = 3,
+                candidatesStart = 0,
+                candidatesEnd = 2,
+            ),
+        )
+        assertEquals("", result.state.composing)
+        assertTrue(result.state.candidates.isEmpty())
+        assertEquals("", result.state.candidatesFor)
+        assertTrue(result.state.aiCandidates.isEmpty())
+        assertEquals(listOf<ImeCommand>(ImeCommand.FinishComposing), result.commands)
+    }
+
+    @Test
+    fun selectionInsideComposingRegionKeepsComposing() {
+        val state = KeyboardUiState(
+            composing = "ni",
+            candidatesFor = "ni",
+            candidates = listOf(Candidate("你")),
+        )
+        val result = reduce(
+            state = state,
+            action = KeyboardAction.SelectionChanged(
+                selectionStart = 1,
+                selectionEnd = 1,
+                candidatesStart = 0,
+                candidatesEnd = 2,
+            ),
+        )
+        assertEquals("ni", result.state.composing)
+        assertTrue(result.commands.isEmpty())
+    }
+
+    @Test
+    fun selectionWithNoCandidatesRegionClearsComposing() {
+        val state = KeyboardUiState(composing = "ni", candidatesFor = "ni")
+        val result = reduce(
+            state = state,
+            action = KeyboardAction.SelectionChanged(
+                selectionStart = 0,
+                selectionEnd = 0,
+                candidatesStart = -1,
+                candidatesEnd = -1,
+            ),
+        )
+        assertEquals("", result.state.composing)
+        assertEquals(listOf<ImeCommand>(ImeCommand.FinishComposing), result.commands)
+    }
+
+    @Test
+    fun aiCandidateRequestIsIgnoredInPasswordField() {
+        val state = KeyboardUiState(
+            aiEnabled = true,
+            editorInfo = EditorInputInfo.from(
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+                EditorInfo.IME_ACTION_DONE,
+            ),
+        )
+        val result = reduce(state = state, action = KeyboardAction.RequestAiCandidates)
+        assertFalse(result.state.aiCandidatesLoading)
+        assertTrue(result.commands.isEmpty())
     }
 }

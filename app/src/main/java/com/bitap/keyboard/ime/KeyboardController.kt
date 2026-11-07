@@ -5,6 +5,7 @@ import com.bitap.keyboard.ai.AiRewriteService
 import com.bitap.keyboard.ai.AiRuntimeState
 import com.bitap.keyboard.core.AiPanelUiState
 import com.bitap.keyboard.core.AiStatus
+import com.bitap.keyboard.core.EditorInputInfo
 import com.bitap.keyboard.core.ImeCommand
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardReducer
@@ -45,7 +46,12 @@ class KeyboardController(
 
     /** Single entry point for every keyboard event. */
     fun dispatch(action: KeyboardAction) {
-        val effective = if (action is KeyboardAction.AiPanelOpened && action.source.isEmpty()) {
+        val canReadContext = _state.value.aiEnabled && _state.value.editorInfo.aiContextAllowed
+        val effective = if (
+            action is KeyboardAction.AiPanelOpened &&
+            action.source.isEmpty() &&
+            canReadContext
+        ) {
             action.copy(source = textSession.readAiSource(KeyboardReducer.MAX_AI_SOURCE_CHARS))
         } else {
             action
@@ -103,34 +109,41 @@ class KeyboardController(
         if (composing.isNotEmpty()) schedulePinyinQuery(composing)
     }
 
-    fun onStartInput() {
+    /**
+     * New editor focused. The complete input configuration is applied through the
+     * reducer so no language/layer/composing state leaks from the previous field.
+     */
+    fun onStartInput(editorInfo: EditorInputInfo) {
         pinyinJob?.cancel()
         cancelAi()
-        _state.value = _state.value.copy(
-            composing = "",
-            candidates = emptyList(),
-            ai = AiPanelUiState(),
-            aiCandidates = emptyList(),
-            aiCandidatesLoading = false,
-            aiCandidatesError = null,
-            shift = ShiftState.Off,
-            lastShiftTapAt = 0L,
-        )
+        dispatch(KeyboardAction.EditorInfoChanged(editorInfo, settings.aiEnabled))
     }
 
     fun onFinishInput() {
         pinyinJob?.cancel()
         cancelAi()
         runCatching { textSession.finishComposingText() }
-        _state.value = _state.value.copy(
-            composing = "",
-            candidates = emptyList(),
-            ai = AiPanelUiState(),
-            aiCandidates = emptyList(),
-            aiCandidatesLoading = false,
-            aiCandidatesError = null,
-            shift = ShiftState.Off,
-            lastShiftTapAt = 0L,
+        dispatch(KeyboardAction.EditorInfoChanged(EditorInputInfo(), settings.aiEnabled))
+    }
+
+    /**
+     * Called from InputMethodService.onUpdateSelection. The reducer decides whether
+     * the composing region is still valid; the controller only forwards the data.
+     */
+    fun onSelectionChanged(
+        selectionStart: Int,
+        selectionEnd: Int,
+        candidatesStart: Int,
+        candidatesEnd: Int,
+    ) {
+        if (_state.value.composing.isEmpty()) return
+        dispatch(
+            KeyboardAction.SelectionChanged(
+                selectionStart = selectionStart,
+                selectionEnd = selectionEnd,
+                candidatesStart = candidatesStart,
+                candidatesEnd = candidatesEnd,
+            ),
         )
     }
 
@@ -167,11 +180,12 @@ class KeyboardController(
         val ready = aiRuntimeState == AiRuntimeState.Ready || aiRuntimeState == AiRuntimeState.Busy
         // Keep a running request alive while the engine reports Loading/Busy transitions.
         if (!ready && _state.value.ai.isRunning && aiRuntimeState == AiRuntimeState.Loading) return
-        dispatch(KeyboardAction.AiAvailabilityChanged(settings.aiEnabled, ready))
+        val enabled = settings.aiEnabled && _state.value.editorInfo.aiContextAllowed
+        dispatch(KeyboardAction.AiAvailabilityChanged(enabled, ready))
     }
 
     private fun startAiCandidates() {
-        if (!settings.aiEnabled) return
+        if (!settings.aiEnabled || !_state.value.editorInfo.aiContextAllowed) return
         aiJob?.cancel()
         aiService.cancel()
         val composing = _state.value.composing
@@ -241,6 +255,7 @@ class KeyboardController(
     private fun startAi(panel: AiPanelUiState) {
         val tone = panel.tone ?: return
         if (panel.source.isBlank()) return
+        if (!_state.value.editorInfo.aiContextAllowed) return
         aiJob?.cancel()
         aiService.cancel()
         val token = ++aiToken

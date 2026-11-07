@@ -24,6 +24,8 @@ object KeyboardReducer {
         KeyboardAction.Space -> space(state)
         KeyboardAction.Backspace -> backspace(state)
         KeyboardAction.Enter -> enter(state)
+        is KeyboardAction.EditorInfoChanged -> editorInfoChanged(state, action)
+        is KeyboardAction.SelectionChanged -> selectionChanged(state, action)
         KeyboardAction.RequestAiCandidates -> requestAiCandidates(state)
         is KeyboardAction.AiCandidatesUpdated -> aiCandidatesUpdated(state, action.candidates)
         is KeyboardAction.AiCandidatesFailed -> aiCandidatesFailed(state, action.message)
@@ -41,6 +43,8 @@ object KeyboardReducer {
     }
 
     private fun toggleLanguage(state: KeyboardUiState): Reduction {
+        // Email/URL/number/phone/password fields are English-only by policy.
+        if (!state.editorInfo.allowsChineseInput) return Reduction(state)
         val commands = if (state.composing.isEmpty()) {
             emptyList()
         } else {
@@ -103,6 +107,9 @@ object KeyboardReducer {
         if (state.layer != KeyboardLayer.Letters) {
             return Reduction(state, listOf(ImeCommand.CommitText(text)))
         }
+        if (!state.editorInfo.allowsChineseInput && state.language == InputLanguage.Chinese) {
+            return Reduction(state, listOf(ImeCommand.CommitText(text)))
+        }
         return when (state.language) {
             InputLanguage.English -> {
                 val output = applyShift(text, state.shift)
@@ -117,7 +124,12 @@ object KeyboardReducer {
                     // composition: commit the current candidate/raw text first.
                     val commands = buildList {
                         if (state.composing.isNotEmpty()) {
-                            add(ImeCommand.CommitText(state.candidates.firstOrNull()?.word ?: state.composing))
+                            val currentCandidate = if (state.candidatesFor == state.composing) {
+                                state.candidates.firstOrNull()?.word
+                            } else {
+                                null
+                            }
+                            add(ImeCommand.CommitText(currentCandidate ?: state.composing))
                         }
                         add(ImeCommand.CommitText(text))
                     }
@@ -223,15 +235,82 @@ object KeyboardReducer {
     private fun enter(state: KeyboardUiState): Reduction {
         if (state.composing.isNotEmpty()) {
             return Reduction(
-                state.copy(composing = "", candidates = emptyList()),
+                state.copy(
+                    composing = "",
+                    candidates = emptyList(),
+                    candidatesFor = "",
+                    aiCandidates = emptyList(),
+                    aiCandidatesLoading = false,
+                    aiCandidatesError = null,
+                ),
                 listOf(ImeCommand.CommitText(state.composing)),
             )
         }
         return Reduction(state, listOf(ImeCommand.SendEnter))
     }
 
+    /**
+     * Editor switched (new field / restart). Everything tied to the previous
+     * input field is cleared so numbers / English / password layouts never leak
+     * composing or candidate state into the next editor.
+     */
+    private fun editorInfoChanged(
+        state: KeyboardUiState,
+        action: KeyboardAction.EditorInfoChanged,
+    ): Reduction {
+        val info = action.info
+        return Reduction(
+            state.copy(
+                editorInfo = info,
+                language = info.preferredLanguage,
+                layer = info.preferredLayer,
+                shift = ShiftState.Off,
+                composing = "",
+                candidates = emptyList(),
+                candidatesFor = "",
+                ai = AiPanelUiState(),
+                aiEnabled = action.aiSettingEnabled && info.aiContextAllowed,
+                aiCandidates = emptyList(),
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+                lastShiftTapAt = 0L,
+            ),
+        )
+    }
+
+    /**
+     * Cursor/selection sync. A composing region is only valid while the cursor
+     * stays inside the candidate region reported by the editor; otherwise the
+     * composing text is stale and must be discarded (never committed).
+     */
+    private fun selectionChanged(
+        state: KeyboardUiState,
+        action: KeyboardAction.SelectionChanged,
+    ): Reduction {
+        if (state.composing.isEmpty()) return Reduction(state)
+        val hasCandidatesRegion = action.candidatesStart >= 0 &&
+            action.candidatesEnd >= action.candidatesStart
+        val selectionInsideRegion = hasCandidatesRegion &&
+            action.selectionStart >= action.candidatesStart &&
+            action.selectionEnd <= action.candidatesEnd
+        if (selectionInsideRegion) return Reduction(state)
+        return Reduction(
+            state.copy(
+                composing = "",
+                candidates = emptyList(),
+                candidatesFor = "",
+                ai = AiPanelUiState(),
+                aiCandidates = emptyList(),
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+                shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
+            ),
+            listOf(ImeCommand.FinishComposing),
+        )
+    }
+
     private fun requestAiCandidates(state: KeyboardUiState): Reduction {
-        if (!state.aiEnabled) return Reduction(state)
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
         return Reduction(
             state.copy(
                 aiCandidates = emptyList(),
@@ -270,7 +349,7 @@ object KeyboardReducer {
     }
 
     private fun aiPanelOpened(state: KeyboardUiState, rawSource: String): Reduction {
-        if (!state.aiEnabled) return Reduction(state)
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
         val source = rawSource.trim().take(MAX_AI_SOURCE_CHARS)
         return if (!state.aiReady) {
             Reduction(
@@ -300,7 +379,7 @@ object KeyboardReducer {
     private fun aiToneChosen(state: KeyboardUiState, tone: RewriteTone): Reduction {
         val panel = state.ai
         if (!panel.visible) return Reduction(state)
-        if (!state.aiEnabled || !state.aiReady) {
+        if (!state.aiEnabled || !state.aiReady || !state.editorInfo.aiContextAllowed) {
             return Reduction(
                 state.copy(
                     ai = panel.copy(

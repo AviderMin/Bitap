@@ -22,6 +22,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import com.bitap.keyboard.BitapApplication
 import com.bitap.keyboard.MainActivity
 import com.bitap.keyboard.core.AndroidTextSession
+import com.bitap.keyboard.core.EditorInputInfo
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.settings.DarkMode
 import com.bitap.keyboard.ui.theme.BitapKeyboardTheme
@@ -124,8 +125,37 @@ class BitapImeService :
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        controller.onStartInput()
+        controller.onStartInput(
+            EditorInputInfo.from(
+                inputType = attribute?.inputType ?: 0,
+                imeOptions = attribute?.imeOptions ?: 0,
+            ),
+        )
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+    }
+
+    override fun onUpdateSelection(
+        oldSelStart: Int,
+        oldSelEnd: Int,
+        newSelStart: Int,
+        newSelEnd: Int,
+        candidatesStart: Int,
+        candidatesEnd: Int,
+    ) {
+        super.onUpdateSelection(
+            oldSelStart,
+            oldSelEnd,
+            newSelStart,
+            newSelEnd,
+            candidatesStart,
+            candidatesEnd,
+        )
+        controller.onSelectionChanged(
+            selectionStart = newSelStart,
+            selectionEnd = newSelEnd,
+            candidatesStart = candidatesStart,
+            candidatesEnd = candidatesEnd,
+        )
     }
 
     override fun onFinishInput() {
