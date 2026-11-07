@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -621,6 +620,7 @@ internal class KeyRowPointerTracker {
  *
  * Multi-touch contract (R01/R02):
  * - every pointer has its own key, pressed state, repeat job and repeated fact;
+ * - every pointer in a batched initial down event is registered (q+w same frame);
  * - across multiple pointers, keys commit in the order the pointers are lifted;
  * - lifting one finger never cancels another finger's selection;
  * - horizontal movement selects the nearest sibling under that finger;
@@ -709,8 +709,13 @@ private fun KeyRow(
                         }
                     }
 
-                    val firstDown = awaitFirstDown(requireUnconsumed = false)
-                    handleDown(firstDown)
+                    // Process every pointer that went down in the initial event.
+                    // awaitFirstDown() would discard additional simultaneous downs,
+                    // which is exactly the q+w case from R01.
+                    val initialEvent = awaitPointerEvent()
+                    initialEvent.changes
+                        .filter { it.pressed && !it.previousPressed }
+                        .forEach { handleDown(it) }
                     try {
                         while (tracker.activePointerCount > 0) {
                             val event = awaitPointerEvent()
