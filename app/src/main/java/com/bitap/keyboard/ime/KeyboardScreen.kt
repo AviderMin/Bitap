@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
@@ -521,24 +522,118 @@ private fun rowKeyIndexAt(x: Float, widthPx: Float, keys: List<KeyCap>): Int {
 }
 
 /**
+ * Pure multi-pointer bookkeeping for one key row.
+ *
+ * The Compose pointer handler below drives this state machine from real
+ * PointerInputChanges. Extracting it keeps R01/R02 semantics testable on the JVM:
+ * each pointer owns its key, cancelled flag and repeat count, so lifting one
+ * finger cannot cancel or commit another finger's key.
+ */
+internal class KeyRowPointerTracker {
+    private data class PointerState(
+        var keyIndex: Int,
+        var repeated: Boolean = false,
+        var repeatCount: Int = 0,
+        var cancelled: Boolean = false,
+    )
+
+    private val pointers = LinkedHashMap<Long, PointerState>()
+
+    val activePointerCount: Int
+        get() = pointers.size
+
+    val pressedKeyIndices: Set<Int>
+        get() = pointers.values
+            .asSequence()
+            .filter { !it.cancelled }
+            .map { it.keyIndex }
+            .toSet()
+
+    fun contains(pointerId: Long): Boolean = pointers.containsKey(pointerId)
+
+    fun keyIndexOf(pointerId: Long): Int? = pointers[pointerId]?.keyIndex
+
+    fun down(pointerId: Long, keyIndex: Int) {
+        pointers[pointerId] = PointerState(keyIndex)
+    }
+
+    /** @return true when this pointer moved to a different key and its repeat state restarted. */
+    fun setKey(pointerId: Long, keyIndex: Int): Boolean {
+        val pointer = pointers[pointerId] ?: return false
+        if (pointer.keyIndex == keyIndex) return false
+        pointer.keyIndex = keyIndex
+        pointer.repeated = false
+        pointer.repeatCount = 0
+        return true
+    }
+
+    /** @return true when this pointer moved from outside the row back inside it. */
+    fun resume(pointerId: Long): Boolean {
+        val pointer = pointers[pointerId] ?: return false
+        if (!pointer.cancelled) return false
+        pointer.cancelled = false
+        // A re-entry onto the same key continues the same long-press, so keep
+        // the repeated fact. Moving to a different key resets it in setKey().
+        return true
+    }
+
+    /** @return true when this call cancelled a still-active pointer. */
+    fun cancel(pointerId: Long): Boolean {
+        val pointer = pointers[pointerId] ?: return false
+        if (pointer.cancelled) return false
+        pointer.cancelled = true
+        return true
+    }
+
+    /**
+     * Record one long-press repeat. This fact must survive repeat-job cancellation;
+     * that is the R02 invariant that prevents the extra click on release.
+     */
+    fun recordRepeat(pointerId: Long) {
+        val pointer = pointers[pointerId] ?: return
+        pointer.repeated = true
+        pointer.repeatCount += 1
+    }
+
+    fun repeatCount(pointerId: Long): Int = pointers[pointerId]?.repeatCount ?: 0
+
+    fun isRepeated(pointerId: Long): Boolean = pointers[pointerId]?.repeated == true
+
+    /**
+     * Remove the pointer and return the key index to click, or null when this
+     * pointer already repeated (its deletions already happened) or was cancelled.
+     */
+    fun release(pointerId: Long): Int? {
+        val pointer = pointers.remove(pointerId) ?: return null
+        return if (!pointer.cancelled && !pointer.repeated) pointer.keyIndex else null
+    }
+
+    fun clear() {
+        pointers.clear()
+    }
+}
+
+/**
  * A row is the hit-testing unit: every pixel inside it belongs to the nearest
  * key by weight, so the 2 dp visual gaps and the 3 dp vertical padding are no
  * longer dead zones. The visual keycap stays inset and keeps the fixed 54 dp
  * height.
  *
- * Gesture contract:
- * - pointer down selects the nearest key and shows its pressed state;
- * - horizontal movement selects the nearest sibling under the finger (basic
- *   slide-out / neighbour correction);
- * - vertical movement more than 48 dp outside the row cancels the gesture;
- * - release commits exactly one key, except after a long-press repeat fired.
+ * Multi-touch contract (R01/R02):
+ * - every pointer has its own key, pressed state, repeat job and repeated fact;
+ * - across multiple pointers, keys commit in the order the pointers are lifted;
+ * - lifting one finger never cancels another finger's selection;
+ * - horizontal movement selects the nearest sibling under that finger;
+ * - vertical movement more than 48 dp outside the row cancels only that pointer;
+ * - a pointer that fired at least one long-press repeat never triggers a
+ *   single-click action on release; stopping the repeat job does not clear that fact.
  */
 @Composable
 private fun KeyRow(
     keys: List<KeyCap>,
     modifier: Modifier = Modifier,
 ) {
-    var pressedIndex by remember { mutableIntStateOf(-1) }
+    var pressedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val currentKeys = rememberUpdatedState(keys)
     val pointerScope = rememberCoroutineScope()
 
@@ -547,76 +642,97 @@ private fun KeyRow(
             .fillMaxWidth()
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val rowKeys = currentKeys.value
+                    val tracker = KeyRowPointerTracker()
+                    val repeatJobs = mutableMapOf<Long, Job>()
                     val rowWidth = size.width.toFloat()
-                    var activeIndex = rowKeyIndexAt(down.position.x, rowWidth, rowKeys)
-                    if (activeIndex < 0) return@awaitEachGesture
-                    pressedIndex = activeIndex
 
-                    var repeatJob: Job? = null
-                    var repeated = false
-
-                    fun stopRepeat() {
-                        repeatJob?.cancel()
-                        repeatJob = null
-                        repeated = false
+                    fun refreshPressed() {
+                        pressedIndices = tracker.pressedKeyIndices
                     }
 
-                    fun startRepeat(index: Int) {
-                        stopRepeat()
-                        val repeat = rowKeys.getOrNull(index)?.longPressRepeat ?: return
-                        repeatJob = pointerScope.launch {
+                    fun stopRepeat(pointerId: Long) {
+                        repeatJobs.remove(pointerId)?.cancel()
+                    }
+
+                    fun startRepeat(pointerId: Long) {
+                        stopRepeat(pointerId)
+                        val index = tracker.keyIndexOf(pointerId) ?: return
+                        val repeat = currentKeys.value.getOrNull(index)?.longPressRepeat ?: return
+                        repeatJobs[pointerId] = pointerScope.launch {
                             delay(400)
-                            repeated = true
                             while (isActive) {
                                 repeat()
+                                tracker.recordRepeat(pointerId)
                                 delay(55)
                             }
                         }
                     }
 
-                    startRepeat(activeIndex)
+                    fun handleDown(change: PointerInputChange) {
+                        val index = rowKeyIndexAt(change.position.x, rowWidth, currentKeys.value)
+                        if (index < 0) return
+                        tracker.down(change.id.value, index)
+                        refreshPressed()
+                        startRepeat(change.id.value)
+                    }
 
-                    var released = false
-                    var cancelled = false
+                    fun handleMove(change: PointerInputChange) {
+                        val pointerId = change.id.value
+                        val outsideRow = change.position.y < -48.dp.toPx() ||
+                            change.position.y > size.height + 48.dp.toPx()
+                        if (outsideRow) {
+                            if (tracker.cancel(pointerId)) {
+                                stopRepeat(pointerId)
+                                refreshPressed()
+                            }
+                            return
+                        }
+                        val index = rowKeyIndexAt(change.position.x, rowWidth, currentKeys.value)
+                        if (index < 0) return
+                        if (tracker.resume(pointerId)) {
+                            refreshPressed()
+                            startRepeat(pointerId)
+                        }
+                        if (tracker.setKey(pointerId, index)) {
+                            startRepeat(pointerId)
+                        }
+                        refreshPressed()
+                    }
+
+                    fun handleUp(change: PointerInputChange) {
+                        val pointerId = change.id.value
+                        val committedIndex = tracker.release(pointerId)
+                        stopRepeat(pointerId)
+                        refreshPressed()
+                        if (committedIndex != null) {
+                            currentKeys.value.getOrNull(committedIndex)?.onClick?.invoke()
+                        }
+                    }
+
+                    val firstDown = awaitFirstDown(requireUnconsumed = false)
+                    handleDown(firstDown)
                     try {
-                        while (true) {
+                        while (tracker.activePointerCount > 0) {
                             val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) {
-                                change.consume()
-                                released = true
-                                break
-                            }
-                            val outsideRow = change.position.y < -48.dp.toPx() ||
-                                change.position.y > size.height + 48.dp.toPx()
-                            if (outsideRow) {
-                                if (!cancelled) {
-                                    cancelled = true
-                                    stopRepeat()
-                                    pressedIndex = -1
+                            for (change in event.changes) {
+                                val known = tracker.contains(change.id.value)
+                                when {
+                                    !known && change.pressed -> handleDown(change)
+                                    known && !change.pressed -> handleUp(change)
+                                    known -> handleMove(change)
                                 }
-                            } else {
-                                if (cancelled) {
-                                    cancelled = false
-                                    startRepeat(activeIndex)
-                                }
-                                val nextIndex = rowKeyIndexAt(change.position.x, rowWidth, rowKeys)
-                                if (nextIndex != activeIndex && nextIndex >= 0) {
-                                    activeIndex = nextIndex
-                                    pressedIndex = nextIndex
-                                    startRepeat(nextIndex)
+                                if (change.pressed != change.previousPressed ||
+                                    change.position != change.previousPosition
+                                ) {
+                                    change.consume()
                                 }
                             }
-                            change.consume()
                         }
                     } finally {
-                        stopRepeat()
-                        pressedIndex = -1
-                    }
-                    if (released && !cancelled && !repeated) {
-                        rowKeys.getOrNull(activeIndex)?.onClick?.invoke()
+                        repeatJobs.values.forEach { it.cancel() }
+                        repeatJobs.clear()
+                        tracker.clear()
+                        pressedIndices = emptySet()
                     }
                 }
             },
@@ -625,7 +741,7 @@ private fun KeyRow(
             KeyButton(
                 key = key,
                 modifier = Modifier.weight(key.weight),
-                isPressed = pressedIndex == index,
+                isPressed = index in pressedIndices,
                 onPress = key.onClick,
             )
         }
