@@ -672,30 +672,30 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
         KeyButton(
             label = layerLabel,
             description = if (state.layer == KeyboardLayer.Symbols) "切换到字母键盘" else "切换到符号键盘",
-            modifier = Modifier.weight(1.2f),
+            modifier = Modifier.weight(1.1f),
             isFunction = true,
             fontSize = 14.sp,
             onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
         )
         KeyButton(
-            label = if (chinese) "英" else "中",
-            description = if (chinese) "切换到英文" else "切换到中文",
+            label = "中/英",
+            description = "切换中英文",
             modifier = Modifier.weight(1f),
             isFunction = true,
-            fontSize = 16.sp,
+            fontSize = 12.sp,
             onClick = { press(KeyboardAction.ToggleLanguage) },
         )
         KeyButton(
             label = comma,
             description = "逗号",
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(0.9f),
             fontSize = 18.sp,
             onClick = { press(KeyboardAction.AppendInput(comma)) },
         )
         KeyButton(
             label = "空格",
             description = "空格",
-            modifier = Modifier.weight(3.4f),
+            modifier = Modifier.weight(4.4f),
             isFunction = true,
             fontSize = 14.sp,
             onClick = { press(KeyboardAction.Space) },
@@ -703,7 +703,7 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
         KeyButton(
             label = period,
             description = "句号",
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(0.9f),
             fontSize = 18.sp,
             onClick = { press(KeyboardAction.AppendInput(period)) },
         )
