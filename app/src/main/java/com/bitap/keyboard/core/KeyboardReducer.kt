@@ -11,6 +11,18 @@ object KeyboardReducer {
 
     const val MAX_AI_SOURCE_CHARS = 512
     const val MAX_AI_RESULT_CHARS = MAX_AI_SOURCE_CHARS * 3
+
+    /**
+     * The ✦ AI entry is a local AI *lexicon candidate* generator: its input is
+     * pinyin only, never a Chinese text rewrite request. These messages must stay
+     * actionable and must not suggest selecting arbitrary Chinese text.
+     */
+    const val AI_LEXICON_QUERY_REQUIRED_MESSAGE =
+        "AI 词库只根据拼音给出候选，请先输入拼音"
+
+    const val AI_LEXICON_SELECTION_NOT_PINYIN_MESSAGE =
+        "AI 词库只根据拼音给出候选；当前选区不是拼音，请先输入拼音或选中一段拼音"
+
     private const val DOUBLE_TAP_WINDOW_MS = 350L
 
     fun reduce(state: KeyboardUiState, action: KeyboardAction): Reduction = when (action) {

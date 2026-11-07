@@ -102,6 +102,18 @@ internal fun usesCandidatePanelOverlay(compact: Boolean): Boolean = compact
 
 internal fun candidatePanelMaxHeightDp(compact: Boolean): Int = if (compact) 120 else 220
 
+/**
+ * User-visible semantics of the ✦ AI entry. It is a local AI lexicon candidate
+ * generator driven by pinyin — never a text-rewrite entry.
+ */
+internal fun aiEntryContentDescription(aiLoading: Boolean, aiReady: Boolean): String = when {
+    aiLoading -> "取消 AI 词库请求"
+    aiReady -> "AI 词库候选（只根据拼音）"
+    else -> "AI 词库未就绪"
+}
+
+internal fun aiEntryLabel(aiLoading: Boolean): String = if (aiLoading) "取消 AI" else "✦ AI"
+
 @Composable
 fun KeyboardScreen(
     state: KeyboardUiState,
@@ -431,16 +443,15 @@ private fun CandidateBar(
                         )
                     }
                     .semantics {
-                        contentDescription = when {
-                            aiLoading -> "取消 AI 词库请求"
-                            ready -> "AI 词库候选"
-                            else -> "AI 词库未就绪，点击查看提示"
-                        }
+                        contentDescription = aiEntryContentDescription(
+                            aiLoading = aiLoading,
+                            aiReady = ready,
+                        )
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (aiLoading) "取消 AI" else "✦ AI",
+                    text = aiEntryLabel(aiLoading),
                     color = if (ready || aiLoading) palette.accent else palette.textSecondary,
                     fontSize = if (aiLoading) 10.sp else 12.sp,
                     fontWeight = FontWeight.SemiBold,

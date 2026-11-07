@@ -322,10 +322,12 @@ class KeyboardController(
         aiService.cancel()
         val composing = _state.value.composing
         val rawContext = runCatching { textSession.readAiSource(128) }.getOrDefault("")
+        val selectedText = runCatching { textSession.getSelectedText() }.getOrNull()
+        val beforeCursor = runCatching { textSession.getTextBeforeCursor(128) }.getOrNull()
         val rawPlan = if (composing.isEmpty()) {
             AiRawContextResolver.resolve(
-                selected = runCatching { textSession.getSelectedText() }.getOrNull(),
-                beforeCursor = runCatching { textSession.getTextBeforeCursor(128) }.getOrNull(),
+                selected = selectedText,
+                beforeCursor = beforeCursor,
             )
         } else {
             null
@@ -339,7 +341,14 @@ class KeyboardController(
         }
         val pinyin = if (composing.isNotEmpty()) composing else rawPlan?.query.orEmpty()
         if (pinyin.isBlank()) {
-            reduceInto(KeyboardAction.AiCandidatesFailed("先输入拼音，或选中一段文字"))
+            // The entry only generates candidates from pinyin. Do not suggest that
+            // a Chinese selection can be rewritten here; say what actually works.
+            val message = if (composing.isEmpty() && !selectedText.isNullOrBlank()) {
+                KeyboardReducer.AI_LEXICON_SELECTION_NOT_PINYIN_MESSAGE
+            } else {
+                KeyboardReducer.AI_LEXICON_QUERY_REQUIRED_MESSAGE
+            }
+            reduceInto(KeyboardAction.AiCandidatesFailed(message))
             return
         }
         val token = ++aiToken

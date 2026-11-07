@@ -275,7 +275,7 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("删除本地模型？") },
-            text = { Text("删除后 AI 改写不可用，可以随时重新导入 .litertlm 文件。") },
+            text = { Text("删除后 AI 词库候选不可用，可以随时重新导入 .litertlm 文件。") },
             confirmButton = {
                 TextButton(
                     onClick = {
