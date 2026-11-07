@@ -11,7 +11,7 @@ Bitap 是一个 **小而美、隐私优先、AI 克制而精准** 的 Android �
 
 ## 状态
 
-Bitap 0.1 已完成工程实现：输入法服务、离线拼音候选、AI 词库候选、模型导入、App/键盘分离主题、首页/设置、隐私边界与单测。产品与架构基调见 [产品简报](docs/00-product-brief.md)、[体验规范](docs/01-experience-spec.md)、[架构设计](docs/02-architecture.md)、[AI 设计](docs/03-ai-design.md)、[设计系统](docs/04-design-system.md)、[隐私安全](docs/05-privacy-security.md)、[质量门槛](docs/06-quality-bar.md)、[团队计划](docs/07-team-plan.md) 与 [交付说明](docs/08-delivery.md)。
+Bitap 0.1 已完成工程实现：输入法服务、离线拼音候选、AI 词库候选、模型导入、App/键盘分离主题、首页/设置、隐私边界与单测。产品与架构基调见 [产品简报](docs/00-product-brief.md)、[体验规范](docs/01-experience-spec.md)、[架构设计](docs/02-architecture.md)、[AI 设计](docs/03-ai-design.md)、[设计系统](docs/04-design-system.md)、[隐私安全](docs/05-privacy-security.md)、[质量门槛](docs/06-quality-bar.md)、[团队计划](docs/07-team-plan.md) 与 [交付说明](docs/08-delivery.md)。本轮 A/B/C 交付、封存验收与设备性能见 [FINAL_DELIVERY.md](docs/FINAL_DELIVERY.md)。
 
 ## 构建
 

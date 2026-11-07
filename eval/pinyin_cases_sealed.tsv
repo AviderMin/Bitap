@@ -1,0 +1,132 @@
+sealed-long_natural-01	long_natural	ditieshangrentebieduowomenxiayibanzaizouba	地铁上人特别多我们下一班再走吧	自然长句
+sealed-long_natural-02	long_natural	zhejiadiandehongshaorouzuodebiwomazuodehaihaochi	这家店的红烧肉做得比我妈做的还好吃	自然长句
+sealed-long_natural-03	long_natural	zhoumoruguobuxiayuwomenjiudaihaiziqudongwuyuan	周末如果不下雨我们就带孩子去动物园	自然长句
+sealed-long_natural-04	long_natural	gangjiedaotongzhishuomingtianshangwudehuiyituichidaoxiawu	刚接到通知说明天上午的会议推迟到下午	自然长句
+sealed-long_natural-05	long_natural	nishangcituijiandenabenshuwoyijingkanwanle	你上次推荐的那本书我已经看完了	自然长句
+sealed-long_natural-06	long_natural	xiaoqumenkouxinkaileyijiazaocandianweidaobucuo	小区门口新开了一家早餐店味道不错	自然长句
+sealed-long_natural-07	long_natural	womenbumenxiageyueyaobanquxindebangonglou	我们部门下个月要搬去新的办公楼	自然长句
+sealed-long_natural-08	long_natural	tashuozhegeshiqingxuyaozaigenkehuquerenyixia	他说这个事情需要再跟客户确认一下	自然长句
+sealed-long_natural-09	long_natural	wanshanghuijialushangshunbianquchaoshimaidianshuiguo	晚上回家路上顺便去超市买点水果	自然长句
+sealed-long_natural-10	long_natural	zhejitiantianqibianhuahendajideduochuandianyifu	这几天天气变化很大记得多穿点衣服	自然长句
+sealed-long_natural-11	long_natural	wozhunbeizhoumobajialichedidasaoyibian	我准备周末把家里彻底打扫一遍	自然长句
+sealed-long_natural-12	long_natural	conggongsidaogaotiezhandachedagaiyaosishifenzhong	从公司到高铁站打车大概要四十分钟	自然长句
+sealed-long_natural-13	long_natural	zhegezhoumodezhanlanmenpiaoyijingquanbumaiwanle	这个周末的展览门票已经全部卖完了	自然长句
+sealed-long_natural-14	long_natural	tameitianzaoshangduhuizaixiaoqulipaobangexiaoshi	他每天早上都会在小区里跑半个小时	自然长句
+sealed-long_natural-15	long_natural	ruguoshijianlaidejiwomenhaixiangzaiquyitangbowuguan	如果时间来得及我们还想再去一趟博物馆	自然长句
+sealed-long_natural-16	long_natural	mafannibangwoquerenyixiamingtiandehangbanyoumeiyouyanwu	麻烦你帮我确认一下明天的航班有没有延误	自然长句
+sealed-long_natural-17	long_natural	womenxianbacailiaozhunbeihaozaiqugenlingdaohuibao	我们先把材料准备好再去跟领导汇报	自然长句
+sealed-long_natural-18	long_natural	louxianajialifadianzuijinhuanleyigexinlaoban	楼下那家理发店最近换了一个新老板	自然长句
+sealed-long_natural-19	long_natural	haizidexuexiaoxiazhouyaozuzhiyicichunyouhuodong	孩子的学校下周要组织一次春游活动	自然长句
+sealed-long_natural-20	long_natural	wozuotianbayaoshiluozaibangongshilezhihaozhaotongshijie	我昨天把钥匙落在办公室了只好找同事借	自然长句
+sealed-long_natural-21	long_natural	zhetiaojiewanshangtebierenaoyouhenduoxiaochitan	这条街晚上特别热闹有很多小吃摊	自然长句
+sealed-long_natural-22	long_natural	dengxiangmujieshuyihouwomenzhaogeshijianyiqijuju	等项目结束以后我们找个时间一起聚聚	自然长句
+sealed-shorthand_ambiguity-01	shorthand_ambiguity	sh	时候|生活|上海|说话	简拼歧义：s+h 可有多种常用词
+sealed-shorthand_ambiguity-02	shorthand_ambiguity	dx	大学|大小|东西	简拼歧义：d+x
+sealed-shorthand_ambiguity-03	shorthand_ambiguity	gj	国家|国际|关机	简拼歧义：g+j
+sealed-shorthand_ambiguity-04	shorthand_ambiguity	xm	项目|姓名|小明	简拼歧义：x+m
+sealed-shorthand_ambiguity-05	shorthand_ambiguity	hy	会议|行业|好友	简拼歧义：h+y
+sealed-shorthand_ambiguity-06	shorthand_ambiguity	tz	通知|投资|同志	简拼歧义：t+z
+sealed-shorthand_ambiguity-07	shorthand_ambiguity	cx	创新|程序|出现	简拼歧义：c+x
+sealed-shorthand_ambiguity-08	shorthand_ambiguity	gk	公开|高考|顾客	简拼歧义：g+k
+sealed-shorthand_ambiguity-09	shorthand_ambiguity	zl	资料|质量|整理	简拼歧义：z+l
+sealed-shorthand_ambiguity-10	shorthand_ambiguity	fx	发现|方向|分享	简拼歧义：f+x
+sealed-shorthand_ambiguity-11	shorthand_ambiguity	tj	推荐|条件|统计	简拼歧义：t+j
+sealed-shorthand_ambiguity-12	shorthand_ambiguity	zx	最新|咨询|中心	简拼歧义：z+x
+sealed-shorthand_ambiguity-13	shorthand_ambiguity	gd	规定|更多|高度	简拼歧义：g+d
+sealed-shorthand_ambiguity-14	shorthand_ambiguity	qy	企业|区域|签约	简拼歧义：q+y
+sealed-shorthand_ambiguity-15	shorthand_ambiguity	zc	政策|注册|支持	简拼歧义：z+c
+sealed-shorthand_ambiguity-16	shorthand_ambiguity	js	技术|结束|建设	简拼歧义：j+s
+sealed-shorthand_ambiguity-17	shorthand_ambiguity	cm	传媒|聪明|充满	简拼歧义：c+m
+sealed-shorthand_ambiguity-18	shorthand_ambiguity	ry	容易|人员|荣誉	简拼歧义：r+y
+sealed-shorthand_ambiguity-19	shorthand_ambiguity	wb	外部|微博|完毕	简拼歧义：w+b
+sealed-shorthand_ambiguity-20	shorthand_ambiguity	sd	速度|收到|时代	简拼歧义：s+d
+sealed-shorthand_ambiguity-21	shorthand_ambiguity	pl	评论|漂亮|品类	简拼歧义：p+l
+sealed-shorthand_ambiguity-22	shorthand_ambiguity	mh	门户|迷糊|梦幻	简拼歧义：m+h
+sealed-mixed_pinyin-01	mixed_pinyin	gongc	工程	混拼：gong+c
+sealed-mixed_pinyin-02	mixed_pinyin	shij	世界	混拼：shi+j
+sealed-mixed_pinyin-03	mixed_pinyin	dax	大学	混拼：da+x
+sealed-mixed_pinyin-04	mixed_pinyin	shengr	生日	混拼：sheng+r
+sealed-mixed_pinyin-05	mixed_pinyin	yinw	因为	混拼：yin+w
+sealed-mixed_pinyin-06	mixed_pinyin	suoy	所以	混拼：suo+y
+sealed-mixed_pinyin-07	mixed_pinyin	kes	可是	混拼：ke+s
+sealed-mixed_pinyin-08	mixed_pinyin	xingq	星期	混拼：xing+q
+sealed-mixed_pinyin-09	mixed_pinyin	mudd	目的地	混拼：mu+d+d
+sealed-mixed_pinyin-10	mixed_pinyin	changg	唱歌	混拼：chang+g
+sealed-mixed_pinyin-11	mixed_pinyin	liy	理由	混拼：li+y
+sealed-mixed_pinyin-12	mixed_pinyin	bany	半夜	混拼：ban+y
+sealed-mixed_pinyin-13	mixed_pinyin	zaoc	早餐	混拼：zao+c
+sealed-mixed_pinyin-14	mixed_pinyin	wuc	午餐	混拼：wu+c
+sealed-mixed_pinyin-15	mixed_pinyin	wanc	晚餐	混拼：wan+c
+sealed-mixed_pinyin-16	mixed_pinyin	yunx	允许	混拼：yun+x
+sealed-mixed_pinyin-17	mixed_pinyin	tongy	同意	混拼：tong+y
+sealed-mixed_pinyin-18	mixed_pinyin	jued	觉得	混拼：jue+d
+sealed-mixed_pinyin-19	mixed_pinyin	kaos	考试	混拼：kao+s
+sealed-mixed_pinyin-20	mixed_pinyin	chengj	成绩	混拼：cheng+j
+sealed-mixed_pinyin-21	mixed_pinyin	laos	老师	混拼：lao+s
+sealed-mixed_pinyin-22	mixed_pinyin	xues	学生	混拼：xue+s
+sealed-typo_correction-01	typo_correction	huiy	会议	漏字母：正确拼音 huiyi
+sealed-typo_correction-02	typo_correction	xianmu	项目	漏字母：正确拼音 xiangmu
+sealed-typo_correction-03	typo_correction	quereni	确认	多字母：正确拼音 queren
+sealed-typo_correction-04	typo_correction	baogoa	报告	相邻交换：正确拼音 baogao
+sealed-typo_correction-05	typo_correction	wenian	文件	漏字母：正确拼音 wenjian
+sealed-typo_correction-06	typo_correction	youjiann	邮件	多字母：正确拼音 youjian
+sealed-typo_correction-07	typo_correction	yuusan	预算	相邻交换：正确拼音 yusuan
+sealed-typo_correction-08	typo_correction	jehu	客户	邻键：正确拼音 kehu，k 误触 j
+sealed-typo_correction-09	typo_correction	hetng	合同	漏字母：正确拼音 hetong
+sealed-typo_correction-10	typo_correction	shujuu	数据	多字母：正确拼音 shuju
+sealed-typo_correction-11	typo_correction	sheki	设计	邻键：正确拼音 sheji，j 误触 k
+sealed-typo_correction-12	typo_correction	baben	版本	漏字母：正确拼音 banben
+sealed-typo_correction-13	typo_correction	cesshi	测试	多字母：正确拼音 ceshi
+sealed-typo_correction-14	typo_correction	shouxain	首先	相邻交换：正确拼音 shouxian
+sealed-typo_correction-15	typo_correction	jinsu	进度	邻键：正确拼音 jindu，d 误触 s
+sealed-typo_correction-16	typo_correction	jiua	计划	漏字母：正确拼音 jihua
+sealed-typo_correction-17	typo_correction	fangaan	方案	多字母：正确拼音 fangan
+sealed-typo_correction-18	typo_correction	jieuo	结果	漏字母：正确拼音 jieguo
+sealed-typo_correction-19	typo_correction	linfdao	领导	邻键：正确拼音 lingdao，g 误触 f
+sealed-typo_correction-20	typo_correction	anpaii	安排	多字母：正确拼音 anpai
+sealed-typo_correction-21	typo_correction	zhnbei	准备	漏字母：正确拼音 zhunbei
+sealed-typo_correction-22	typo_correction	wanceng	完成	漏字母：正确拼音 wancheng
+sealed-english_abbrev-01	english_abbrev	woyaoshenqingvpn	我要申请VPN	英文缩写：VPN 原文提交
+sealed-english_abbrev-02	english_abbrev	qingbabiaogefawoexcel	请把表格发我Excel	英文缩写：Excel 原文提交
+sealed-english_abbrev-03	english_abbrev	mafanbangwogengxinyixiappt	麻烦帮我更新一下PPT	英文缩写：PPT 原文提交
+sealed-english_abbrev-04	english_abbrev	zhegegongnengxuyaojiayigeapi	这个功能需要加一个API	英文缩写：API 原文提交
+sealed-english_abbrev-05	english_abbrev	hetongsaomiaojianqingfapdf	合同扫描件请发PDF	英文缩写：PDF 原文提交
+sealed-english_abbrev-06	english_abbrev	zhegexiangmuyongjira	这个项目用Jira	英文缩写：Jira 原文提交
+sealed-english_abbrev-07	english_abbrev	womengongsizhunbeishangxianerp	我们公司准备上线ERP	英文缩写：ERP 原文提交
+sealed-english_abbrev-08	english_abbrev	xinbanbenwendangqingfawoword	新版本文档请发我Word	英文缩写：Word 原文提交
+sealed-english_abbrev-09	english_abbrev	mingtianshangwushidiankaihuiok	明天上午十点开会OK	英文缩写：OK 原文提交
+sealed-english_abbrev-10	english_abbrev	mafanquerenyixiazhegefaq	麻烦确认一下这个FAQ	英文缩写：FAQ 原文提交
+sealed-english_abbrev-11	english_abbrev	zhefencailiaoqingzhuanchengpng	这份材料请转成PNG	英文缩写：PNG 原文提交
+sealed-english_abbrev-12	english_abbrev	kehunabianyaoqiutigongsla	客户那边要求提供SLA	英文缩写：SLA 原文提交
+sealed-english_abbrev-13	english_abbrev	zhegexuqiuyouxianjiship0	这个需求优先级是P0	英文缩写：P0 原文提交
+sealed-english_abbrev-14	english_abbrev	zhegeyingyongxuyaoshipeiipad	这个应用需要适配iPad	英文缩写：iPad 原文提交
+sealed-english_abbrev-15	english_abbrev	womingtianyaoqujiankehuceo	我明天要去见客户CEO	英文缩写：CEO 原文提交
+sealed-english_abbrev-16	english_abbrev	qingbashujudaochuchengcsv	请把数据导出成CSV	英文缩写：CSV 原文提交
+sealed-english_abbrev-17	english_abbrev	bangwokankanzhegeyemianui	帮我看看这个页面UI	英文缩写：UI 原文提交
+sealed-english_abbrev-18	english_abbrev	womendefuwuqibushuzaiaws	我们的服务器部署在AWS	英文缩写：AWS 原文提交
+sealed-english_abbrev-19	english_abbrev	kehuxiwangxiazhoukandaodemo	客户希望下周看到Demo	英文缩写：Demo 原文提交
+sealed-english_abbrev-20	english_abbrev	zhegebanbenxianfagebeta	这个版本先发个Beta	英文缩写：Beta 原文提交
+sealed-english_abbrev-21	english_abbrev	huiyishitouyingyilianbushangwifi	会议室投影仪连不上WiFi	英文缩写：WiFi 原文提交
+sealed-english_abbrev-22	english_abbrev	qingbangwobazhaopiancaichengjpg	请帮我把照片裁成JPG	英文缩写：JPG 原文提交
+sealed-number_punct-01	number_punct	yiqianerbaikuaiqian	一千二百块钱	数字：中文数词
+sealed-number_punct-02	number_punct	baifenzhishiwu	百分之十五	数字：百分比
+sealed-number_punct-03	number_punct	sanyueshibahao	三月十八号	数字：日期
+sealed-number_punct-04	number_punct	wanshangjiudianban	晚上九点半	数字：时间
+sealed-number_punct-05	number_punct	disanci	第三次	数字：序数
+sealed-number_punct-06	number_punct	liudiansishifen	六点四十分	数字：时间
+sealed-number_punct-07	number_punct	zoulebangexiaoshi	走了半个小时	数字：时长
+sealed-number_punct-08	number_punct	zhebenshusanshikuaiqian	这本书三十块钱	数字：金额
+sealed-number_punct-09	number_punct	denglewufenzhong	等了五分钟	数字：时长
+sealed-number_punct-10	number_punct	yinianyousanbailiushiwutian	一年有三百六十五天	数字：大数
+sealed-number_punct-11	number_punct	lianggexiaoshihoujian	两个小时后见	数字：时长
+sealed-number_punct-12	number_punct	baifenzhiba	百分之八	数字：百分比
+sealed-number_punct-13	number_punct	tajinnianershiwusui	他今年二十五岁	数字：年龄
+sealed-number_punct-14	number_punct	fangjianhaoshisanlingyi	房间号是三零一	数字：编号
+sealed-number_punct-15	number_punct	mingtian10diankaihui	明天	阿拉伯数字：10 原文提交，评测首个中文段
+sealed-number_punct-16	number_punct	womaile2gepingguo	我买了	阿拉伯数字：2 原文提交，评测首个中文段
+sealed-number_punct-17	number_punct	qinggeiwo3fenfuyinjian	请给我	阿拉伯数字：3 原文提交，评测首个中文段
+sealed-number_punct-18	number_punct	xiawu4dianbanjian	下午	阿拉伯数字：4 原文提交，评测首个中文段
+sealed-number_punct-19	number_punct	jiageshi99yuan	价格是	阿拉伯数字：99 原文提交，评测首个中文段
+sealed-number_punct-20	number_punct	jing'an	静安	标点：撇号显式音节分隔
+sealed-number_punct-21	number_punct	ming tian jian	明天见	标点：空格分隔音节
+sealed-number_punct-22	number_punct	xiexie.	谢谢	标点：输入末尾标点应被忽略

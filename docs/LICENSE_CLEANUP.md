@@ -113,7 +113,7 @@ foreach ($name in $names) { git grep -n -i -- $name }   # 期望：0 命中
 | 项目 | 值 |
 | --- | --- |
 | 最终资产 | `app/src/main/assets/pinyin_dict.tsv` |
-| 文件大小 | 2,175,214 bytes（替换前旧词典 2,915,616 bytes） |
+| 文件大小 | 2,175,214 bytes（git blob，LF；替换前旧词典 git blob 2,915,616 bytes。Windows CRLF checkout 分别为 2,304,382 / 3,090,305 bytes） |
 | 总行数 | 129,168（旧词典 174,689） |
 | 词条数（非注释数据行） | 65,999 |
 | `#@c` 字符行 | 5,296 |

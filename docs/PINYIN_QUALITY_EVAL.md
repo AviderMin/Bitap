@@ -522,3 +522,29 @@ JVM 值仅同机参考，不能替代 22021211RC / Android 16 真机按键延迟
 - after 报告：[build/pinyin-quality-eval-after.txt](../build/pinyin-quality-eval-after.txt)（开发集逐条结果 + 保留集聚合；FAIL/原因可复查）
 - baseline 报告：[build/pinyin-quality-eval-baseline.txt](../build/pinyin-quality-eval-baseline.txt)
 - 评测器：[PinyinQualityEvalTest.kt](../app/src/test/java/com/bitap/keyboard/core/PinyinQualityEvalTest.kt)；语料与自查脚本见文首。
+
+## 11. 下一轮（A/B）资源替换与长句专项结果
+
+### 11.1 资源替换（A，同引擎、同 dev/holdout）
+
+| 组别 | dev top1 | dev top5 | holdout top1 | holdout top5 |
+|---|---:|---:|---:|---:|
+| 旧词典 HEAD（旧未许可语料 n-gram，历史） | 86/132 (65.2%) | 107/132 (81.1%) | 77/132 (58.3%) | 101/132 (76.5%) |
+| Tatoeba detailed 3/6（发布资产） | **94/132 (71.2%)** | **110/132 (83.3%)** | **81/132 (61.4%)** | **102/132 (77.3%)** |
+
+回归：dev daily_chat top5 12→11、dev unseen_sentence top5 12→11、holdout unseen_sentence top1 11→9/top5 12→10、holdout typo top1 8→7；详见 `docs/LICENSE_CLEANUP.md` §6。
+
+### 11.2 长句专项（B，A 词典基线 → after）
+
+| 数据集 | top1 | top5 | avgTaps |
+|---|---:|---:|---:|
+| dev long_segment | 6/12 → **7/12** | 8/12 → **10/12** | 3.92 → **2.75** |
+| holdout long_segment | 4/12 → **5/12** | 6/12 → **8/12** | 5.58 → **4.17** |
+| dev 引擎可评分 | 77.3% → **79.0%** | 85.7% → 85.7% | 2.30 → 2.20 |
+| holdout 引擎可评分 | 67.2% → 66.4%（-1 条） | 81.5% → **85.7%** | 2.67 → 2.46 |
+
+报告：`build/pinyin-quality-eval-batcha-after.txt`、`build/pinyin-quality-eval-batchb-after.txt`；逐条分型与消融见 `docs/LONG_SEGMENT_ANALYSIS.md`。
+
+### 11.3 封存验收
+
+见 `docs/SEALED_EVAL.md`：132 条独立封存集，引擎口径 top1 48.6%、top5 74.3%、avgTaps 3.53；long_natural 4/22 top1。与 dev/holdout after 差距明显，应在产品判断中优先相信封存结果。
