@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,7 @@ class KeyboardController(
     private var settings = BitapSettings()
     private var aiRuntimeState = AiRuntimeState.NotInstalled
     private var pinyinJob: Job? = null
+    private var pinyinQueryToken = 0L
     private var aiJob: Job? = null
     private var aiToken = 0L
     private var userLexiconPersistJob: Job? = null
@@ -253,9 +255,16 @@ class KeyboardController(
     private fun schedulePinyinQuery(composing: String) {
         pinyinJob?.cancel()
         if (composing.isEmpty()) return
+        val token = ++pinyinQueryToken
         pinyinJob = scope.launch {
             delay(PINYIN_DEBOUNCE_MS)
-            val candidates = withContext(queryDispatcher) { pinyinEngine.search(composing) }
+            if (token != pinyinQueryToken) return@launch
+            val candidates = withContext(queryDispatcher) {
+                // Pinyin decoding cooperates with coroutine cancellation on its
+                // internal loops so old queries stop using the CPU.
+                pinyinEngine.search(composing) { isActive }
+            }
+            if (!isActive || token != pinyinQueryToken) return@launch
             // Dispatch through the same path as user actions so a queued
             // confirmation executes its CommitText when the fresh result lands.
             dispatch(KeyboardAction.ComposingUpdated(composing, candidates))
