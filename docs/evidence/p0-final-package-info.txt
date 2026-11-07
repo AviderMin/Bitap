@@ -1,0 +1,10 @@
+P0 final package info (device-qa)
+APK path: D:\Projects\Github\Bitap\dist\bitap-0.1.0-demo.apk
+APK SHA-256: A8D8AFE874A2304DDC92439A72EEEB449180F1C2C00E60EB2E300D2FE09FB0FC
+APK size: 28,555,607 bytes (27,224 KiB)
+Source commit: 956b5043fdfc8a891093851e445b041acd9216d8 (feat(ime): generalize pinyin decoding, shorthand and typo handling)
+Installed at: 2026-11-07 20:28:31 (device lastUpdateTime)
+Device base.apk SHA-256 after pull: A8D8AFE874A2304DDC92439A72EEEB449180F1C2C00E60EB2E300D2FE09FB0FC
+Device: fe4ab855 / 22021211RC / Android 16 (API 36) / 1080x2400 / density 440
+IME: com.bitap.keyboard/.ime.BitapImeService
+Test operator: device-qa (single operator; final test window 20:28–20:45:53 Asia/Shanghai)
