@@ -137,3 +137,36 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - `AiLexiconTest`（19 tests）：prompt/上下文/采样、统一解析入口、`天气` vs `nihao` 拒绝、示例泄漏拒绝、多音字 `长`、前缀补全与 quality gate 降级。
 - 全量 `:app:testDebugUnitTest --console=plain --rerun-tasks` → **BUILD SUCCESSFUL，188 tests / 0 failures / 0 errors / 0 skipped**（19 suites；AI 5 个套件共 49 tests：AiLexiconTest 19、AiPinyinDictionaryTest 8、AiPromptBuilderTest 6、AiResultSanitizerTest 12、ModelFileRulesTest 4）。
 
+## 8. S07 AI 原文上下文替换与扩展（2026-11-07，task-32）
+
+测试基线：HEAD 497323f + 本轮 ai/** 与 KeyboardController.kt 修改（debug APK）。设备：22021211RC / Android 16 / API 36；模型 bitap-qwen3-0.6b.litertlm（Qwen3-0.6B dynamic INT4）343,490,560 bytes。
+
+### 8.1 实现
+
+- 新增 AiRawContextResolver：从编辑器原始内容识别三种查询来源——选中纯拼音、光标前的已提交拼音、带前文的尾部拼音（如上文「你好」+「nihao」）；拒绝中文选区、无拼音和超过 48 字符的输入。
+- KeyboardController 保存待替换范围 AiRawReplacement；点 AI 候选前重新读取选区/光标前文本，只有与请求时完全一致才替换：选中文本用 commitText 覆盖；已提交拼音按原长度删除后提交候选；光标/选区变化则取消并明确提示，避免误删或 nihao你好。学习读音使用 plan.query，不再丢失。
+- AiPinyinDictionary 增加可信字符读音组合：优先使用词典整词读音；新词（2–4 字）仅在每个字都有可信读音且组合与输入拼音兼容时放行，未知字/不匹配组合仍拒绝；保留多音字表和前缀补全。
+
+### 8.2 真机结果（S07 重点）
+
+| 场景 | 结果 | 判定 |
+| --- | --- | --- |
+| Via 地址栏已提交 pingguo，点 ✦ AI，出现 AI 候选「苹果」，点选 | 地址栏从 pingguo 变为「苹果」，没有出现 pingguo苹果；AI 候选条关闭 | PASS（替换范围正确） |
+| Via 地址栏已提交 nihao，点 ✦ AI | 返回 AI 候选「你豪」（你 ni + 豪 hao，字符读音组合通过），可点选；拼音兼容但词义质量差 | PARTIAL（扩展可用、语义质量不足） |
+
+- S07 小样本（2 query）：**可用候选率 2/2 = 100%**（都有可点击且拼音匹配的候选）；**拼音正确率 2/2 = 100%**（苹果←pingguo、你豪←nihao）；**相对本地词典新增率 1/2 = 50%**（你豪只由字符读音组合得到，非内置词条；苹果为内置词条）。语义正确率 1/2，整体仍为 **PARTIAL**，不宣称 AI 词库质量已通过。
+- 选中拼音/带前文拼音的真实设备操作未单独复测；其替换范围逻辑由纯 JVM controller 测试覆盖（见 8.3）。
+
+### 8.3 纯 JVM 测试
+
+- AiRawContextResolverTest（4 tests）：已提交拼音、选中拼音、前后文、中文选区拒绝、长度上限。
+- AiRawContextReplacementTest（4 tests）：已提交拼音不重复、只替换尾部拼音、选中拼音替换、编辑器变化取消替换；并验证候选学习读音为原 query。
+- AiPinyinDictionaryTest（10 tests）：TSV、前缀、xi'an 归一化、多音字、字符组合新词、未知字拒绝。
+- 全量 :app:testDebugUnitTest --console=plain --rerun-tasks → **BUILD SUCCESSFUL，246 tests / 0 failures / 0 errors / 0 skipped**（33 suites；AI 7 套件共 59 tests）。
+
+### 8.4 未验证 / 风险
+
+- `你豪` 这类拼音正确但语义不佳的字符组合仍可能通过扩展门禁；需要后续引入词频/语言模型约束或更保守的字组合策略。
+- 真机只验证了已提交拼音的替换；选中文本、带前文拼音与光标移动竞态为 JVM 结果，未做设备级操作。
+- 未改 core/ime 其他文件；无新增日志、落盘、网络。
+
