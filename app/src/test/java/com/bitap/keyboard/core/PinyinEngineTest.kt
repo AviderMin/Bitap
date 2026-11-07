@@ -126,7 +126,7 @@ class PinyinEngineTest {
             )
             val first = PinyinEngine.fromLines(lines, FileUserLexiconStore(file))
             assertEquals(0, first.selectionCount("泥"))
-            first.recordSelection("泥")
+            first.recordSelection("泥", "ni")
             assertTrue("user lexicon file should be written", file.isFile)
             assertTrue(file.readText(Charsets.UTF_8).contains("泥\t1"))
 

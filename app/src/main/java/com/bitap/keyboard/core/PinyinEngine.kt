@@ -19,6 +19,8 @@ class PinyinEngine private constructor(
     private val selectionLock = Any()
     private val selectionCounts = HashMap<String, Int>()
     private val userEntries = LinkedHashMap<String, UserLexiconEntry>()
+    private var lastClearGeneration = UserLexiconStore.currentClearGeneration()
+    private var selectionsSinceDecay = 0
 
     /** Session learning switch; controller updates it from settings + editor policy. */
     var learningEnabled: Boolean = true
@@ -58,6 +60,7 @@ class PinyinEngine private constructor(
     ): List<Candidate> {
         val cappedLimit = limit.coerceAtMost(DEFAULT_LIMIT)
         if (cappedLimit <= 0) return emptyList()
+        syncClearGeneration()
         // Hard input budget: overlong/invalid composing must stay cheap and
         // deletable rather than occupying the decoder.
         if (input.length > MAX_SEARCH_INPUT_LENGTH) return emptyList()
@@ -339,6 +342,7 @@ class PinyinEngine private constructor(
         source: String = "user",
         persist: Boolean = true,
     ) {
+        syncClearGeneration()
         if (!learningEnabled) return
         val key = word.trim()
         if (key.isEmpty()) return
@@ -357,6 +361,11 @@ class PinyinEngine private constructor(
                 )
             }
             pruneUserEntriesLocked()
+            selectionsSinceDecay++
+            if (selectionsSinceDecay >= DECAY_INTERVAL) {
+                selectionsSinceDecay = 0
+                decaySelectionWeightsLocked()
+            }
         }
         if (persist) persistSelectionWeights()
     }
@@ -370,6 +379,10 @@ class PinyinEngine private constructor(
     val userEntryCount: Int
         get() = synchronized(selectionLock) { userEntries.size }
 
+    /** Number of in-memory selection-count words, including non-searchable legacy words. */
+    val selectionWordCount: Int
+        get() = synchronized(selectionLock) { selectionCounts.size }
+
     /** Clears both in-memory and persisted user selection memory on this engine. */
     fun clearSelectionMemory() {
         synchronized(selectionLock) {
@@ -377,55 +390,90 @@ class PinyinEngine private constructor(
             userEntries.clear()
         }
         runCatching { userLexiconStore?.clear() }
+        lastClearGeneration = UserLexiconStore.currentClearGeneration()
     }
 
-    /** Applies a simple count decay; call periodically or from a maintenance path. */
+    /** Applies a simple count decay; production maintenance calls this explicitly. */
     fun decaySelectionWeights() {
-        synchronized(selectionLock) {
-            selectionCounts.keys.toList().forEach { key ->
-                val next = (selectionCounts[key] ?: 0) / 2
-                if (next <= 0) selectionCounts.remove(key) else selectionCounts[key] = next
-            }
-            userEntries.entries.toList().forEach { (key, entry) ->
-                val next = entry.count / 2
-                if (next <= 0) userEntries.remove(key) else userEntries[key] = entry.copy(count = next)
-            }
-        }
+        syncClearGeneration()
+        synchronized(selectionLock) { decaySelectionWeightsLocked() }
         persistSelectionWeights()
     }
 
-    /** Persists the current entries if a store was attached. */
-    fun persistSelectionWeights() {
-        val store = userLexiconStore ?: return
-        val entries = synchronized(selectionLock) {
-            val byKey = LinkedHashMap<String, UserLexiconEntry>()
-            userEntries.values.forEach { entry -> byKey[entry.pinyin + "\t" + entry.word] = entry }
-            val representedWords = byKey.values.mapTo(HashSet()) { it.word }
-            selectionCounts.forEach { (word, count) ->
-                if (word.isNotEmpty() && count > 0 && word !in representedWords) {
-                    byKey["\t" + word] = UserLexiconEntry(pinyin = "", word = word, count = count)
-                }
-            }
-            byKey.values.toList()
+    private fun decaySelectionWeightsLocked() {
+        selectionCounts.keys.toList().forEach { key ->
+            val next = (selectionCounts[key] ?: 0) / 2
+            if (next <= 0) selectionCounts.remove(key) else selectionCounts[key] = next
         }
-        runCatching { store.saveEntries(entries) }
+        userEntries.entries.toList().forEach { (key, entry) ->
+            val next = entry.count / 2
+            if (next <= 0) userEntries.remove(key) else userEntries[key] = entry.copy(count = next)
+        }
+    }
+
+    /** Persists searchable entries if a store was attached. */
+    fun persistSelectionWeights() {
+        syncClearGeneration()
+        val store = userLexiconStore ?: return
+        val generation = UserLexiconStore.currentClearGeneration()
+        val entries = synchronized(selectionLock) { userEntries.values.toList() }
+        val saved = runCatching { store.saveEntriesIfCurrent(entries, generation) }.getOrDefault(false)
+        // A clear during a delayed save must not be followed by the old snapshot
+        // being left on disk. Re-clear if the generation changed.
+        if (generation != UserLexiconStore.currentClearGeneration()) {
+            synchronized(selectionLock) {
+                selectionCounts.clear()
+                userEntries.clear()
+            }
+            lastClearGeneration = UserLexiconStore.currentClearGeneration()
+            runCatching { store.clear() }
+        } else if (!saved) {
+            syncClearGeneration()
+        }
     }
 
     private fun pruneUserEntriesLocked() {
-        if (userEntries.size <= MAX_USER_ENTRIES) return
-        val keep = userEntries.entries
-            .sortedWith(
-                compareByDescending<Map.Entry<String, UserLexiconEntry>> { it.value.count }
-                    .thenBy { it.key },
-            )
-            .take(MAX_USER_ENTRIES)
-        userEntries.clear()
-        keep.forEach { (key, entry) -> userEntries[key] = entry }
+        if (userEntries.size > MAX_USER_ENTRIES) {
+            val keep = userEntries.entries
+                .sortedWith(
+                    compareByDescending<Map.Entry<String, UserLexiconEntry>> { it.value.count }
+                        .thenBy { it.key },
+                )
+                .take(MAX_USER_ENTRIES)
+            userEntries.clear()
+            keep.forEach { (key, entry) -> userEntries[key] = entry }
+        }
+        if (selectionCounts.size > MAX_USER_ENTRIES) {
+            val keepCounts = selectionCounts.entries
+                .sortedWith(
+                    compareByDescending<Map.Entry<String, Int>> { it.value }
+                        .thenBy { it.key },
+                )
+                .take(MAX_USER_ENTRIES)
+            selectionCounts.clear()
+            keepCounts.forEach { (word, count) -> selectionCounts[word] = count }
+        }
+    }
+
+    private fun syncClearGeneration() {
+        val current = UserLexiconStore.currentClearGeneration()
+        if (current == lastClearGeneration) return
+        synchronized(selectionLock) {
+            selectionCounts.clear()
+            userEntries.clear()
+        }
+        lastClearGeneration = current
     }
 
     private fun loadPersistedSelectionWeights() {
+        syncClearGeneration()
         val store = userLexiconStore ?: return
+        val generation = UserLexiconStore.currentClearGeneration()
         val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
+        if (generation != UserLexiconStore.currentClearGeneration()) {
+            syncClearGeneration()
+            return
+        }
         mergeSelectionEntries(persisted)
     }
 
@@ -545,14 +593,20 @@ class PinyinEngine private constructor(
      * what restores selection weights after an IME restart.
      */
     suspend fun loadFromAssets(context: Context) {
+        syncClearGeneration()
         val store = userLexiconStore ?: UserLexiconStore.create(context).also {
             userLexiconStore = it
         }
+        val generation = UserLexiconStore.currentClearGeneration()
         // R08: user-lexicon decoding/loading is I/O work, not a main-thread read.
         val persistedEntries = withContext(Dispatchers.IO) {
             runCatching { store.loadEntries() }.getOrDefault(emptyList())
         }
-        mergeSelectionEntries(persistedEntries)
+        if (generation != UserLexiconStore.currentClearGeneration()) {
+            syncClearGeneration()
+        } else {
+            mergeSelectionEntries(persistedEntries)
+        }
         val loaded = withContext(Dispatchers.IO) {
             context.assets.open(ASSET_NAME).bufferedReader(Charsets.UTF_8).use { reader ->
                 buildIndex(reader.lineSequence())
@@ -582,6 +636,7 @@ class PinyinEngine private constructor(
         private const val MAX_SEGMENT_OPTIONS = 8
         private const val MAX_SEGMENT_COMBINATIONS = 512
         private const val MAX_SELECTION_WEIGHT = 1_000
+        private const val DECAY_INTERVAL = 500
         /** User-lexicon capacity: least-used entries are evicted above this. */
         const val MAX_USER_ENTRIES = 200
         private const val GROUP_EXACT = 3

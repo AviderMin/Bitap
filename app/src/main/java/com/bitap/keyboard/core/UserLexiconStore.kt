@@ -2,6 +2,7 @@ package com.bitap.keyboard.core
 
 import android.content.Context
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
 
 /** One persisted user-lexicon entry: pronunciation -> word plus a selection count. */
 data class UserLexiconEntry(
@@ -32,9 +33,28 @@ interface UserLexiconStore {
 
     fun saveEntries(entries: List<UserLexiconEntry>)
 
+    /**
+     * Save only when no clear() happened since [generation] was observed. Store
+     * implementations with delayed writes should re-check this before commit.
+     */
+    fun saveEntriesIfCurrent(entries: List<UserLexiconEntry>, generation: Long): Boolean {
+        if (generation != currentClearGeneration()) return false
+        saveEntries(entries)
+        return true
+    }
+
     fun clear()
 
     companion object {
+        private val clearGeneration = AtomicLong(0L)
+
+        /** Monotonic process-wide signal used to invalidate running IME snapshots. */
+        fun currentClearGeneration(): Long = clearGeneration.get()
+
+        internal fun markCleared() {
+            clearGeneration.incrementAndGet()
+        }
+
         internal const val PREFERENCES_NAME = "bitap_user_lexicon"
         internal const val KEY_WEIGHTS = "weights"
         internal const val KEY_ENTRIES = "entries"
@@ -143,6 +163,7 @@ class FileUserLexiconStore(private val file: File) : UserLexiconStore {
     }
 
     override fun clear() {
+        UserLexiconStore.markCleared()
         synchronized(lock) {
             runCatching { file.delete() }
         }
@@ -180,6 +201,7 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
     }
 
     override fun clear() {
+        UserLexiconStore.markCleared()
         preferences.edit()
             .remove(UserLexiconStore.KEY_ENTRIES)
             .remove(UserLexiconStore.KEY_WEIGHTS)
