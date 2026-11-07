@@ -11,13 +11,41 @@ class AiPinyinDictionary private constructor(
     private val wordToPinyins: Map<String, Set<String>>,
 ) {
 
+    /** Single-character readings used to verify new multi-character words. */
+    private val charToPinyins: Map<Char, Set<String>> = wordToPinyins
+        .filterKeys { it.length == 1 }
+        .mapKeys { it.key[0] }
+        .mapValues { it.value }
+
     fun matches(word: String, pinyinQuery: String): Boolean {
         val candidate = word.trim()
         if (candidate.isEmpty()) return false
         val query = normalizePinyin(pinyinQuery)
         if (query.isEmpty()) return false
-        val readings = wordToPinyins[candidate] ?: return false
-        return readings.any { reading -> reading.startsWith(query) }
+        val directReadings = wordToPinyins[candidate]
+        if (directReadings != null && directReadings.any { it.startsWith(query) }) return true
+        return matchesComposedWord(candidate, query)
+    }
+
+    /**
+     * Trusted offline character composition: a new word is accepted only when
+     * every character has a known reading and at least one reading combination
+     * starts with the user's pinyin (or is a prefix of it). This permits
+     * genuinely new words without reopening the gate to arbitrary Chinese.
+     */
+    private fun matchesComposedWord(candidate: String, query: String): Boolean {
+        if (candidate.length !in 2..MAX_COMPOSED_WORD_CHARS) return false
+        val readingsByChar = candidate.map { char -> charToPinyins[char] ?: return false }
+        fun search(index: Int, prefix: String): Boolean {
+            if (index == candidate.length) return prefix.startsWith(query)
+            for (reading in readingsByChar[index]) {
+                val next = prefix + reading
+                if (next.length > query.length && !next.startsWith(query)) continue
+                if (search(index + 1, next)) return true
+            }
+            return false
+        }
+        return search(0, "")
     }
 
     fun containsWord(word: String): Boolean = wordToPinyins.containsKey(word.trim())
@@ -26,6 +54,8 @@ class AiPinyinDictionary private constructor(
         get() = wordToPinyins.size
 
     companion object {
+        private const val MAX_COMPOSED_WORD_CHARS = 4
+
         val EMPTY: AiPinyinDictionary = AiPinyinDictionary(emptyMap())
 
         fun parse(lines: Sequence<String>): AiPinyinDictionary {

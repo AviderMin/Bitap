@@ -32,8 +32,6 @@ object AiLexiconPromptBuilder {
             "示例：\n" +
             "拼音：nihao\n" +
             "你好\n" +
-            "你号\n" +
-            "你豪\n" +
             "拼音：pingguo\n" +
             "苹果\n" +
             "要求：只输出中文候选词，不要输出拼音、数字、编号、解释、引号或 Markdown；不确定时只输出最可能的一个词。"

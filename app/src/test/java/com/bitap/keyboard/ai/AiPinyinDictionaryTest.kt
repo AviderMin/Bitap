@@ -72,4 +72,27 @@ class AiPinyinDictionaryTest {
         assertFalse(AiPinyinDictionary.EMPTY.matches("你好", "nihao"))
         assertEquals(0, AiPinyinDictionary.EMPTY.size)
     }
+
+    @Test
+    fun composesNewWordsFromKnownCharacters() {
+        val composed = AiPinyinDictionary.fromMap(
+            mapOf(
+                "长" to setOf("zhang", "chang"),
+                "城" to setOf("cheng"),
+                "天" to setOf("tian"),
+                "气" to setOf("qi"),
+            ),
+        )
+        assertTrue(composed.matches("长城", "changcheng"))
+        assertTrue(composed.matches("长城", "zhangcheng"))
+        assertTrue(composed.matches("长城", "chang"))
+        assertTrue(composed.matches("天气", "tianqi"))
+        assertFalse(composed.matches("长城", "beijing"))
+    }
+
+    @Test
+    fun composedWordNeedsEveryCharacterReading() {
+        val partial = AiPinyinDictionary.fromMap(mapOf("天" to setOf("tian")))
+        assertFalse(partial.matches("天气", "tianqi"))
+    }
 }

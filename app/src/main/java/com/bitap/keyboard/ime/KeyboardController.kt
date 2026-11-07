@@ -3,6 +3,8 @@ package com.bitap.keyboard.ime
 import com.bitap.keyboard.ai.AiEvent
 import com.bitap.keyboard.ai.AiRewriteService
 import com.bitap.keyboard.ai.AiRuntimeState
+import com.bitap.keyboard.ai.internal.AiRawContextResolver
+import com.bitap.keyboard.ai.internal.AiRawReplacement
 import com.bitap.keyboard.core.AiPanelUiState
 import com.bitap.keyboard.core.AiStatus
 import com.bitap.keyboard.core.EditorInputInfo
@@ -50,10 +52,19 @@ class KeyboardController(
     private var pinyinQueryToken = 0L
     private var aiJob: Job? = null
     private var aiToken = 0L
+    private var rawAiPlan: AiRawReplacement? = null
+    private var rawAiPlanToken = -1L
     private var userLexiconPersistJob: Job? = null
 
     /** Single entry point for every keyboard event. */
     fun dispatch(action: KeyboardAction) {
+        if (action is KeyboardAction.AiCandidateTapped &&
+            rawAiPlan != null &&
+            rawAiPlanToken == aiToken
+        ) {
+            handleRawAiCandidateTap(action.word)
+            return
+        }
         val canReadContext = _state.value.aiEnabled && _state.value.editorInfo.aiContextAllowed
         val effective = if (
             action is KeyboardAction.AiPanelOpened &&
@@ -263,21 +274,29 @@ class KeyboardController(
         aiService.cancel()
         val composing = _state.value.composing
         val rawContext = runCatching { textSession.readAiSource(128) }.getOrDefault("")
+        val rawPlan = if (composing.isEmpty()) {
+            AiRawContextResolver.resolve(
+                selected = runCatching { textSession.getSelectedText() }.getOrNull(),
+                beforeCursor = runCatching { textSession.getTextBeforeCursor(128) }.getOrNull(),
+            )
+        } else {
+            null
+        }
         // When the editor still contains the composing suffix, do not feed the
         // pinyin itself back as Chinese context.
-        val context = if (composing.isNotEmpty() && rawContext.endsWith(composing)) {
-            rawContext.dropLast(composing.length)
+        val context = if (composing.isNotEmpty()) {
+            if (rawContext.endsWith(composing)) rawContext.dropLast(composing.length) else rawContext
         } else {
-            rawContext
+            rawPlan?.context.orEmpty()
         }
-        val pinyin = composing.ifBlank {
-            rawContext.takeIf { it.isNotEmpty() && it.all { c -> c in 'a'..'z' } } ?: ""
-        }
+        val pinyin = if (composing.isNotEmpty()) composing else rawPlan?.query.orEmpty()
         if (pinyin.isBlank()) {
             reduceInto(KeyboardAction.AiCandidatesFailed("先输入拼音，或选中一段文字"))
             return
         }
         val token = ++aiToken
+        rawAiPlan = rawPlan
+        rawAiPlanToken = if (rawPlan != null) token else -1L
         aiJob = scope.launch {
             var terminal = false
             try {
@@ -291,10 +310,13 @@ class KeyboardController(
                         is AiEvent.Delta -> Unit
                         is AiEvent.Completed -> {
                             terminal = true
-                            reduceInto(KeyboardAction.AiCandidatesUpdated(parseAiCandidates(event.text)))
+                            val parsed = parseAiCandidates(event.text)
+                            if (parsed.isEmpty()) clearRawAiPlan()
+                            reduceInto(KeyboardAction.AiCandidatesUpdated(parsed))
                         }
                         is AiEvent.Failed -> {
                             terminal = true
+                            clearRawAiPlan()
                             reduceInto(KeyboardAction.AiCandidatesFailed(event.message))
                         }
                     }
@@ -306,10 +328,59 @@ class KeyboardController(
                 throw cancelled
             } catch (error: Throwable) {
                 if (token == aiToken) {
+                    clearRawAiPlan()
                     reduceInto(KeyboardAction.AiCandidatesFailed("AI 词库暂时不可用"))
                 }
             }
         }
+    }
+
+    /**
+     * Replaces the exact raw editor range the AI candidates were requested for.
+     * The editor is re-read first: a moved cursor, changed selection or edited
+     * text cancels the replacement rather than deleting the wrong characters.
+     */
+    private fun handleRawAiCandidateTap(word: String) {
+        val plan = rawAiPlan ?: return
+        if (rawAiPlanToken != aiToken) {
+            clearRawAiPlan()
+            return
+        }
+        val state = _state.value
+        if (!state.aiEnabled || !state.editorInfo.aiContextAllowed || state.aiCandidatesLoading) return
+        if (state.aiCandidates.none { it == word }) return
+        val stillValid = if (plan.selected) {
+            runCatching { textSession.getSelectedText() }.getOrNull() == plan.original
+        } else {
+            runCatching { textSession.getTextBeforeCursor(plan.original.length) }.getOrNull() == plan.original &&
+                runCatching { textSession.getSelectedText() }.getOrNull().isNullOrEmpty()
+        }
+        if (!stillValid) {
+            clearRawAiPlan()
+            reduceInto(KeyboardAction.AiCandidatesFailed("原输入已变化，已取消 AI 候选"))
+            return
+        }
+        if (!plan.selected) repeat(plan.original.length) { textSession.deleteBackward() }
+        textSession.commitText(word)
+        if (settings.learningEnabled && state.editorInfo.allowsPersonalizedLearning) {
+            pinyinEngine.recordSelection(word = word, pinyin = plan.query, source = "ai", persist = false)
+            scheduleUserLexiconPersist()
+        }
+        clearRawAiPlan()
+        aiJob?.cancel()
+        aiJob = null
+        aiToken++
+        _state.value = _state.value.copy(
+            aiCandidates = emptyList(),
+            aiCandidatesFor = "",
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
+        )
+    }
+
+    private fun clearRawAiPlan() {
+        rawAiPlan = null
+        rawAiPlanToken = -1L
     }
 
     private fun parseAiCandidates(raw: String): List<String> = raw
@@ -366,6 +437,7 @@ class KeyboardController(
 
     private fun cancelAi() {
         aiToken++
+        clearRawAiPlan()
         aiJob?.cancel()
         aiJob = null
         runCatching { aiService.cancel() }
