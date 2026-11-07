@@ -69,7 +69,64 @@ class PinyinEngine private constructor(private var index: Index?) {
             )
             prefixEntries.forEach(::add)
         }
+
+        // Exact and prefix lookups are not enough for continuous pinyin such as
+        // "woaini" or "jintiantianqihenhao".  Fill the remaining slots with
+        // whole-sentence candidates produced by a small dynamic-programming
+        // word segmenter over the same dictionary.
+        if (result.size < cappedLimit) {
+            phraseCandidates(query, current, cappedLimit - result.size).forEach(::add)
+        }
         return result
+    }
+
+    private fun phraseCandidates(
+        input: String,
+        index: Index,
+        limit: Int,
+    ): List<Entry> {
+        if (limit <= 0 || input.length < 2) return emptyList()
+        data class Path(val position: Int, val words: List<String>, val score: Double)
+
+        val n = input.length
+        val buckets = Array(n + 1) { ArrayList<Path>() }
+        buckets[0].add(Path(0, emptyList(), 0.0))
+        val maxKeyLength = minOf(MAX_WORD_KEY_LENGTH, n)
+
+        for (position in 0 until n) {
+            val paths = buckets[position].sortedByDescending { it.score }.take(MAX_PATHS_PER_POSITION)
+            for (path in paths) {
+                val maxLength = minOf(maxKeyLength, n - position)
+                for (length in 1..maxLength) {
+                    val key = input.substring(position, position + length)
+                    val entries = index.entriesByPinyin[key] ?: continue
+                    for (entry in entries.take(MAX_ENTRIES_PER_KEY)) {
+                        if (entry.word.isEmpty()) continue
+                        val nextWords = path.words + entry.word
+                        val score = path.score + kotlin.math.ln(entry.frequency.toDouble() + 1.0) +
+                            0.35 * entry.word.length - SEGMENT_PENALTY
+                        buckets[position + length].add(Path(position + length, nextWords, score))
+                    }
+                }
+            }
+        }
+
+        val out = ArrayList<Entry>(limit)
+        val outWords = HashSet<String>()
+        var added = 0
+        buckets[n]
+            .asSequence()
+            .filter { it.words.size >= 2 }
+            .sortedByDescending { it.score }
+            .forEach { path ->
+                val entry = Entry(input, path.words.joinToString(""), path.words.size.toLong())
+                if (outWords.add(entry.word)) {
+                    out.add(entry)
+                    added++
+                    if (added >= limit) return out
+                }
+            }
+        return out
     }
 
     /** Runs [search] on Dispatchers.Default so the IME main thread is never blocked. */
@@ -96,6 +153,10 @@ class PinyinEngine private constructor(private var index: Index?) {
         const val ASSET_NAME = "pinyin_dict.tsv"
         const val DEFAULT_LIMIT = 8
         private const val MAX_PREFIX_KEYS = 256
+        private const val MAX_WORD_KEY_LENGTH = 12
+        private const val MAX_PATHS_PER_POSITION = 8
+        private const val MAX_ENTRIES_PER_KEY = 5
+        private const val SEGMENT_PENALTY = 15.0
 
         /** Builds an engine from raw TSV lines; used by JVM tests and [loadFromAssets]. */
         fun fromLines(lines: Sequence<String>): PinyinEngine = PinyinEngine(buildIndex(lines))

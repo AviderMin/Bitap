@@ -578,16 +578,19 @@ private fun KeyButton(
                 } else {
                     Modifier.pointerInput(Unit) {
                         detectTapGestures(
-                            onTap = { onClick() },
-                            onLongPress = {
-                                pointerScope.launch {
-                                    // A phone key repeats while held; keep this
-                                    // bounded so a stray long press cannot run forever.
-                                    repeat(20) {
+                            onPress = {
+                                var repeated = false
+                                val repeatJob = pointerScope.launch {
+                                    delay(400)
+                                    repeated = true
+                                    while (isActive) {
                                         onLongPressRepeat()
                                         delay(55)
                                     }
                                 }
+                                tryAwaitRelease()
+                                repeatJob.cancel()
+                                if (!repeated) onClick()
                             },
                         )
                     }

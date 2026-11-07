@@ -67,6 +67,8 @@ data class KeyboardUiState(
     val layer: KeyboardLayer = KeyboardLayer.Letters,
     val shift: ShiftState = ShiftState.Off,
     val composing: String = "",
+    /** Pinyin string the current [candidates] were generated for. */
+    val candidatesFor: String = "",
     val candidates: List<Candidate> = emptyList(),
     val ai: AiPanelUiState = AiPanelUiState(),
     val aiEnabled: Boolean = true,

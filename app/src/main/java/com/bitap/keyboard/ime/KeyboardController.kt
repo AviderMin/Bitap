@@ -62,6 +62,7 @@ class KeyboardController(
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
             )
+            if (aiJob != null) cancelAi()
             schedulePinyinQuery(reduction.state.composing)
         }
         if (previous.ai.visible && !reduction.state.ai.visible) {
@@ -173,10 +174,19 @@ class KeyboardController(
         if (!settings.aiEnabled) return
         aiJob?.cancel()
         aiService.cancel()
-        val query = _state.value.composing.ifBlank {
-            runCatching { textSession.readAiSource(128) }.getOrDefault("")
+        val composing = _state.value.composing
+        val rawContext = runCatching { textSession.readAiSource(128) }.getOrDefault("")
+        // When the editor still contains the composing suffix, do not feed the
+        // pinyin itself back as Chinese context.
+        val context = if (composing.isNotEmpty() && rawContext.endsWith(composing)) {
+            rawContext.dropLast(composing.length)
+        } else {
+            rawContext
         }
-        if (query.isBlank()) {
+        val pinyin = composing.ifBlank {
+            rawContext.takeIf { it.isNotEmpty() && it.all { c -> c in 'a'..'z' } } ?: ""
+        }
+        if (pinyin.isBlank()) {
             reduceInto(KeyboardAction.AiCandidatesFailed("先输入拼音，或选中一段文字"))
             return
         }
@@ -185,8 +195,8 @@ class KeyboardController(
             var terminal = false
             try {
                 aiService.suggestCandidates(
-                    pinyin = if (_state.value.composing.isNotEmpty()) _state.value.composing else "",
-                    context = query,
+                    pinyin = pinyin,
+                    context = context,
                 ).collect { event ->
                     if (token != aiToken) return@collect
                     when (event) {

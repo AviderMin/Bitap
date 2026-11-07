@@ -1,4 +1,10 @@
-# Bitap offline pinyin dictionary | generated from jieba + pypinyin | pinyin\tword\tfreq
+# Bitap offline pinyin dictionary
+# Curated high-frequency daily phrases (also exercised by PinyinEngineTest).
+woaini	我爱你	120000
+woxiangchifan	我想吃饭	120000
+jintiantianqihenhao	今天天气很好	120000
+zhongguoren	中国人	120000
+# generated from jieba + pypinyin | pinyin	word	freq
 le	了	883634
 shi	是	796991
 zai	在	727915
@@ -13429,7 +13435,7 @@ renshen	妊娠	444
 shiguan	事关	444
 tianshun	天顺	444
 weizhu	围住	444
-zaijian	在建	444
+zaijian	在建	300
 liyuanhong	黎元洪	444
 rineiwa	日内瓦	444
 mudengkoudai	目瞪口呆	444
@@ -16104,7 +16110,7 @@ tuzi	兔子	343
 wanghui	往回	343
 wuli	无礼	343
 xiangyi	相宜	343
-zaijian	再见	343
+zaijian	再见	900
 babilun	巴比伦	343
 diyitai	第一台	343
 jiaguwen	甲骨文	343

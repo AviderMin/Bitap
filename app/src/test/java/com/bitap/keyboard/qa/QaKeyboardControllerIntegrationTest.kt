@@ -78,6 +78,7 @@ class QaKeyboardControllerIntegrationTest {
                 "setComposing:a",
                 "finishComposing",
                 "deleteBackward",
+                "deleteBackward",
             ),
             session.log,
         )

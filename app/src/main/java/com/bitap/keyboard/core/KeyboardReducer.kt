@@ -57,6 +57,7 @@ object KeyboardReducer {
                 shift = ShiftState.Off,
                 composing = "",
                 candidates = emptyList(),
+                candidatesFor = "",
                 lastShiftTapAt = 0L,
             ),
             commands,
@@ -90,6 +91,7 @@ object KeyboardReducer {
                 shift = ShiftState.Off,
                 composing = if (leavesLetters) "" else state.composing,
                 candidates = if (leavesLetters) emptyList() else state.candidates,
+                candidatesFor = if (leavesLetters) "" else state.candidatesFor,
                 lastShiftTapAt = 0L,
             ),
             commands,
@@ -111,7 +113,25 @@ object KeyboardReducer {
             InputLanguage.Chinese -> {
                 val lower = text.lowercase()
                 if (lower.any { it !in 'a'..'z' }) {
-                    Reduction(state, listOf(ImeCommand.CommitText(text)))
+                    // Punctuation must not be inserted on top of an active pinyin
+                    // composition: commit the current candidate/raw text first.
+                    val commands = buildList {
+                        if (state.composing.isNotEmpty()) {
+                            add(ImeCommand.CommitText(state.candidates.firstOrNull()?.word ?: state.composing))
+                        }
+                        add(ImeCommand.CommitText(text))
+                    }
+                    Reduction(
+                        state.copy(
+                            composing = "",
+                            candidates = emptyList(),
+                            candidatesFor = "",
+                            aiCandidates = emptyList(),
+                            aiCandidatesLoading = false,
+                            aiCandidatesError = null,
+                        ),
+                        commands,
+                    )
                 } else {
                     val composing = state.composing + lower
                     // Keep the previous candidates on screen until the debounced
@@ -133,10 +153,16 @@ object KeyboardReducer {
 
     private fun composingUpdated(state: KeyboardUiState, action: KeyboardAction.ComposingUpdated): Reduction {
         if (action.composing != state.composing) return Reduction(state)
-        return Reduction(state.copy(candidates = action.candidates.take(PinyinEngine.DEFAULT_LIMIT)))
+        return Reduction(
+            state.copy(
+                candidates = action.candidates.take(PinyinEngine.DEFAULT_LIMIT),
+                candidatesFor = action.composing,
+            ),
+        )
     }
 
     private fun candidateTapped(state: KeyboardUiState, index: Int): Reduction {
+        if (state.candidatesFor != state.composing) return commitRaw(state)
         val candidate = state.candidates.getOrNull(index) ?: return Reduction(state)
         return commitCandidate(state, candidate.word)
     }
@@ -145,6 +171,7 @@ object KeyboardReducer {
         state.copy(
             composing = "",
             candidates = emptyList(),
+            candidatesFor = "",
             aiCandidates = emptyList(),
             aiCandidatesLoading = false,
             aiCandidatesError = null,
@@ -156,13 +183,15 @@ object KeyboardReducer {
     private fun commitRaw(state: KeyboardUiState): Reduction {
         if (state.composing.isEmpty()) return Reduction(state)
         return Reduction(
-            state.copy(composing = "", candidates = emptyList()),
+            state.copy(composing = "", candidates = emptyList(), candidatesFor = ""),
             listOf(ImeCommand.CommitText(state.composing)),
         )
     }
 
     private fun space(state: KeyboardUiState): Reduction = when {
-        state.composing.isNotEmpty() && state.candidates.isNotEmpty() ->
+        state.composing.isNotEmpty() &&
+            state.candidates.isNotEmpty() &&
+            state.candidatesFor == state.composing ->
             commitCandidate(state, state.candidates.first().word)
 
         state.composing.isNotEmpty() -> commitRaw(state)
@@ -176,14 +205,17 @@ object KeyboardReducer {
         }
         val remaining = state.composing.dropLast(1)
         return if (remaining.isEmpty()) {
+            // FinishComposing alone does not remove the last pinyin letter from
+            // the editor.  Finish the composing region, then delete the one
+            // character that was inserted by SetComposingText.
             Reduction(
-                state.copy(composing = "", candidates = emptyList()),
-                listOf(ImeCommand.FinishComposing),
+                state.copy(composing = "", candidates = emptyList(), candidatesFor = ""),
+                listOf(ImeCommand.FinishComposing, ImeCommand.DeleteBackward),
             )
         } else {
             Reduction(
                 state.copy(composing = remaining),
-                listOf(ImeCommand.SetComposingText(remaining)),
+                listOf(ImeCommand.SetComposingText(remaining)), // candidatesFor stays old until fresh query
             )
         }
     }

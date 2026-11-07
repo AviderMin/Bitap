@@ -65,7 +65,7 @@ UI event → KeyboardAction → KeyboardReducer.reduce(state, action) → new st
 
 - `KeyboardUiState`：语言、Shift、层、composing、本地候选、AI 词库候选、模型状态、键盘高度。
 - Reducer 保持纯函数；`TextSession` 由 Controller 在 reducer 之后调用。
-- PinyinEngine 查询在 `Dispatchers.Default`；50 ms 内返回；输入序列变化时取消旧查询。
+- PinyinEngine 查询在 `Dispatchers.Default`；50 ms 内返回；输入序列变化时取消旧查询；连续拼音通过 DP 词段组合补全整句候选。
 - 候选点击提交；空格提交首选；无候选时按原始 composing 上屏。
 
 ## 5. AI 词库管线

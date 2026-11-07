@@ -57,6 +57,7 @@ class KeyboardReducerTest {
     fun candidateTapCommitsSelectedWordAndClearsComposing() {
         val state = KeyboardUiState(
             composing = "ni",
+            candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100), Candidate("泥", "ni", 50)),
         )
         val result = reduce(state = state, action = KeyboardAction.CandidateTapped(1))
@@ -69,10 +70,39 @@ class KeyboardReducerTest {
     fun spaceCommitsFirstCandidate() {
         val state = KeyboardUiState(
             composing = "nihao",
+            candidatesFor = "nihao",
             candidates = listOf(Candidate("你好", "nihao", 725), Candidate("你", "ni", 100)),
         )
         val result = reduce(state = state, action = KeyboardAction.Space)
         assertEquals("你好", (result.commands.single() as ImeCommand.CommitText).text)
+        assertEquals("", result.state.composing)
+    }
+
+    @Test
+    fun punctuationCommitsCurrentCompositionBeforePunctuation() {
+        val state = KeyboardUiState(
+            composing = "nihao",
+            candidatesFor = "nihao",
+            candidates = listOf(Candidate("你好", "nihao", 100)),
+        )
+        val result = reduce(state = state, action = KeyboardAction.AppendInput("，"))
+        assertEquals(
+            listOf<ImeCommand>(ImeCommand.CommitText("你好"), ImeCommand.CommitText("，")),
+            result.commands,
+        )
+        assertEquals("", result.state.composing)
+        assertTrue(result.state.candidates.isEmpty())
+    }
+
+    @Test
+    fun staleCandidatesAreNotUsedBySpace() {
+        val state = KeyboardUiState(
+            composing = "nihao",
+            candidatesFor = "ni",
+            candidates = listOf(Candidate("你", "ni", 100)),
+        )
+        val result = reduce(state = state, action = KeyboardAction.Space)
+        assertEquals("nihao", (result.commands.single() as ImeCommand.CommitText).text)
         assertEquals("", result.state.composing)
     }
 
@@ -104,7 +134,10 @@ class KeyboardReducerTest {
             action = KeyboardAction.Backspace,
         )
         assertEquals("", last.state.composing)
-        assertEquals(listOf<ImeCommand>(ImeCommand.FinishComposing), last.commands)
+        assertEquals(
+            listOf<ImeCommand>(ImeCommand.FinishComposing, ImeCommand.DeleteBackward),
+            last.commands,
+        )
 
         val empty = reduce(action = KeyboardAction.Backspace)
         assertEquals(listOf<ImeCommand>(ImeCommand.DeleteBackward), empty.commands)

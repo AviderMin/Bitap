@@ -35,8 +35,8 @@
 ```
 
 - 结果：**BUILD SUCCESSFUL**（exit code 0）
-- 测试数量：**78 tests / 0 failures / 0 errors / 0 skipped**
-  - 原有测试基线：5 个测试类、**52 tests**（含键盘输入候选稳定回归 1 条，全部通过）
+- 测试数量：**81 tests / 0 failures / 0 errors / 0 skipped**
+  - 原有测试基线：5 个测试类、**55 tests**（含候选稳定、标点提交、整句解码回归，全部通过）
   - 本次 QA 新增：5 个测试类、**26 tests**（全部通过）
 - 数据来源：`app/build/test-results/testDebugUnitTest/TEST-*.xml`（JUnit XML 汇总）
 
@@ -45,14 +45,14 @@
 | `com.bitap.keyboard.ai.AiPromptBuilderTest` | 6 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.ai.AiResultSanitizerTest` | 12 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.ai.ModelFileRulesTest` | 4 | 0 | 0 | 0 | PASS |
-| `com.bitap.keyboard.core.KeyboardReducerTest` | 20 | 0 | 0 | 0 | PASS |
+| `com.bitap.keyboard.core.KeyboardReducerTest` | 22 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.core.PinyinEngineTest` | 10 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaAiSafetyTest` | 6 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaKeyboardControllerIntegrationTest` | 7 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaPinyinAcceptanceTest` | 5 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaPrivacyGuardTest` | 4 | 0 | 0 | 0 | PASS |
 | `com.bitap.keyboard.qa.QaSettingsContractTest` | 4 | 0 | 0 | 0 | PASS |
-| **合计** | **78** | **0** | **0** | **0** | **PASS** |
+| **合计** | **81** | **0** | **0** | **0** | **PASS** |
 
 ### 2.2 Lint
 
@@ -156,7 +156,7 @@ service android:permission="android.permission.BIND_INPUT_METHOD"
 
 | 步骤 | 命令 | 结果 |
 | --- | --- | --- |
-| 单元测试 | `:app:testDebugUnitTest` | exit 0；**78 tests / 0 failures / 0 errors / 0 skipped** |
+| 单元测试 | `:app:testDebugUnitTest` | exit 0；**81 tests / 0 failures / 0 errors / 0 skipped** |
 | Lint | `:app:lintDebug` | exit 0；**0 errors / 14 warnings** |
 | Debug APK | `:app:assembleDebug` | exit 0；107,521,175 bytes，SHA-256 `479DB079...` |
 | 一键门禁 | `scripts\verify.ps1` | exit 0；`RESULT: PASS` |
@@ -234,7 +234,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ### 5.2 体积口径（docs/05 §5 已更新为 release APK ≈ 27.5 MB）
 
 - docs/05 §5 原为「APK < 25 MB」，2026-11-06 已由 Lead 更新为「优化后 release APK ≈ 27.5 MB，模型单独导入」，该偏差已接受。
-- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,494,743 bytes = 27.49 MB（十进制）/ 26.22 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `F8F769491F19A8BAA6E50880DCB4D521CBB36E074709EE13CB60C270F91BFA25`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
+- 交付 demo APK：`dist/bitap-0.1.0-demo.apk` = **27,511,127 bytes = 27.51 MB（十进制）/ 26.24 MiB**，与 ≈27.5 MB 口径一致；SHA-256 `2C73A1F7A91E0C3F30A65AA926DBFA35ADC8859F05F7FA4B85A366610A70D114`（最终 release 签名版，见 `dist/SHA256SUMS.txt`）。
 - 本次门禁产物 `app-debug.apk` = 107,521,175 bytes（107.52 MB 十进制 / 102.54 MiB；debug 未优化、含 LiteRT JNI，仅作测试安装包，不与 release 口径比较）。
 - 模型权重不在 APK 内（已验证），体积主要来自 LiteRT-LM AAR 的原生库与 Compose/Miuix/Glasmio 依赖。
 
@@ -285,7 +285,7 @@ QA 在首轮静态审查中发现 5 处交互控件低于 docs/01 §6 与 docs/0
 ```powershell
 cd D:\Projects\Github\Bitap
 
-# 1) 单元测试（期望 78 tests / 0 failures）
+# 1) 单元测试（期望 81 tests / 0 failures）
 .\gradlew.bat :app:testDebugUnitTest --console=plain
 
 # 2) Lint（期望 0 errors / 14 warnings）

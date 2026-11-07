@@ -86,6 +86,31 @@ class PinyinEngineTest {
     }
 
     @Test
+    fun phraseSegmentationBuildsContinuousCandidates() {
+        val engine = PinyinEngine.fromLines(
+            sequenceOf(
+                "wo\t我\t300",
+                "ai\t爱\t200",
+                "ni\t你\t300",
+                "xiang\t想\t200",
+                "chi\t吃\t200",
+                "fan\t饭\t150",
+                "chifan\t吃饭\t100",
+                "jintian\t今天\t100",
+                "tianqi\t天气\t90",
+                "hen\t很\t200",
+                "hao\t好\t200",
+                "zhongguo\t中国\t200",
+                "ren\t人\t200",
+            ),
+        )
+        assertTrue(engine.search("woaini").map { it.word }.contains("我爱你"))
+        assertTrue(engine.search("woxiangchifan").map { it.word }.contains("我想吃饭"))
+        assertTrue(engine.search("jintiantianqihenhao").map { it.word }.contains("今天天气很好"))
+        assertTrue(engine.search("zhongguoren").map { it.word }.contains("中国人"))
+    }
+
+    @Test
     fun exactMatchesAreRankedBeforePrefixMatches() {
         val engine = PinyinEngine.fromLines(
             sequenceOf(
@@ -107,5 +132,16 @@ class PinyinEngineTest {
         assertTrue(candidates.map { it.word }.contains("你好"))
         assertTrue(engine.search("ni").isNotEmpty())
         assertTrue(engine.search("zzzzzz").isEmpty())
+        val daily = mapOf(
+            "woaini" to "我爱你",
+            "woxiangchifan" to "我想吃饭",
+            "jintiantianqihenhao" to "今天天气很好",
+            "zhongguoren" to "中国人",
+            "zaijian" to "再见",
+        )
+        daily.forEach { (input, expected) ->
+            val words = engine.search(input).map { it.word }
+            assertTrue("$input -> $words should contain $expected", words.contains(expected))
+        }
     }
 }
