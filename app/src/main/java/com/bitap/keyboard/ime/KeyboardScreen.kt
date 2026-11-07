@@ -70,10 +70,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.bitap.keyboard.core.Candidate
+import com.bitap.keyboard.core.EditorInputKind
 import com.bitap.keyboard.core.InputLanguage
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardLayer
 import com.bitap.keyboard.core.KeyboardUiState
+import com.bitap.keyboard.core.NumericInputMode
 import com.bitap.keyboard.core.ShiftState
 import com.bitap.keyboard.ui.theme.LocalBitapPalette
 
@@ -167,14 +169,18 @@ fun KeyboardScreen(
             )
             when (state.layer) {
                 KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
-                KeyboardLayer.Numbers -> SymbolLayout(
-                    rows = NumberRows,
-                    bottomRow = listOf(".", ",", "?", "!", "'", "\""),
-                    switchLabel = "#+=",
-                    switchDescription = "切换到更多符号",
-                    nextLayer = KeyboardLayer.Symbols,
-                    press = press,
-                )
+                KeyboardLayer.Numbers -> if (state.numericMode != NumericInputMode.None) {
+                    NumericLayout(state = state, press = press)
+                } else {
+                    SymbolLayout(
+                        rows = NumberRows,
+                        bottomRow = listOf(".", ",", "?", "!", "'", "\""),
+                        switchLabel = "#+=",
+                        switchDescription = "切换到更多符号",
+                        nextLayer = KeyboardLayer.Symbols,
+                        press = press,
+                    )
+                }
 
                 KeyboardLayer.Symbols -> SymbolLayout(
                     rows = SymbolRows,
@@ -1048,10 +1054,11 @@ private fun SymbolLayout(
                     ),
                 )
                 bottomRow.forEach { symbol ->
+                    val displayLabel = if (symbol.isBlank()) "空格" else symbol
                     add(
                         KeyCap(
-                            label = symbol,
-                            description = "符号 " + symbol,
+                            label = displayLabel,
+                            description = "符号 " + displayLabel,
                             fontSize = 18.sp,
                             onClick = { press(KeyboardAction.AppendInput(symbol)) },
                         ),
@@ -1073,6 +1080,24 @@ private fun SymbolLayout(
     }
 }
 
+/**
+ * Number/Decimal/Signed/Phone layouts use only the digits plus the editor's
+ * declared numeric symbols (see KeyboardUiState.numericSymbols). The switch and
+ * delete keys are shared with SymbolLayout, so the fixed key height/row gap stay
+ * identical to every other layer.
+ */
+@Composable
+private fun NumericLayout(state: KeyboardUiState, press: (KeyboardAction) -> Unit) {
+    SymbolLayout(
+        rows = listOf(NumberRows[0]),
+        bottomRow = state.numericSymbols,
+        switchLabel = "#+=",
+        switchDescription = "切换到更多符号",
+        nextLayer = KeyboardLayer.Symbols,
+        press = press,
+    )
+}
+
 @Composable
 private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit) {
     val chinese = state.language == InputLanguage.Chinese
@@ -1086,62 +1111,85 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
         KeyboardLayer.Numbers -> KeyboardLayer.Symbols
         KeyboardLayer.Symbols -> KeyboardLayer.Letters
     }
-    val comma = if (chinese) "，" else ","
+    val emailMode = state.editorInfo.kind == EditorInputKind.Email
+    val showPunctuation = state.numericMode == NumericInputMode.None
+    val punctuation = if (emailMode) "@" else if (chinese) "，" else ","
+    val punctuationDescription = if (emailMode) "at 符号" else "逗号（长按输入拼音分隔符）"
     val period = if (chinese) "。" else "."
     KeyRow(
-        keys = listOf(
-            KeyCap(
-                label = layerLabel,
-                description = if (state.layer == KeyboardLayer.Symbols) "切换到字母键盘" else "切换到符号键盘",
-                weight = 1.1f,
-                isFunction = true,
-                fontSize = 14.sp,
-                onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
-            ),
-            KeyCap(
-                label = "中/英",
-                description = "切换中英文",
-                weight = 1f,
-                isFunction = true,
-                fontSize = 12.sp,
-                onClick = { press(KeyboardAction.ToggleLanguage) },
-            ),
-            KeyCap(
-                label = comma,
-                description = "逗号（长按输入拼音分隔符）",
-                weight = 0.9f,
-                fontSize = 18.sp,
-                longPressAction = { press(KeyboardAction.AppendInput("'")) },
-                onClick = { press(KeyboardAction.AppendInput(comma)) },
-            ),
-            KeyCap(
-                label = "空格",
-                description = "空格",
-                weight = 4.4f,
-                isFunction = true,
-                fontSize = 14.sp,
-                onClick = { press(KeyboardAction.Space) },
-            ),
-            KeyCap(
-                label = period,
-                description = "句号",
-                weight = 0.9f,
-                fontSize = 18.sp,
-                onClick = { press(KeyboardAction.AppendInput(period)) },
-            ),
-            KeyCap(
-                label = state.enterKeyLabel,
-                description = "回车键：" + state.enterKeyLabel,
-                weight = 1.2f,
-                isFunction = true,
-                fontSize = when {
-                    state.enterKeyLabel.length >= 3 -> 12.sp
-                    state.enterKeyLabel.length == 2 -> 14.sp
-                    else -> 20.sp
-                },
-                onClick = { press(KeyboardAction.Enter) },
-            ),
-        ),
+        keys = buildList {
+            add(
+                KeyCap(
+                    label = layerLabel,
+                    description = if (state.layer == KeyboardLayer.Symbols) "切换到字母键盘" else "切换到符号键盘",
+                    weight = 1.1f,
+                    isFunction = true,
+                    fontSize = 14.sp,
+                    onClick = { press(KeyboardAction.ShowLayer(nextLayer)) },
+                ),
+            )
+            if (state.showLanguageToggle) {
+                add(
+                    KeyCap(
+                        label = "中/英",
+                        description = "切换中英文",
+                        weight = 1f,
+                        isFunction = true,
+                        fontSize = 12.sp,
+                        onClick = { press(KeyboardAction.ToggleLanguage) },
+                    ),
+                )
+            }
+            if (showPunctuation) {
+                add(
+                    KeyCap(
+                        label = punctuation,
+                        description = punctuationDescription,
+                        weight = 0.9f,
+                        fontSize = 18.sp,
+                        longPressAction = if (emailMode) null else {
+                            { press(KeyboardAction.AppendInput("'")) }
+                        },
+                        onClick = { press(KeyboardAction.AppendInput(punctuation)) },
+                    ),
+                )
+            }
+            add(
+                KeyCap(
+                    label = "空格",
+                    description = "空格",
+                    weight = 4.4f,
+                    isFunction = true,
+                    fontSize = 14.sp,
+                    onClick = { press(KeyboardAction.Space) },
+                ),
+            )
+            if (showPunctuation) {
+                add(
+                    KeyCap(
+                        label = period,
+                        description = "句号",
+                        weight = 0.9f,
+                        fontSize = 18.sp,
+                        onClick = { press(KeyboardAction.AppendInput(period)) },
+                    ),
+                )
+            }
+            add(
+                KeyCap(
+                    label = state.enterKeyLabel,
+                    description = "回车键：" + state.enterKeyLabel,
+                    weight = 1.2f,
+                    isFunction = true,
+                    fontSize = when {
+                        state.enterKeyLabel.length >= 3 -> 12.sp
+                        state.enterKeyLabel.length == 2 -> 14.sp
+                        else -> 20.sp
+                    },
+                    onClick = { press(KeyboardAction.Enter) },
+                ),
+            )
+        },
         modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
     )
 }
