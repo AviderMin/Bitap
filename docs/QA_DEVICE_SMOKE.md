@@ -121,8 +121,8 @@ Caused by: java.lang.ClassNotFoundException: Didn't find class
 
 ## 7. 最终 APK 与 S09 复验（2026-11-07，task-35）
 
-最终 APK：dist/bitap-0.1.0-demo.apk，27,625,815 bytes，SHA-256 33DC1AE2E40B74D58AC932DE6D9EBBF39341F7C74EC71F73EB6397A23EEC8665（2026-11-07 14:46）。
-源码：HEAD 57aba07（S01–S08 已完成）。
+最终 APK：dist/bitap-0.1.0-demo.apk，27,642,199 bytes，SHA-256 5A083A7B1D936AB9D789E51ACD73E15F09192AB02AC1025CC923790D67CA03FF（2026-11-07 16:47 重签）。
+源码：HEAD 37a8ac6（S01–S09 已完成）。
 设备：22021211RC / Android 16 / API 36，默认输入法 Bitap。
 
 | # | 场景 | 操作 | 结果 | 证据 |
