@@ -842,6 +842,7 @@ private fun KeyButton(
     Box(modifier = modifier.zIndex(if (isPressed) 2f else 0f)) {
         Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 2.dp, vertical = 3.dp)
                 .heightIn(min = LocalKeyboardKeyHeight.current)
                 .graphicsLayer {
