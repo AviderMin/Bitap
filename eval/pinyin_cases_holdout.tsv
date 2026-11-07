@@ -1,0 +1,132 @@
+hold-daily_chat-01	daily_chat	nizuijinzenmeyang	你最近怎么样	日常问候
+hold-daily_chat-02	daily_chat	womingtianxiuxi	我明天休息	日常聊天
+hold-daily_chat-03	daily_chat	yiqiquhekafeiba	一起去喝咖啡吧	日常邀约
+hold-daily_chat-04	daily_chat	jialiyiqiedouhao	家里一切都好	日常报平安
+hold-daily_chat-05	daily_chat	wowandianhuifuni	我晚点回复你	日常回复
+hold-daily_chat-06	daily_chat	mingtianjianba	明天见吧	日常告别
+hold-daily_chat-07	daily_chat	nidaojialema	你到家了吗	日常关心
+hold-daily_chat-08	daily_chat	lushangxiaoxin	路上小心	日常叮嘱
+hold-daily_chat-09	daily_chat	haojiubujian	好久不见	日常寒暄
+hold-daily_chat-10	daily_chat	zuijingongzuomangma	最近工作忙吗	日常问候
+hold-daily_chat-11	daily_chat	woxianxizaole	我先洗澡了	日常聊天
+hold-daily_chat-12	daily_chat	mingtianzaishuoba	明天再说吧	日常回复
+hold-time_place-13	time_place	jintianxiawusidian	今天下午四点	时间
+hold-time_place-14	time_place	wanshangbadianjian	晚上八点见	时间
+hold-time_place-15	time_place	xingqiwushangwu	星期五上午	时间
+hold-time_place-16	time_place	zaihuochezhandengni	在火车站等你	地点
+hold-time_place-17	time_place	beijingnanzhan	北京南站	地点
+hold-time_place-18	time_place	gongsilouxiakafeidian	公司楼下咖啡店	地点
+hold-time_place-19	time_place	mingtianzaoshangqidianqichuang	明天早上七点起床	时间
+hold-time_place-20	time_place	xiawuliangdianban	下午两点半	时间
+hold-time_place-21	time_place	gongyuanmenkoujian	公园门口见	地点
+hold-time_place-22	time_place	zhefujinyouchaoshima	这附近有超市吗	地点询问
+hold-time_place-23	time_place	jichangdabazainalizuo	机场大巴在哪里坐	问路
+hold-time_place-24	time_place	wojiazaichaoyangqu	我家在朝阳区	地点
+hold-work_comm-25	work_comm	hetongmingtianqian	合同明天签	工作沟通
+hold-work_comm-26	work_comm	qingchashoufujian	请查收附件	工作沟通
+hold-work_comm-27	work_comm	zhoubaozhouwutijiao	周报周五提交	工作沟通
+hold-work_comm-28	work_comm	zhegebanbenxianbufabu	这个版本先不发布	工作沟通
+hold-work_comm-29	work_comm	xuqiuhaiyaozaigai	需求还要再改	工作沟通
+hold-work_comm-30	work_comm	huiyishiyiyuding	会议室已预订	工作沟通
+hold-work_comm-31	work_comm	shujumingtianhuizong	数据明天汇总	工作沟通
+hold-work_comm-32	work_comm	qingquerenyixiashijian	请确认一下时间	工作沟通
+hold-work_comm-33	work_comm	shejigaoyijingfaguoqule	设计稿已经发过去了	工作沟通
+hold-work_comm-34	work_comm	fuzerenshishui	负责人是谁	工作沟通
+hold-work_comm-35	work_comm	xiagejidumubiaodinglema	下个季度目标定了吗	工作沟通
+hold-work_comm-36	work_comm	xianbawentijiluxialai	先把问题记录下来	工作沟通
+hold-unseen_sentence-37	unseen_sentence	mingtianyaobuyaoyiqichifan	明天要不要一起吃饭	未收录整句
+hold-unseen_sentence-38	unseen_sentence	zhegezhoumoniyoushenmedasuan	这个周末你有什么打算	未收录整句
+hold-unseen_sentence-39	unseen_sentence	wozuijinzaixuezuofan	我最近在学做饭	未收录整句
+hold-unseen_sentence-40	unseen_sentence	nibangwokankanzhege	你帮我看看这个	未收录整句
+hold-unseen_sentence-41	unseen_sentence	takenengyijingzhidaole	他可能已经知道了	未收录整句
+hold-unseen_sentence-42	unseen_sentence	waimiantianqituranbianlengle	外面天气突然变冷了	未收录整句
+hold-unseen_sentence-43	unseen_sentence	womenxiawuzaitaolunba	我们下午再讨论吧	未收录整句
+hold-unseen_sentence-44	unseen_sentence	zhegejiagekeyijieshou	这个价格可以接受	未收录整句
+hold-unseen_sentence-45	unseen_sentence	nixianhuiquxiuxiba	你先回去休息吧	未收录整句
+hold-unseen_sentence-46	unseen_sentence	womingtianshangwulianxini	我明天上午联系你	未收录整句
+hold-unseen_sentence-47	unseen_sentence	zhejianshiqinghenzhongyao	这件事情很重要	未收录整句
+hold-unseen_sentence-48	unseen_sentence	dajiajuedezenmeyang	大家觉得怎么样	未收录整句
+hold-homophone-49	homophone	yiliao	医疗|意料	同音词歧义：均可接受
+hold-homophone-50	homophone	chushi	厨师|出师|初试|处世	同音词歧义：均可接受
+hold-homophone-51	homophone	gongyuan	公园|公元	同音词歧义：均可接受
+hold-homophone-52	homophone	sheji	设计|射击|涉及	同音词歧义：均可接受
+hold-homophone-53	homophone	tianqi	天气|田七	同音词歧义：均可接受
+hold-homophone-54	homophone	fangan	方案|反感	同音词歧义：均可接受
+hold-homophone-55	homophone	guanli	管理|惯例	同音词歧义：均可接受
+hold-homophone-56	homophone	jingji	经济|经纪|竞技	同音词歧义：均可接受
+hold-homophone-57	homophone	zhishi	知识|指示|只是	同音词歧义：均可接受
+hold-homophone-58	homophone	xiangxiang	想象|想像|想想	同音词歧义：均可接受
+hold-homophone-59	homophone	shixing	实行|施行|时兴	同音词歧义：均可接受
+hold-homophone-60	homophone	jiancha	检查|检察|监察	同音词歧义：均可接受
+hold-long_segment-61	long_segment	womengongsimingnianjihuazainanfangkaiyigexindefengongsi	我们公司明年计划在南方开一个新的分公司	长句：期望整句
+hold-long_segment-62	long_segment	zuotianwanshangdedianyingtebiehaokandanshijieshudetaiwanle	昨天晚上的电影特别好看但是结束得太晚了	长句：期望整句
+hold-long_segment-63	long_segment	nidaoleyihougeiwodagedianhuawoqulouxiajieni	你到了以后给我打个电话我去楼下接你	长句：期望整句
+hold-long_segment-64	long_segment	zhefenhetongxuyaofawuhecaiwulianggebumendouqueren	这份合同需要法务和财务两个部门都确认	长句：期望整句
+hold-long_segment-65	long_segment	ruguozhoumobuchuchaidehuawodasuanzaijiahaohaoxiuxi	如果周末不出差的话我打算在家好好休息	长句：期望整句
+hold-long_segment-66	long_segment	tameitianzaoshangliudianbanqichuangranhouqugongyuanpaobu	他每天早上六点半起床然后去公园跑步	长句：期望整句
+hold-long_segment-67	long_segment	qingnizaizhouwuzhiqianbaceshijieguozhenglichengwendang	请你在周五之前把测试结果整理成文档	长句：期望整句
+hold-long_segment-68	long_segment	womenzhegejidudemubiaoshiwanchengsangezhuyaogongneng	我们这个季度的目标是完成三个主要功能	长句：期望整句
+hold-long_segment-69	long_segment	congshanggeyuekaishiwojiuzaizhunbeizhegexiangmudicailiao	从上个月开始我就在准备这个项目的材料	长句：期望整句
+hold-long_segment-70	long_segment	chifanyihouwomenyanzhehebianzoulehenjiu	吃饭以后	分段选词：期望首段可先选中
+hold-long_segment-71	long_segment	xiazhousanzhiqianqingbayusuanbiaofageicaiwubumen	下周三之前	分段选词：期望首段可先选中
+hold-long_segment-72	long_segment	mingtianxiawuliangdianwomenzaidatingmenkoujihechufa	明天下午两点	分段选词：期望首段可先选中
+hold-mixed_en-73	mixed_en	woyaomaigeiipad	我要买个iPad	中英混输：iPad 原文提交
+hold-mixed_en-74	mixed_en	mingtianfaniexcel	明天发你Excel	中英混输：Excel 原文提交
+hold-mixed_en-75	mixed_en	womenxuyaozuoyigedemo	我们需要做一个Demo	中英混输：Demo 原文提交
+hold-mixed_en-76	mixed_en	zhegewendangyijingupdate	这个文档已经update	中英混输：update 原文提交
+hold-mixed_en-77	mixed_en	woxiankankanemail	我先看看email	中英混输：email 原文提交
+hold-mixed_en-78	mixed_en	zaigongsislackshangzhaowo	在公司	中英混输：Slack 原文提交，评测“在公司”前缀
+hold-mixed_en-79	mixed_en	jintianchecklema	今天	中英混输：check 原文提交，评测“今天”前缀
+hold-mixed_en-80	mixed_en	baogaozaimeetingqianfageiwo	报告在	中英混输：meeting 原文提交，评测“报告在”前缀
+hold-mixed_en-81	mixed_en	wodeaccountbeifengle	我的	中英混输：account 原文提交，评测“我的”前缀
+hold-mixed_en-82	mixed_en	qingbajianlidaodaotrello	请把简历导到Trello	中英混输：Trello 原文提交
+hold-mixed_en-83	mixed_en	mingtianzhenglireport	明天整理Report	中英混输：Report 原文提交
+hold-mixed_en-84	mixed_en	zhegeapixuyaochongxinceshi	这个	中英混输：API 原文提交，评测“这个”前缀
+hold-number_punct-85	number_punct	wushifenzhongyihou	五十分钟以后	数字：中文数词
+hold-number_punct-86	number_punct	sanbaiwushikuai	三百五十块	数字：金额
+hold-number_punct-87	number_punct	baifenzhisan	百分之三	数字：百分比
+hold-number_punct-88	number_punct	shieryueershiwuhao	十二月二十五号	数字：日期
+hold-number_punct-89	number_punct	dierci	第二次	数字：序数
+hold-number_punct-90	number_punct	jiudianlingbafen	九点零八分	数字：时间
+hold-number_punct-91	number_punct	woyaomai3ge	我要买	阿拉伯数字：3 原文提交，评测首个中文段
+hold-number_punct-92	number_punct	zhejianyifuhualejibaikuai	这件衣服花了几百块	数字：金额
+hold-number_punct-93	number_punct	tazaijiadengleyigexiaoshi	他在家等了一个小时	数字：时长
+hold-number_punct-94	number_punct	chang'an	长安	标点：撇号显式音节分隔
+hold-number_punct-95	number_punct	bei jing	北京	标点：空格分隔音节
+hold-number_punct-96	number_punct	zaijian!	再见	标点：输入末尾标点应被忽略
+hold-shorthand-97	shorthand	dj	大家	简拼：全声母
+hold-shorthand-98	shorthand	py	朋友	简拼：全声母
+hold-shorthand-99	shorthand	sj	手机|时间|世界	简拼：全声母，存在歧义
+hold-shorthand-100	shorthand	gz	工作	简拼：全声母
+hold-shorthand-101	shorthand	yh	银行	简拼：全声母
+hold-shorthand-102	shorthand	dh	电话	简拼：全声母
+hold-shorthand-103	shorthand	mt	明天	简拼：全声母
+hold-shorthand-104	shorthand	jt	今天	简拼：全声母
+hold-shorthand-105	shorthand	zs	早上	简拼：全声母
+hold-shorthand-106	shorthand	ws	晚上	简拼：全声母
+hold-shorthand-107	shorthand	xh	喜欢	简拼：全声母
+hold-shorthand-108	shorthand	dbq	对不起	简拼：全声母
+hold-mixed_pinyin-109	mixed_pinyin	guangz	广州	混拼：guang+z
+hold-mixed_pinyin-110	mixed_pinyin	shenz	深圳	混拼：shen+z
+hold-mixed_pinyin-111	mixed_pinyin	hangz	杭州	混拼：hang+z
+hold-mixed_pinyin-112	mixed_pinyin	xiay	下雨	混拼：xia+y
+hold-mixed_pinyin-113	mixed_pinyin	tianq	天气	混拼：tian+q
+hold-mixed_pinyin-114	mixed_pinyin	gongy	公园	混拼：gong+y
+hold-mixed_pinyin-115	mixed_pinyin	shangb	上班	混拼：shang+b
+hold-mixed_pinyin-116	mixed_pinyin	xiab	下班	混拼：xia+b
+hold-mixed_pinyin-117	mixed_pinyin	shuij	睡觉	混拼：shui+j
+hold-mixed_pinyin-118	mixed_pinyin	chuf	出发	混拼：chu+f
+hold-mixed_pinyin-119	mixed_pinyin	daod	到底	混拼：dao+d
+hold-mixed_pinyin-120	mixed_pinyin	jieg	结果	混拼：jie+g
+hold-typo-121	typo	wmen	我们	漏字母：正确拼音 women
+hold-typo-122	typo	xuei	学习	漏字母：正确拼音 xuexi
+hold-typo-123	typo	shoji	手机	漏字母：正确拼音 shouji
+hold-typo-124	typo	kafeii	咖啡	多字母：正确拼音 kafei
+hold-typo-125	typo	xiangfaa	想法	多字母：正确拼音 xiangfa
+hold-typo-126	typo	zuotiann	昨天	多字母：正确拼音 zuotian
+hold-typo-127	typo	zaosahng	早上	相邻交换：正确拼音 zaoshang
+hold-typo-128	typo	wanshagn	晚上	相邻交换：正确拼音 wanshang
+hold-typo-129	typo	dianuha	电话	相邻交换：正确拼音 dianhua
+hold-typo-130	typo	xiexir	谢谢	邻键：正确拼音 xiexie，e 误触 r
+hold-typo-131	typo	mingtiam	明天	邻键：正确拼音 mingtian，n 误触 m
+hold-typo-132	typo	pengyoi	朋友	邻键：正确拼音 pengyou，u 误触 i

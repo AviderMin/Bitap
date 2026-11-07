@@ -1,0 +1,132 @@
+dev-daily_chat-01	daily_chat	nichifanlema	你吃饭了吗	日常寒暄
+dev-daily_chat-02	daily_chat	wogangxiaban	我刚下班	日常聊天
+dev-daily_chat-03	daily_chat	wanshangyiqichifanba	晚上一起吃饭吧	日常约饭
+dev-daily_chat-04	daily_chat	mingtianyoukongma	明天有空吗	日常询问
+dev-daily_chat-05	daily_chat	haodemeiwenti	好的没问题	日常应答
+dev-daily_chat-06	daily_chat	womashangdaojia	我马上到家	日常报平安
+dev-daily_chat-07	daily_chat	jintianhaoleia	今天好累啊	日常吐槽
+dev-daily_chat-08	daily_chat	nixianshuiba	你先睡吧	日常关心
+dev-daily_chat-09	daily_chat	zhoumoquguangjiema	周末去逛街吗	日常邀约
+dev-daily_chat-10	daily_chat	zhezhoumoniyouanpaima	这周末你有安排吗	日常询问安排
+dev-daily_chat-11	daily_chat	wozailushangle	我在路上了	日常回复
+dev-daily_chat-12	daily_chat	biezhaojimanmanlai	别着急慢慢来	日常安慰
+dev-time_place-13	time_place	mingtianzaoshangbadian	明天早上八点	时间
+dev-time_place-14	time_place	xiawusandiankaihui	下午三点开会	时间
+dev-time_place-15	time_place	wanshangqidianban	晚上七点半	时间
+dev-time_place-16	time_place	houtianzhongwu	后天中午	时间
+dev-time_place-17	time_place	xiazhousanxiawu	下周三下午	时间
+dev-time_place-18	time_place	zaibeijingxizhan	在北京西站	地点
+dev-time_place-19	time_place	shanghaipudongjichang	上海浦东机场	地点
+dev-time_place-20	time_place	tushuguanzainaer	图书馆在哪儿	地点询问
+dev-time_place-21	time_place	huiyishizaiwulou	会议室在五楼	地点
+dev-time_place-22	time_place	zaoshangjiudianchufa	早上九点出发	时间
+dev-time_place-23	time_place	mingtianshangwushidianban	明天上午十点半	时间
+dev-time_place-24	time_place	ditiezhanzenmezou	地铁站怎么走	问路
+dev-work_comm-25	work_comm	zhegefanganxuyaoxiugai	这个方案需要修改	工作沟通
+dev-work_comm-26	work_comm	qingbawenjianfageiwo	请把文件发给我	工作沟通
+dev-work_comm-27	work_comm	xiangmujinduzenmeyang	项目进度怎么样	工作沟通
+dev-work_comm-28	work_comm	mingtianshangwukaipingshenhui	明天上午开评审会	工作沟通
+dev-work_comm-29	work_comm	zhefenbaogaoxiewanmeiyou	这份报告写完没有	工作沟通
+dev-work_comm-30	work_comm	youjianwoyijinghuifule	邮件我已经回复了	工作沟通
+dev-work_comm-31	work_comm	xuqiuwendanggengxinyixia	需求文档更新一下	工作沟通
+dev-work_comm-32	work_comm	kehuxiawuguolai	客户下午过来	工作沟通
+dev-work_comm-33	work_comm	huiyigaidaozhousi	会议改到周四	工作沟通
+dev-work_comm-34	work_comm	ceshihuanjingbushuhaole	测试环境部署好了	工作沟通
+dev-work_comm-35	work_comm	zhegegongnengshenmeshihoushangxian	这个功能什么时候上线	工作沟通
+dev-work_comm-36	work_comm	yusuanhaixuyaoqueren	预算还需要确认	工作沟通
+dev-unseen_sentence-37	unseen_sentence	jintianzhongwuchishenme	今天中午吃什么	未收录整句
+dev-unseen_sentence-38	unseen_sentence	wojuedezheyangbutaihao	我觉得这样不太好	未收录整句
+dev-unseen_sentence-39	unseen_sentence	ninengbangwogemangma	你能帮我个忙吗	未收录整句
+dev-unseen_sentence-40	unseen_sentence	zhegewentiyoudianfuza	这个问题有点复杂	未收录整句
+dev-unseen_sentence-41	unseen_sentence	tamenyijingzailushangle	他们已经在路上了	未收录整句
+dev-unseen_sentence-42	unseen_sentence	womenyiqixiangbanfa	我们一起想办法	未收录整句
+dev-unseen_sentence-43	unseen_sentence	zhejianshiwolaichuli	这件事我来处理	未收录整句
+dev-unseen_sentence-44	unseen_sentence	nixiankankanzaishuo	你先看看再说	未收录整句
+dev-unseen_sentence-45	unseen_sentence	wokenenglaibujile	我可能来不及了	未收录整句
+dev-unseen_sentence-46	unseen_sentence	waimianhaoxiangyaoxiayule	外面好像要下雨了	未收录整句
+dev-unseen_sentence-47	unseen_sentence	tashuodehenyoudaoli	他说得很有道理|他说的很有道理	多种合理表达：的/得同音
+dev-unseen_sentence-48	unseen_sentence	womenhuangedifangliaoba	我们换个地方聊吧	未收录整句
+dev-homophone-49	homophone	shijian	时间|事件|实践|世间	同音词歧义：均可接受
+dev-homophone-50	homophone	yishi	意识|仪式|一时|议事	同音词歧义：均可接受
+dev-homophone-51	homophone	gongshi	公式|公示|攻势|工事	同音词歧义：均可接受
+dev-homophone-52	homophone	qishi	其实|骑士|启示|歧视	同音词歧义：均可接受
+dev-homophone-53	homophone	jishi	及时|即使|技师|记事	同音词歧义：均可接受
+dev-homophone-54	homophone	zhongshi	重视|忠实|中式	同音词歧义：均可接受
+dev-homophone-55	homophone	shishi	事实|实施|试试|事事	同音词歧义：均可接受
+dev-homophone-56	homophone	xiangmu	项目|橡木	同音词歧义：均可接受
+dev-homophone-57	homophone	gongyi	工艺|公益|公意|工蚁	同音词歧义：均可接受
+dev-homophone-58	homophone	baoming	报名|保命	同音词歧义：均可接受
+dev-homophone-59	homophone	shangwu	上午|商务	同音词歧义：均可接受
+dev-homophone-60	homophone	difang	地方|提防	同音词歧义：均可接受
+dev-long_segment-61	long_segment	wojintianxiawuyaoqugongsicanjiayigezhongyaodehuiyi	我今天下午要去公司参加一个重要的会议	长句：期望整句
+dev-long_segment-62	long_segment	mingtianshangwushidianwomenzaihuiyishitaolunxiangmujindu	明天上午十点我们在会议室讨论项目进度	长句：期望整句
+dev-long_segment-63	long_segment	zhegewentiwomenyijingtaolunguohenduocile	这个问题我们已经讨论过很多次了	长句：期望整句
+dev-long_segment-64	long_segment	ninengbunengbangwokankanzhefenbaogaonaliyouwenti	你能不能帮我看看这份报告哪里有问题	长句：期望整句
+dev-long_segment-65	long_segment	ruguomingtiantianqihaodehuawomenjiuqugongyuansanbu	如果明天天气好的话我们就去公园散步	长句：期望整句
+dev-long_segment-66	long_segment	wozuotianzaitushuguanjieleliangbenshu	我昨天在图书馆借了两本书	长句：期望整句
+dev-long_segment-67	long_segment	zhegezhoumowoxiangdaijiarenqujiaoquwanyitian	这个周末我想带家人去郊区玩一天	长句：期望整句
+dev-long_segment-68	long_segment	qingnibahuiyijiyaohexiazhoujihuayiqifageiwo	请你把会议纪要和下周计划一起发给我	长句：期望整句
+dev-long_segment-69	long_segment	womenxianquerenxuqiufanweizaianpaikaifapaiqi	我们先确认需求范围再安排开发排期	长句：期望整句
+dev-long_segment-70	long_segment	tashuoxiageyueyaoqushanghaichuchaiyigexingqi	他说下个月要去上海出差一个星期	长句：期望整句
+dev-long_segment-71	long_segment	jintianxiabanyihouwomenyiqiquchaoshimaidiandongxi	今天下班以后	分段选词：期望首段可先选中
+dev-long_segment-72	long_segment	mingtianshangwuwuihuibaxiugaihoudefanganfadaonideyouxiang	明天上午	分段选词：期望首段可先选中
+dev-mixed_en-73	mixed_en	woyaomaiiphone	我要买iPhone	中英混输：iPhone 原文提交
+dev-mixed_en-74	mixed_en	mingtianfanipdf	明天发你PDF	中英混输：PDF 原文提交
+dev-mixed_en-75	mixed_en	woxuyaoxiazaiyigeapp	我需要下载一个APP	中英混输：APP 原文提交
+dev-mixed_en-76	mixed_en	zhegebanbenyijingrelease	这个版本已经release	中英混输：release 原文提交
+dev-mixed_en-77	mixed_en	womenyongpython	我们用Python	中英混输：Python 原文提交
+dev-mixed_en-78	mixed_en	zhegeapphenhao	这个	中英混输：App 原文提交，评测“这个”前缀
+dev-mixed_en-79	mixed_en	nizaislackshanghuifuyixia	你在	中英混输：Slack 原文提交，评测“你在”前缀
+dev-mixed_en-80	mixed_en	jidecheckyoujian	记得	中英混输：check 原文提交，评测“记得”前缀
+dev-mixed_en-81	mixed_en	huiyigaidaoteamsjinxing	会议改到	中英混输：Teams 原文提交，评测“会议改到”前缀
+dev-mixed_en-82	mixed_en	zhegegongnengzaiiosshangyoudianwenti	这个功能在	中英混输：iOS 原文提交，评测“这个功能在”前缀
+dev-mixed_en-83	mixed_en	womingtianyaokaihuireview	我明天要开会review	中英混输：review 原文提交
+dev-mixed_en-84	mixed_en	womenxiankankanfeedback	我们先看看feedback	中英混输：feedback 原文提交
+dev-number_punct-85	number_punct	sanshifenzhonghou	三十分钟后	数字：中文数词
+dev-number_punct-86	number_punct	erbaiwushikuaiqian	二百五十块钱	数字：中文数词
+dev-number_punct-87	number_punct	baifenzhijiushi	百分之九十	数字：百分比
+dev-number_punct-88	number_punct	shiyueyihao	十月一号	数字：日期
+dev-number_punct-89	number_punct	diyici	第一次	数字：序数
+dev-number_punct-90	number_punct	sidianlingwufen	四点零五分	数字：时间
+dev-number_punct-91	number_punct	mingtian10dianjian	明天	阿拉伯数字：10 原文提交，评测首个中文段
+dev-number_punct-92	number_punct	zhegeshoujihualeliangqianduokuai	这个手机花了两千多块	数字：金额
+dev-number_punct-93	number_punct	wozaichezhandengleershifenzhong	我在车站等了二十分钟	数字：时长
+dev-number_punct-94	number_punct	xi'an	西安	标点：撇号显式音节分隔
+dev-number_punct-95	number_punct	tian'anmen	天安门	标点：撇号显式音节分隔
+dev-number_punct-96	number_punct	nihao,	你好	标点：输入末尾标点应被忽略
+dev-shorthand-97	shorthand	nh	你好	简拼：全声母
+dev-shorthand-98	shorthand	wm	我们	简拼：全声母
+dev-shorthand-99	shorthand	nm	你们	简拼：全声母
+dev-shorthand-100	shorthand	tm	他们	简拼：全声母
+dev-shorthand-101	shorthand	zj	再见	简拼：全声母
+dev-shorthand-102	shorthand	xx	谢谢	简拼：全声母
+dev-shorthand-103	shorthand	sm	什么	简拼：全声母
+dev-shorthand-104	shorthand	zm	怎么	简拼：全声母
+dev-shorthand-105	shorthand	wsm	为什么	简拼：全声母
+dev-shorthand-106	shorthand	hh	哈哈	简拼：全声母
+dev-shorthand-107	shorthand	bb	拜拜	简拼：全声母
+dev-shorthand-108	shorthand	kx	开心	简拼：全声母
+dev-mixed_pinyin-109	mixed_pinyin	zhongg	中国	混拼：zhong+g
+dev-mixed_pinyin-110	mixed_pinyin	beij	北京	混拼：bei+j
+dev-mixed_pinyin-111	mixed_pinyin	shangh	上海	混拼：shang+h
+dev-mixed_pinyin-112	mixed_pinyin	mingt	明天	混拼：ming+t
+dev-mixed_pinyin-113	mixed_pinyin	jint	今天	混拼：jin+t
+dev-mixed_pinyin-114	mixed_pinyin	pengy	朋友	混拼：peng+y
+dev-mixed_pinyin-115	mixed_pinyin	dianh	电话	混拼：dian+h
+dev-mixed_pinyin-116	mixed_pinyin	gongz	工作	混拼：gong+z
+dev-mixed_pinyin-117	mixed_pinyin	xuex	学习	混拼：xue+x
+dev-mixed_pinyin-118	mixed_pinyin	wans	晚上	混拼：wan+s
+dev-mixed_pinyin-119	mixed_pinyin	kaix	开心	混拼：kai+x
+dev-mixed_pinyin-120	mixed_pinyin	chif	吃饭	混拼：chi+f
+dev-typo-121	typo	nhao	你好	漏字母：正确拼音 nihao
+dev-typo-122	typo	mintian	明天	漏字母：正确拼音 mingtian
+dev-typo-123	typo	daja	大家	漏字母：正确拼音 dajia
+dev-typo-124	typo	woyaoo	我要	多字母：正确拼音 woyao
+dev-typo-125	typo	jintiann	今天	多字母：正确拼音 jintian
+dev-typo-126	typo	zaijiaan	再见	多字母：正确拼音 zaijian
+dev-typo-127	typo	nihoa	你好	相邻交换：正确拼音 nihao
+dev-typo-128	typo	pengyuo	朋友	相邻交换：正确拼音 pengyou
+dev-typo-129	typo	shijain	时间	相邻交换：正确拼音 shijian
+dev-typo-130	typo	nihap	你好	邻键：正确拼音 nihao，o 误触 p
+dev-typo-131	typo	mingtiab	明天	邻键：正确拼音 mingtian，n 误触 b
+dev-typo-132	typo	gongzui	工作	邻键：正确拼音 gongzuo，o 误触 i
