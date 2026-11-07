@@ -18,13 +18,13 @@
 - **输入法**：`BitapImeService` + Compose 键盘；英文 QWERTY、中文全拼候选、数字/符号层、Shift、中英切换、退格/回车/空格；候选选择与拼音 composing。
 - **本地 AI 词库**：Qwen3 0.6B 的 `.litertlm` 导入（SAF）、私有目录存储、LiteRT-LM CPU 推理、拼音/上下文生成候选、20 s 超时；AI 必须手动触发，候选点选后才上屏。
 - **App 双主题 + 键盘独立主题**：首页/设置使用 Miuix/Glasmio；键盘独立使用纸白/墨玉/极光三套 palette，两者不串联。
-- **键盘高度**：85%–135% 滑杆（默认 100%，5% 步进），键帽 48–78 dp 自适应；键盘顶部改为圆角 dock 与轻量提手线。
+- **键盘高度**：85%–135% 滑杆（默认 100%，5% 步进）；键帽固定 54 dp、行距固定 4 dp，滑杆只调整键盘底部留白/抬升幅度；键盘顶部为圆角 dock 与轻量提手线。
 - **首页/设置**：三步启用清单、主题即时预览、深色模式、AI/触觉/声音开关、模型管理、隐私承诺。
-- **隐私**：Manifest 无 `INTERNET`；无分析 SDK；无输入日志；`allowBackup=false`；模型可删除。
+- **隐私**：Manifest 无 `INTERNET`；无分析 SDK；无输入日志；`allowBackup=false`；模型可删除；本地候选学习仅保存主动选词/次数，可关闭/清除。
 
 ## 3. 验证结果
 
-- `:app:testDebugUnitTest`：77 tests 全部通过（51 基线 + 26 QA，见 [QA 报告](QA_REPORT.md)）。
+- `:app:testDebugUnitTest`：**213 tests 全部通过**（本轮团队新增输入正确性、输入框适配、AI 词库、学习与候选回归，见 [QA 报告](QA_REPORT.md)）。
 - `:app:lintDebug`：0 errors（14 warnings，均为版本提示/资源建议类）。
 - `:app:assembleDebug`：通过。
 - `:app:assembleRelease`：通过；demo APK 使用 debug key 签名。
@@ -49,7 +49,7 @@
 
 ## 5. 已知边界
 
-- 0.1 不包含云 AI、语音、滑行输入、联系人词库、输入学习。
+- 0.1 不包含云 AI、语音、滑行输入、联系人词库、输入历史；本地候选学习仅限主动选词/次数，可关闭/清除。
 - 模型导入为不确定进度（contract 无字节进度）。
 - release demo 使用 Android debug keystore，不可直接上架；正式发布需配置 release keystore 并补充设备测试。
 - 仅打包 arm64-v8a，未包含 x86_64/ChromeOS。
