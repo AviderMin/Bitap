@@ -48,4 +48,4 @@ adb push .\models\Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm /sdcard/Download/
 
 ## 许可
 
-代码以 Apache-2.0 发布。Miuix、Glasmio、LiteRT-LM、Qwen3 的使用与署名见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；模型权重受其各自许可约束，不随仓库分发。
+代码以 Apache-2.0 发布。Miuix、Glasmio、LiteRT-LM、Qwen3 的使用与署名见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；模型权重受其各自许可约束，不随仓库分发。拼音词库使用 jieba（MIT）、pypinyin（MIT）与 Tatoeba 中文普通话 detailed sentences export（CC BY 2.0 FR，导出日期 2026-11-07）；Tatoeba 的许可证、署名文本与作者列表见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [docs/TATOEBA_CONTRIBUTORS.txt](docs/TATOEBA_CONTRIBUTORS.txt)，完整处理记录见 [docs/LICENSE_CLEANUP.md](docs/LICENSE_CLEANUP.md)。
