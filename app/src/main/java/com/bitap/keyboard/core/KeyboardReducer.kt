@@ -108,6 +108,13 @@ object KeyboardReducer {
 
     private fun appendInput(state: KeyboardUiState, text: String): Reduction {
         if (text.isEmpty()) return Reduction(state)
+        if (state.editorInfo.numericMode != NumericInputMode.None &&
+            !isNumericInputAllowed(state.editorInfo, text)
+        ) {
+            // Numeric editors may reject letters/symbols the layout could still
+            // expose through legacy paths; never send them a key that cannot work.
+            return Reduction(state)
+        }
         if (state.pendingConfirmation != null) {
             return enqueueAction(state, KeyboardAction.AppendInput(text))
         }
@@ -162,6 +169,20 @@ object KeyboardReducer {
 
     private fun isPinyinSeparator(text: String): Boolean =
         text == "'" || text == "’" || text == "‘"
+
+    private fun isNumericInputAllowed(info: EditorInputInfo, text: String): Boolean {
+        if (text.length != 1) return false
+        val char = text[0]
+        val caps = info.numericCapabilities
+        return when {
+            char in '0'..'9' -> caps.digits
+            char == '.' -> caps.decimal
+            char == '+' || char == '-' -> caps.signed || caps.phone || caps.dateTime
+            caps.phone && char in charArrayOf('*', '#', ' ', '(', ')') -> true
+            caps.dateTime && char in charArrayOf('/', ':', ' ') -> true
+            else -> false
+        }
+    }
 
     private fun appendPinyinSeparator(state: KeyboardUiState): Reduction {
         // Leading separators are ignored; repeated separators collapse to one.
@@ -428,6 +449,7 @@ object KeyboardReducer {
     }
 
     private fun space(state: KeyboardUiState): Reduction = when {
+        state.editorInfo.numericMode != NumericInputMode.None -> Reduction(state)
         state.pendingConfirmation != null -> enqueueAction(state, KeyboardAction.Space)
         state.composing.isEmpty() -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
         state.candidatesFor != state.composing -> queueConfirmation(state, PendingConfirmation.Space)

@@ -32,6 +32,7 @@ enum class EditorInputKind {
     Text,
     Number,
     Phone,
+    DateTime,
     Email,
     Url,
     Password,
@@ -44,7 +45,17 @@ enum class NumericInputMode {
     Decimal,
     Signed,
     Phone,
+    DateTime,
 }
+
+/** Independent numeric capabilities; decimal and signed can both be true. */
+data class NumericCapabilities(
+    val digits: Boolean = false,
+    val decimal: Boolean = false,
+    val signed: Boolean = false,
+    val phone: Boolean = false,
+    val dateTime: Boolean = false,
+)
 
 /** Enter-key semantics derived from [EditorInfo.imeOptions]. */
 enum class EnterAction(val label: String) {
@@ -101,35 +112,62 @@ data class EditorInputInfo(
     val preferredLanguage: InputLanguage
         get() = if (kind == EditorInputKind.Text) InputLanguage.Chinese else InputLanguage.English
 
+    val numericCapabilities: NumericCapabilities
+        get() = when (kind) {
+            EditorInputKind.Phone -> NumericCapabilities(digits = true, phone = true)
+            EditorInputKind.DateTime -> NumericCapabilities(digits = true, dateTime = true)
+            EditorInputKind.Number -> NumericCapabilities(
+                digits = true,
+                decimal = inputType and InputType.TYPE_NUMBER_FLAG_DECIMAL != 0,
+                signed = inputType and InputType.TYPE_NUMBER_FLAG_SIGNED != 0,
+            )
+
+            EditorInputKind.Password -> if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER) {
+                NumericCapabilities(digits = true)
+            } else {
+                NumericCapabilities()
+            }
+
+            else -> NumericCapabilities()
+        }
+
+    /** Independent flags; unlike numericMode these can combine (signed+decimal). */
+    val allowsDecimal: Boolean
+        get() = numericCapabilities.decimal
+
+    val allowsSigned: Boolean
+        get() = numericCapabilities.signed
+
+    val isDateTime: Boolean
+        get() = numericCapabilities.dateTime
+
     val numericMode: NumericInputMode
-        get() {
-            val numericPassword = kind == EditorInputKind.Password &&
-                inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER
-            if (kind != EditorInputKind.Number && kind != EditorInputKind.Phone && !numericPassword) {
-                return NumericInputMode.None
-            }
-            if (kind == EditorInputKind.Phone) return NumericInputMode.Phone
-            val decimal = inputType and InputType.TYPE_NUMBER_FLAG_DECIMAL != 0
-            val signed = inputType and InputType.TYPE_NUMBER_FLAG_SIGNED != 0
-            return when {
-                decimal -> NumericInputMode.Decimal
-                signed -> NumericInputMode.Signed
-                else -> NumericInputMode.Integer
-            }
+        get() = when {
+            numericCapabilities.phone -> NumericInputMode.Phone
+            numericCapabilities.dateTime -> NumericInputMode.DateTime
+            numericCapabilities.decimal -> NumericInputMode.Decimal
+            numericCapabilities.signed -> NumericInputMode.Signed
+            numericCapabilities.digits -> NumericInputMode.Integer
+            else -> NumericInputMode.None
         }
 
     /** Symbols beyond 0-9 that the numeric layout should expose. */
     val numericSymbols: List<String>
-        get() = when (numericMode) {
-            NumericInputMode.None, NumericInputMode.Integer -> emptyList()
-            NumericInputMode.Decimal -> listOf(".")
-            NumericInputMode.Signed -> listOf("+", "-")
-            NumericInputMode.Phone -> listOf("+", "-", "*", "#", " ", "(", ")")
+        get() = when {
+            numericCapabilities.phone -> listOf("+", "-", "*", "#", " ", "(", ")")
+            numericCapabilities.dateTime -> listOf("/", ":", "-", " ")
+            else -> buildList {
+                if (numericCapabilities.decimal) add(".")
+                if (numericCapabilities.signed) {
+                    add("+")
+                    add("-")
+                }
+            }
         }
 
     val preferredLayer: KeyboardLayer
         get() = when (kind) {
-            EditorInputKind.Number, EditorInputKind.Phone -> KeyboardLayer.Numbers
+            EditorInputKind.Number, EditorInputKind.Phone, EditorInputKind.DateTime -> KeyboardLayer.Numbers
             EditorInputKind.Password ->
                 if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER) {
                     KeyboardLayer.Numbers
@@ -158,7 +196,7 @@ data class EditorInputInfo(
                     }
 
                 InputType.TYPE_CLASS_PHONE -> EditorInputKind.Phone
-                InputType.TYPE_CLASS_DATETIME -> EditorInputKind.Number
+                InputType.TYPE_CLASS_DATETIME -> EditorInputKind.DateTime
                 InputType.TYPE_CLASS_TEXT -> when (inputType and InputType.TYPE_MASK_VARIATION) {
                     InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                     InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
@@ -315,6 +353,18 @@ data class KeyboardUiState(
 
     val numericSymbols: List<String>
         get() = editorInfo.numericSymbols
+
+    val numericCapabilities: NumericCapabilities
+        get() = editorInfo.numericCapabilities
+
+    val allowsDecimal: Boolean
+        get() = editorInfo.allowsDecimal
+
+    val allowsSigned: Boolean
+        get() = editorInfo.allowsSigned
+
+    val isDateTimeInput: Boolean
+        get() = editorInfo.isDateTime
 
     /** UI can hide the language toggle where it has no effect. */
     val showLanguageToggle: Boolean
