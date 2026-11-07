@@ -1,5 +1,6 @@
 package com.bitap.keyboard.ime
 
+import android.content.res.Configuration
 import android.view.HapticFeedbackConstants
 import android.view.SoundEffectConstants
 import androidx.compose.animation.AnimatedVisibility
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -97,14 +100,19 @@ fun KeyboardScreen(
 ) {
     val palette = LocalBitapPalette.current
     val view = LocalView.current
+    val configuration = LocalConfiguration.current
+    // T06: in landscape/tiny windows the classic 54 dp rows + candidate strips
+    // cover the editor. Compact mode keeps the row hit target at 48 dp
+    // (42 dp keycap + 6 dp vertical padding) while reducing paddings, removing
+    // the decorative dock line and collapsing candidate extras to one row.
+    val compact = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ||
+        configuration.screenHeightDp < 480
     val heightScale = state.keyboardHeightScale.coerceIn(0.85f, 1.35f)
-    // Keys stay at a fixed 54 dp. The overall-height control only adds
-    // breathing room between keyboard rows so touch target size never changes.
-    val keyHeight = 54.dp
-    val rowGap = 4.dp
-    // All rows keep the same 4 dp vertical rhythm. Height customization only
-    // reserves empty space at the very bottom, above the system IME shortcut bar.
-    val bottomLift = (80.dp * (heightScale - 0.85f)).coerceAtLeast(0.dp)
+    val keyHeight = if (compact) 42.dp else 54.dp
+    val rowGap = if (compact) 2.dp else 4.dp
+    // Height customization only reserves empty space at the very bottom; it is
+    // intentionally disabled in compact mode so the editor keeps its line/cursor.
+    val bottomLift = if (compact) 0.dp else (80.dp * (heightScale - 0.85f)).coerceAtLeast(0.dp)
     val haptic = {
         if (state.hapticsEnabled) {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -142,30 +150,33 @@ fun KeyboardScreen(
                 )
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(top = 5.dp, bottom = 4.dp + bottomLift),
+                .padding(top = if (compact) 2.dp else 5.dp, bottom = if (compact) 2.dp else 4.dp + bottomLift),
             verticalArrangement = Arrangement.spacedBy(rowGap),
         ) {
-            // A quiet visual dock line replaces the old hard top edge. It is
-            // decorative, not a drag handle: height is controlled in Settings.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 2.dp),
-                contentAlignment = Alignment.Center,
-            ) {
+            if (!compact) {
+                // A quiet visual dock line replaces the old hard top edge. It is
+                // decorative, not a drag handle: height is controlled in Settings.
                 Box(
                     modifier = Modifier
-                        .width(34.dp)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(palette.textSecondary.copy(alpha = 0.28f)),
-                )
+                        .fillMaxWidth()
+                        .padding(bottom = 2.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(34.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(palette.textSecondary.copy(alpha = 0.28f)),
+                    )
+                }
             }
             CandidateBar(
                 state = state,
                 onAction = onAction,
                 haptic = haptic,
                 onOpenSettings = onOpenSettings,
+                compact = compact,
             )
             when (state.layer) {
                 KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
@@ -202,12 +213,13 @@ private fun CandidateBar(
     onAction: (KeyboardAction) -> Unit,
     haptic: () -> Unit,
     onOpenSettings: () -> Unit,
+    compact: Boolean = false,
 ) {
     val palette = LocalBitapPalette.current
     val candidateScrollState = rememberScrollState()
     var candidatesExpanded by remember { mutableStateOf(false) }
     var candidatePage by remember { mutableIntStateOf(0) }
-    val expandedPageSize = 6
+    val expandedPageSize = if (compact) 3 else 6
     val candidateVersion = state.candidates.firstOrNull()?.word
     // R11: a new composition/result set starts at the first candidate instead of
     // leaving the previous scroll position at the end of the old result list.
@@ -221,7 +233,7 @@ private fun CandidateBar(
         candidatesExpanded = false
     }
     Column(modifier = Modifier.fillMaxWidth()) {
-    if (state.composing.isNotEmpty()) {
+    if (!compact && state.composing.isNotEmpty()) {
         ComposingStrip(
             composing = state.composing,
             onCommitRaw = {
@@ -230,7 +242,7 @@ private fun CandidateBar(
             },
         )
     }
-    if (state.aiEnabled && state.aiCandidates.isNotEmpty()) {
+    if (!compact && state.aiEnabled && state.aiCandidates.isNotEmpty()) {
         AiCandidateStrip(
             candidates = state.aiCandidates,
             onCandidateClick = { word ->
@@ -246,6 +258,18 @@ private fun CandidateBar(
             .padding(start = 8.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (compact && state.composing.isNotEmpty()) {
+            Text(
+                text = "拼音 " + state.composing,
+                color = palette.accent,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .widthIn(max = 72.dp)
+                    .padding(start = 4.dp, end = 2.dp),
+            )
+        }
         if (state.composing.isNotEmpty() || state.candidates.isNotEmpty() || state.aiCandidates.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -254,6 +278,26 @@ private fun CandidateBar(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (compact && state.aiEnabled && state.aiCandidates.isNotEmpty()) {
+                    Text(
+                        text = "AI",
+                        color = palette.accent,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 2.dp, end = 1.dp),
+                    )
+                    state.aiCandidates.forEach { word ->
+                        CandidateChip(
+                            label = word,
+                            description = "AI 词库候选 " + word,
+                            accent = true,
+                            onClick = {
+                                haptic()
+                                onAction(KeyboardAction.AiCandidateTapped(word))
+                            },
+                        )
+                    }
+                }
                 if (state.candidates.isEmpty() && state.composing.isNotEmpty()) {
                     CandidateChip(
                         label = state.composing,
@@ -287,6 +331,21 @@ private fun CandidateBar(
             )
         }
 
+        if (compact && state.composing.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable {
+                        haptic()
+                        onAction(KeyboardAction.CommitRaw)
+                    }
+                    .semantics { contentDescription = "提交原始拼音 " + state.composing },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = "原文", color = palette.accent, fontSize = 11.sp)
+            }
+        }
         if (state.candidates.isNotEmpty()) {
             Box(
                 modifier = Modifier
@@ -355,6 +414,7 @@ private fun CandidateBar(
                 candidates = state.candidates,
                 page = candidatePage,
                 pageSize = expandedPageSize,
+                compact = compact,
                 onPageChange = { candidatePage = it },
                 onCandidateClick = { index ->
                     haptic()
@@ -369,7 +429,7 @@ private fun CandidateBar(
         !state.aiCandidatesError.isNullOrBlank() -> state.aiCandidatesError
         else -> null
     }
-    if (aiStatus != null) {
+    if (aiStatus != null && (!compact || !state.aiCandidatesError.isNullOrBlank())) {
         Text(
             text = aiStatus,
             color = if (state.aiCandidatesError.isNullOrBlank()) palette.accent else palette.danger,
@@ -386,6 +446,7 @@ private fun CandidateExpandedPanel(
     candidates: List<Candidate>,
     page: Int,
     pageSize: Int,
+    compact: Boolean = false,
     onPageChange: (Int) -> Unit,
     onCandidateClick: (Int) -> Unit,
     haptic: () -> Unit,
@@ -404,7 +465,7 @@ private fun CandidateExpandedPanel(
             .background(palette.elevatedSurface)
             .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
             .padding(8.dp)
-            .heightIn(max = 220.dp)
+            .heightIn(max = if (compact) 120.dp else 220.dp)
             .verticalScroll(rememberScrollState()),
     ) {
         pageItems.forEachIndexed { itemIndex, candidate ->
