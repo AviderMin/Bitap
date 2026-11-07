@@ -143,5 +143,7 @@ class PinyinEngineTest {
             val words = engine.search(input).map { it.word }
             assertTrue("$input -> $words should contain $expected", words.contains(expected))
         }
+        assertEquals("再见", engine.search("zaijian").first().word)
+        assertEquals("今天天气很好", engine.search("jintiantianqihenhao").first().word)
     }
 }
