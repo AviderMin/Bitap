@@ -102,6 +102,28 @@ class KeyRowPointerTrackerTest {
     }
 
     @Test
+    fun shiftAndLetterOverlappingPointersCommitByReleaseOrder() {
+        val tracker = KeyRowPointerTracker()
+        tracker.down(pointerId = 1L, keyIndex = 0) // shift
+        tracker.down(pointerId = 2L, keyIndex = 1) // letter
+
+        assertEquals(1, tracker.release(2L)) // letter first
+        assertEquals(0, tracker.release(1L)) // shift second
+    }
+
+    @Test
+    fun deleteAndLetterOverlappingPointersStayIndependent() {
+        val tracker = KeyRowPointerTracker()
+        tracker.down(pointerId = 1L, keyIndex = 8) // delete-like key
+        tracker.down(pointerId = 2L, keyIndex = 1) // letter
+        tracker.recordRepeat(1L)
+
+        assertEquals(1, tracker.release(2L)) // letter still commits once
+        assertEquals(1, tracker.repeatCount(1L))
+        assertNull(tracker.release(1L)) // repeated delete does not click again
+    }
+
+    @Test
     fun pressedIndicesKeepEveryFingerVisible() {
         val tracker = KeyRowPointerTracker()
         tracker.down(1L, 0)
