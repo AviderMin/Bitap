@@ -5,6 +5,7 @@ import com.bitap.keyboard.core.ImeCommand
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardReducer
 import com.bitap.keyboard.core.KeyboardUiState
+import com.bitap.keyboard.core.PendingConfirmation
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.core.Reduction
 import java.io.File
@@ -141,18 +142,35 @@ class QaInputCorrectnessRegressionTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun punctuationWithStaleCandidatesCommitsRawComposingNotOldCandidate() {
+    fun punctuationWhileQueryPendingQueuesAndCommitsFreshCandidate() {
         val state = KeyboardUiState(
             composing = "nihao",
             candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100)),
         )
-        val result = reduce(state = state, action = KeyboardAction.AppendInput("，"))
-        assertEquals(
-            listOf<ImeCommand>(ImeCommand.CommitText("nihao"), ImeCommand.CommitText("，")),
-            result.commands,
+        // R03: while the latest query is still outstanding, punctuation must not
+        // commit raw pinyin or an old candidate; it waits for the fresh result.
+        val queued = reduce(state = state, action = KeyboardAction.AppendInput("，"))
+        assertTrue(queued.commands.isEmpty())
+        assertEquals(PendingConfirmation.Punctuation("，"), queued.state.pendingConfirmation)
+        assertEquals("nihao", queued.state.composing)
+        assertTrue(queued.state.candidates.isEmpty())
+        assertEquals("", queued.state.candidatesFor)
+
+        val resolved = reduce(
+            state = queued.state,
+            action = KeyboardAction.ComposingUpdated(
+                "nihao",
+                listOf(Candidate("你好", "nihao", 100)),
+            ),
         )
-        assertEquals("", result.state.composing)
+        assertEquals(
+            listOf<ImeCommand>(ImeCommand.CommitText("你好"), ImeCommand.CommitText("，")),
+            resolved.commands,
+        )
+        assertEquals("", resolved.state.composing)
+        assertEquals(null, resolved.state.pendingConfirmation)
+        assertTrue(resolved.state.candidates.isEmpty())
     }
 
     @Test
@@ -162,8 +180,22 @@ class QaInputCorrectnessRegressionTest {
             candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100)),
         )
-        val result = reduce(state = state, action = KeyboardAction.Space)
-        assertEquals(listOf<ImeCommand>(ImeCommand.CommitText("nihao")), result.commands)
+        val queued = reduce(state = state, action = KeyboardAction.Space)
+        assertTrue(queued.commands.isEmpty())
+        assertEquals(PendingConfirmation.Space, queued.state.pendingConfirmation)
+        assertEquals("nihao", queued.state.composing)
+        assertTrue(queued.state.candidates.isEmpty())
+
+        val resolved = reduce(
+            state = queued.state,
+            action = KeyboardAction.ComposingUpdated(
+                "nihao",
+                listOf(Candidate("你好", "nihao", 100)),
+            ),
+        )
+        assertEquals(listOf<ImeCommand>(ImeCommand.CommitText("你好")), resolved.commands)
+        assertEquals("", resolved.state.composing)
+        assertEquals(null, resolved.state.pendingConfirmation)
     }
 
     @Test
@@ -173,13 +205,25 @@ class QaInputCorrectnessRegressionTest {
             candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100)),
         )
-        val result = reduce(state = state, action = KeyboardAction.CandidateTapped(0))
-        assertEquals(listOf<ImeCommand>(ImeCommand.CommitText("nihao")), result.commands)
-        assertEquals("", result.state.composing)
+        val queued = reduce(state = state, action = KeyboardAction.CandidateTapped(0))
+        assertTrue(queued.commands.isEmpty())
+        assertEquals(PendingConfirmation.Candidate(0), queued.state.pendingConfirmation)
+        assertEquals("nihao", queued.state.composing)
+        assertTrue(queued.state.candidates.isEmpty())
+
+        val resolved = reduce(
+            state = queued.state,
+            action = KeyboardAction.ComposingUpdated(
+                "nihao",
+                listOf(Candidate("你好", "nihao", 100)),
+            ),
+        )
+        assertEquals(listOf<ImeCommand>(ImeCommand.CommitText("你好")), resolved.commands)
+        assertEquals("", resolved.state.composing)
     }
 
     @Test
-    fun typingMoreLettersKeepsOldCandidatesVisibleButMarksThemStale() {
+    fun typingMoreLettersClearsOldCandidatesInsteadOfShowingStale() {
         val state = KeyboardUiState(
             composing = "ni",
             candidatesFor = "ni",
@@ -187,8 +231,22 @@ class QaInputCorrectnessRegressionTest {
         )
         val result = reduce(state = state, action = KeyboardAction.AppendInput("h"))
         assertEquals("nih", result.state.composing)
-        assertEquals(2, result.state.candidates.size)
-        assertEquals("ni", result.state.candidatesFor)
+        // R03: old candidates must not remain visible as submit-able entries.
+        assertTrue(result.state.candidates.isEmpty())
+        assertEquals("", result.state.candidatesFor)
+        assertEquals(listOf<ImeCommand>(ImeCommand.SetComposingText("nih")), result.commands)
+    }
+
+    @Test
+    fun spaceAfterFreshQueryWithNoCandidatesCommitsRawComposing() {
+        val state = KeyboardUiState(
+            composing = "zzzz",
+            candidatesFor = "zzzz",
+            candidates = emptyList(),
+        )
+        val result = reduce(state = state, action = KeyboardAction.Space)
+        assertEquals(listOf<ImeCommand>(ImeCommand.CommitText("zzzz")), result.commands)
+        assertEquals("", result.state.composing)
     }
 
     // ------------------------------------------------------------------

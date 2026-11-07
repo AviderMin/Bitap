@@ -10,6 +10,7 @@ import com.bitap.keyboard.core.Candidate
 import com.bitap.keyboard.core.EditorTextSnapshot
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardLayer
+import com.bitap.keyboard.core.PendingConfirmation
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.core.TextSession
 import com.bitap.keyboard.ime.KeyboardController
@@ -95,13 +96,24 @@ class QaInputScenarioIntegrationTest {
         controller.dispatch(KeyboardAction.AppendInput("n"))
         controller.dispatch(KeyboardAction.AppendInput("i"))
         controller.dispatch(KeyboardAction.ComposingUpdated("ni", listOf(Candidate("你", "ni", 100))))
-        // Type one more letter: the old candidate stays visible but is stale.
+        // R03: typing one more letter clears the old candidate instead of keeping
+        // it visible as a submit-able entry.
         controller.dispatch(KeyboardAction.AppendInput("h"))
-        assertEquals(1, controller.state.value.candidates.size)
+        assertTrue(controller.state.value.candidates.isEmpty())
+        assertEquals("nih", controller.state.value.composing)
 
         controller.dispatch(KeyboardAction.Space)
-        assertEquals("commit:nih", session.log.last())
+        assertEquals(0, session.log.count { it.startsWith("commit:") })
+        assertEquals(PendingConfirmation.Space, controller.state.value.pendingConfirmation)
+        assertEquals("nih", controller.state.value.composing)
+
+        // The fresh query arrives: the queued space now commits the latest candidate.
+        controller.dispatch(
+            KeyboardAction.ComposingUpdated("nih", listOf(Candidate("你", "nih", 100))),
+        )
+        assertEquals("commit:你", session.log.last())
         assertEquals("", controller.state.value.composing)
+        assertEquals(null, controller.state.value.pendingConfirmation)
     }
 
     @Test
