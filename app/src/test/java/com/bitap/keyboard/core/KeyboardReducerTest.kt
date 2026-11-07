@@ -38,7 +38,7 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun composingUpdateIgnoresStaleResultsAndCapsAtEight() {
+    fun composingUpdateIgnoresStaleResultsAndCapsAtMaxCandidates() {
         val composingState = KeyboardUiState(composing = "ni")
         val stale = reduce(
             state = composingState,
@@ -46,12 +46,12 @@ class KeyboardReducerTest {
         )
         assertTrue(stale.state.candidates.isEmpty())
 
-        val many = (1..12).map { Candidate("候$it", "ni", it.toLong()) }
+        val many = (1..80).map { Candidate("候$it", "ni", it.toLong()) }
         val fresh = reduce(
             state = composingState,
             action = KeyboardAction.ComposingUpdated("ni", many),
         )
-        assertEquals(8, fresh.state.candidates.size)
+        assertEquals(PinyinEngine.MAX_CANDIDATES, fresh.state.candidates.size)
         assertEquals("候1", fresh.state.candidates.first().word)
     }
 

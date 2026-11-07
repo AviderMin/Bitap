@@ -167,7 +167,7 @@ object KeyboardReducer {
         if (action.composing != state.composing) return Reduction(state)
         return Reduction(
             state.copy(
-                candidates = action.candidates.take(PinyinEngine.DEFAULT_LIMIT),
+                candidates = action.candidates.take(PinyinEngine.MAX_CANDIDATES),
                 candidatesFor = action.composing,
             ),
         )

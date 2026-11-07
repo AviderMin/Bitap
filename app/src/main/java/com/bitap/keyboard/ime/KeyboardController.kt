@@ -11,6 +11,7 @@ import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardReducer
 import com.bitap.keyboard.core.KeyboardUiState
 import com.bitap.keyboard.core.PinyinEngine
+import com.bitap.keyboard.core.Reduction
 import com.bitap.keyboard.core.ShiftState
 import com.bitap.keyboard.core.TextSession
 import com.bitap.keyboard.settings.BitapSettings
@@ -61,6 +62,7 @@ class KeyboardController(
         val reduction = KeyboardReducer.reduce(previous, effective)
         _state.value = reduction.state
         reduction.commands.forEach(::execute)
+        recordCandidateSelection(previous, reduction, effective)
 
         if (reduction.state.composing != previous.composing) {
             _state.value = _state.value.copy(
@@ -160,6 +162,36 @@ class KeyboardController(
             ImeCommand.FinishComposing -> textSession.finishComposingText()
             ImeCommand.DeleteBackward -> textSession.deleteBackward()
             ImeCommand.SendEnter -> textSession.sendEnter()
+        }
+    }
+
+    /**
+     * Remembers words the user explicitly committed from a local or AI candidate.
+     * Only a real CommitText of that exact word counts: stale candidates that fall
+     * back to raw pinyin are intentionally not learned.
+     */
+    private fun recordCandidateSelection(
+        previous: KeyboardUiState,
+        reduction: Reduction,
+        action: KeyboardAction,
+    ) {
+        val selectedWord = when (action) {
+            is KeyboardAction.CandidateTapped -> {
+                previous.candidates.getOrNull(action.index)?.word
+                    ?.takeIf { previous.candidatesFor == previous.composing }
+            }
+
+            is KeyboardAction.AiCandidateTapped -> action.word.takeIf { it.isNotBlank() }
+            KeyboardAction.Space -> previous.candidates.firstOrNull()?.word
+                ?.takeIf { previous.candidatesFor == previous.composing }
+
+            else -> null
+        } ?: return
+        val committed = reduction.commands.any { command ->
+            command is ImeCommand.CommitText && command.text == selectedWord
+        }
+        if (committed) {
+            pinyinEngine.recordSelection(selectedWord)
         }
     }
 

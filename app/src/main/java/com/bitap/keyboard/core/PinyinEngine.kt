@@ -13,6 +13,9 @@ import kotlinx.coroutines.withContext
  */
 class PinyinEngine private constructor(private var index: Index?) {
 
+    private val selectionLock = Any()
+    private val selectionCounts = HashMap<String, Int>()
+
     data class Entry(
         val pinyin: String,
         val word: String,
@@ -28,8 +31,11 @@ class PinyinEngine private constructor(private var index: Index?) {
 
     /**
      * Synchronous lookup used by tests and by [query] on Dispatchers.Default.
-     * Returns at most [limit] candidates: exact pinyin matches first (frequency
-     * descending), then longer pinyin words that start with the query.
+     *
+     * Candidates from exact pinyin, longer pinyin prefixes and the phrase
+     * segmenter are merged and ranked together. Words the user has explicitly
+     * selected earlier in this session get the highest priority (per-word
+     * weight), then exact/prefix/phrase group order, then frequency.
      */
     fun search(input: String, limit: Int = DEFAULT_LIMIT): List<Candidate> {
         val cappedLimit = limit.coerceAtMost(DEFAULT_LIMIT)
@@ -37,48 +43,95 @@ class PinyinEngine private constructor(private var index: Index?) {
         val query = normalize(input)
         if (query.isEmpty()) return emptyList()
         val current = index ?: return emptyList()
+        val selectionWeights = snapshotSelectionWeights()
 
-        val result = ArrayList<Candidate>(cappedLimit)
-        val seenWords = HashSet<String>(cappedLimit * 2)
+        val collected = LinkedHashMap<String, RankedEntry>()
+        var insertionOrder = 0
 
-        fun add(entry: Entry) {
-            if (result.size >= cappedLimit) return
-            if (!seenWords.add(entry.word)) return
-            result.add(Candidate(entry.word, entry.pinyin, entry.frequency))
+        fun consider(entry: Entry, group: Int) {
+            val existing = collected[entry.word]
+            if (existing == null) {
+                collected[entry.word] = RankedEntry(entry, group, insertionOrder++)
+            } else if (group > existing.group ||
+                (group == existing.group && entry.frequency > existing.entry.frequency)
+            ) {
+                collected[entry.word] = RankedEntry(entry, group, existing.order)
+            }
         }
 
-        current.entriesByPinyin[query]?.forEach(::add)
+        current.entriesByPinyin[query]
+            ?.take(MAX_COLLECT_PER_GROUP)
+            ?.forEach { consider(it, GROUP_EXACT) }
 
-        if (result.size < cappedLimit) {
-            val prefixEntries = ArrayList<Entry>()
-            var position = lowerBound(current.keys, query)
-            var scanned = 0
-            while (position < current.keys.size && scanned < MAX_PREFIX_KEYS) {
-                val key = current.keys[position]
-                if (!key.startsWith(query)) break
-                if (key.length > query.length) {
-                    current.entriesByPinyin[key]?.let(prefixEntries::addAll)
-                }
-                position++
-                scanned++
+        val prefixEntries = collectPrefixEntries(query, current)
+        prefixEntries.forEach { consider(it, GROUP_PREFIX) }
+
+        if (collected.size < cappedLimit || selectionWeights.isNotEmpty()) {
+            phraseCandidates(query, current, cappedLimit).forEach { consider(it, GROUP_PHRASE) }
+        }
+
+        return collected.values
+            .sortedWith(
+                compareByDescending<RankedEntry> { selectionWeights[it.entry.word] ?: 0 }
+                    .thenByDescending { it.group }
+                    .thenByDescending { if (it.group == GROUP_PHRASE) 0L else it.entry.frequency }
+                    .thenBy { it.order },
+            )
+            .take(cappedLimit)
+            .map { Candidate(it.entry.word, it.entry.pinyin, it.entry.frequency) }
+    }
+
+    private fun collectPrefixEntries(query: String, index: Index): List<Entry> {
+        val prefixEntries = ArrayList<Entry>()
+        var position = lowerBound(index.keys, query)
+        var scanned = 0
+        while (position < index.keys.size && scanned < MAX_PREFIX_KEYS) {
+            val key = index.keys[position]
+            if (!key.startsWith(query)) break
+            if (key.length > query.length) {
+                index.entriesByPinyin[key]?.let(prefixEntries::addAll)
             }
-            prefixEntries.sortWith(
+            position++
+            scanned++
+        }
+        return prefixEntries
+            .sortedWith(
                 compareByDescending<Entry> { it.frequency }
                     .thenBy { it.pinyin.length }
                     .thenBy { it.word },
             )
-            prefixEntries.forEach(::add)
-        }
-
-        // Exact and prefix lookups are not enough for continuous pinyin such as
-        // "woaini" or "jintiantianqihenhao".  Fill the remaining slots with
-        // whole-sentence candidates produced by a small dynamic-programming
-        // word segmenter over the same dictionary.
-        if (result.size < cappedLimit) {
-            phraseCandidates(query, current, cappedLimit - result.size).forEach(::add)
-        }
-        return result
+            .take(MAX_COLLECT_PER_GROUP)
     }
+
+    /** Records one explicit local/AI candidate choice for the current session. */
+    fun recordSelection(word: String) {
+        val key = word.trim()
+        if (key.isEmpty()) return
+        synchronized(selectionLock) {
+            val next = (selectionCounts[key] ?: 0) + 1
+            selectionCounts[key] = next.coerceAtMost(MAX_SELECTION_WEIGHT)
+        }
+    }
+
+    /** Number of times [word] was explicitly selected in this session. */
+    fun selectionCount(word: String): Int = synchronized(selectionLock) {
+        selectionCounts[word.trim()] ?: 0
+    }
+
+    /** Clears session-only user selection memory (mainly useful for tests). */
+    fun clearSelectionMemory() {
+        synchronized(selectionLock) { selectionCounts.clear() }
+    }
+
+    private fun snapshotSelectionWeights(): Map<String, Int> = synchronized(selectionLock) {
+        HashMap(selectionCounts)
+    }
+
+    private data class RankedEntry(
+        val entry: Entry,
+        val group: Int,
+        val order: Int,
+    )
 
     private fun phraseCandidates(
         input: String,
@@ -151,8 +204,19 @@ class PinyinEngine private constructor(private var index: Index?) {
 
     companion object {
         const val ASSET_NAME = "pinyin_dict.tsv"
-        const val DEFAULT_LIMIT = 8
+
+        /** Number of candidates retained for one composition; the keyboard UI pages them. */
+        const val MAX_CANDIDATES = 64
+
+        /** Backwards-compatible name; now equals [MAX_CANDIDATES]. */
+        const val DEFAULT_LIMIT = MAX_CANDIDATES
+
         private const val MAX_PREFIX_KEYS = 256
+        private const val MAX_COLLECT_PER_GROUP = 512
+        private const val MAX_SELECTION_WEIGHT = 1_000
+        private const val GROUP_EXACT = 3
+        private const val GROUP_PREFIX = 2
+        private const val GROUP_PHRASE = 1
         private const val MAX_WORD_KEY_LENGTH = 12
         private const val MAX_PATHS_PER_POSITION = 8
         private const val MAX_ENTRIES_PER_KEY = 5
