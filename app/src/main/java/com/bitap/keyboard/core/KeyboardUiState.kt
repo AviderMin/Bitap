@@ -37,6 +37,15 @@ enum class EditorInputKind {
     Password,
 }
 
+/** Numeric input capability derived from EditorInfo.inputType flags. */
+enum class NumericInputMode {
+    None,
+    Integer,
+    Decimal,
+    Signed,
+    Phone,
+}
+
 /** Enter-key semantics derived from [EditorInfo.imeOptions]. */
 enum class EnterAction(val label: String) {
     Enter("回车"),
@@ -76,12 +85,47 @@ data class EditorInputInfo(
     val learningAllowed: Boolean
         get() = allowsPersonalizedLearning
 
-    /** Only normal text fields enter pinyin composing; the other types force English. */
+    /**
+     * Initial layout is English for non-text fields, but Email/URL are not hard
+     * language locks: the user may deliberately switch to Chinese search.
+     */
+    val supportsChineseInput: Boolean
+        get() = kind == EditorInputKind.Text ||
+            kind == EditorInputKind.Email ||
+            kind == EditorInputKind.Url
+
+    /** Compatibility alias used by existing reducer callers. */
     val allowsChineseInput: Boolean
-        get() = kind == EditorInputKind.Text
+        get() = supportsChineseInput
 
     val preferredLanguage: InputLanguage
-        get() = if (allowsChineseInput) InputLanguage.Chinese else InputLanguage.English
+        get() = if (kind == EditorInputKind.Text) InputLanguage.Chinese else InputLanguage.English
+
+    val numericMode: NumericInputMode
+        get() {
+            val numericPassword = kind == EditorInputKind.Password &&
+                inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER
+            if (kind != EditorInputKind.Number && kind != EditorInputKind.Phone && !numericPassword) {
+                return NumericInputMode.None
+            }
+            if (kind == EditorInputKind.Phone) return NumericInputMode.Phone
+            val decimal = inputType and InputType.TYPE_NUMBER_FLAG_DECIMAL != 0
+            val signed = inputType and InputType.TYPE_NUMBER_FLAG_SIGNED != 0
+            return when {
+                decimal -> NumericInputMode.Decimal
+                signed -> NumericInputMode.Signed
+                else -> NumericInputMode.Integer
+            }
+        }
+
+    /** Symbols beyond 0-9 that the numeric layout should expose. */
+    val numericSymbols: List<String>
+        get() = when (numericMode) {
+            NumericInputMode.None, NumericInputMode.Integer -> emptyList()
+            NumericInputMode.Decimal -> listOf(".")
+            NumericInputMode.Signed -> listOf("+", "-")
+            NumericInputMode.Phone -> listOf("+", "-", "*", "#", " ", "(", ")")
+        }
 
     val preferredLayer: KeyboardLayer
         get() = when (kind) {
@@ -250,6 +294,19 @@ data class KeyboardUiState(
 
     val learningAllowed: Boolean
         get() = editorInfo.allowsPersonalizedLearning
+
+    val supportsChineseInput: Boolean
+        get() = editorInfo.supportsChineseInput
+
+    val numericMode: NumericInputMode
+        get() = editorInfo.numericMode
+
+    val numericSymbols: List<String>
+        get() = editorInfo.numericSymbols
+
+    /** UI can hide the language toggle where it has no effect. */
+    val showLanguageToggle: Boolean
+        get() = editorInfo.supportsChineseInput
 }
 
 /** All user/UI events understood by [KeyboardReducer]. */

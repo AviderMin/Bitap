@@ -44,8 +44,9 @@ object KeyboardReducer {
     }
 
     private fun toggleLanguage(state: KeyboardUiState): Reduction {
-        // Email/URL/number/phone/password fields are English-only by policy.
-        if (!state.editorInfo.allowsChineseInput) return Reduction(state)
+        // Number/phone/password are hard language locks; Email/URL start in
+        // English but may deliberately switch to Chinese search (R09).
+        if (!state.editorInfo.supportsChineseInput) return Reduction(state)
         val commands = if (state.composing.isEmpty()) {
             emptyList()
         } else {
@@ -114,7 +115,7 @@ object KeyboardReducer {
                 Reduction(state, listOf(ImeCommand.CommitText(text)))
             }
         }
-        if (!state.editorInfo.allowsChineseInput && state.language == InputLanguage.Chinese) {
+        if (!state.editorInfo.supportsChineseInput && state.language == InputLanguage.Chinese) {
             return Reduction(state, listOf(ImeCommand.CommitText(text)))
         }
         return when (state.language) {

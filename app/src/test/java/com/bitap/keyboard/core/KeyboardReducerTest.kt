@@ -410,12 +410,12 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun nonTextEditorCannotToggleToChinese() {
+    fun numberEditorCannotToggleToChinese() {
         val state = KeyboardUiState(
             language = InputLanguage.English,
             editorInfo = EditorInputInfo.from(
-                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                EditorInfo.IME_ACTION_SEND,
+                InputType.TYPE_CLASS_NUMBER,
+                EditorInfo.IME_ACTION_NONE,
             ),
         )
         val result = reduce(state = state, action = KeyboardAction.ToggleLanguage)
