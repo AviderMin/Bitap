@@ -106,3 +106,34 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 
 **本轮测试：** .\gradlew.bat :app:testDebugUnitTest --console=plain --rerun-tasks → **BUILD SUCCESSFUL，150 tests / 0 failures / 0 errors / 0 skipped**（15 suites；AI 4 个套件共 36 tests：AiLexiconTest 14、AiPromptBuilderTest 6、AiResultSanitizerTest 12、ModelFileRulesTest 4）。
 
+## 7. R10 AI 质量门禁：通用拼音匹配与真实模型结果（2026-11-07，task-18）
+
+设备 / 环境：22021211RC（Redmi K40S / lineage_munch），Android 16 / API 36；测试 APK 基于 HEAD 082b07e + 本轮 ai/** 修改（debug）；模型 bitap-qwen3-0.6b.litertlm（Qwen3-0.6B dynamic INT4）343,490,560 bytes。
+
+### 7.1 实现
+
+- 统一 AI 候选入口：`AiCandidateParser.parseForPinyin(raw, pinyin, dictionary)`，所有 AI 候选都必须经过本地词典读音校验。
+- 新增 `AiPinyinDictionary`：从打包的 assets/pinyin_dict.tsv 建立 word→pinyin 映射；支持前缀补全（如 nih → 你好）、拼音分隔符归一化（xi'an → xian）和可信离线多音字表（如 长 zhang/chang、行 xing/hang）。
+- `AiLexiconQualityGate` 仅在候选通过词典读音校验时返回候选；词典缺失/无法验证/全部不匹配时统一返回降级提示「AI 词库暂无合适候选，请直接使用本地候选」。不再依赖示例黑名单。
+- 无新增日志、落盘、网络；原始模型输出不记录。
+
+### 7.2 真实模型样本（本次 4 个 query）
+
+| query | 观察 | 耗时 | 判定 |
+| --- | --- | --- | --- |
+| nihao | 红色降级提示，无 AI 候选 | 约 10.45 s 到终态 | 降级 |
+| pingguo | AI 候选「苹果」，词典读音 pingguo 校验通过，可点选 | ≤15 s 观察到候选 | 可用且正确 |
+| tianqi | 红色降级提示，无 AI 候选 | 约 7.57 s 到终态 | 降级 |
+| woaini | 红色降级提示，无 AI 候选 | ≤15 s 到终态 | 降级 |
+
+- **可用候选率：1/4 = 25%**（至少返回一个通过词典校验的候选）。
+- **正确率：1/4 = 25%**（返回候选与 query 对应；本次唯一返回的 pingguo→苹果 正确）。
+- **降级率：3/4 = 75%**（均显示明确降级提示，键盘保持可用、本地候选不受影响）。
+- 候选质量结论仍为 **PARTIAL**：0.6B INT4 对 nihao/tianqi/woaini 仍不稳定；质量门禁已阻止任意错拼音中文/解释句/特殊符号进入可提交候选，并给出明确降级。
+
+### 7.3 纯 JVM 回归
+
+- `AiPinyinDictionaryTest`（8 tests）：TSV 解析、精确/前缀匹配、错读音拒绝、xi'an 归一化、多音字表、空词典降级。
+- `AiLexiconTest`（19 tests）：prompt/上下文/采样、统一解析入口、`天气` vs `nihao` 拒绝、示例泄漏拒绝、多音字 `长`、前缀补全与 quality gate 降级。
+- 全量 `:app:testDebugUnitTest --console=plain --rerun-tasks` → **BUILD SUCCESSFUL，188 tests / 0 failures / 0 errors / 0 skipped**（19 suites；AI 5 个套件共 49 tests：AiLexiconTest 19、AiPinyinDictionaryTest 8、AiPromptBuilderTest 6、AiResultSanitizerTest 12、ModelFileRulesTest 4）。
+
