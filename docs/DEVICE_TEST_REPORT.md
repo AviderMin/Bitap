@@ -70,3 +70,26 @@ android.widget.LinearLayout{... #android:id/parentPanel}
 - 模型通过 ADB 放入应用私有目录以节省时间，**未完成用户从文件选择器选择文件的端到端导入测试**；模型文件选择器已成功打开，导入代码路径由 QA 静态覆盖。
 - AI 首轮加载 native 库时出现过一条 `NativeLibraryLoader.nativeCheckLoaded` 日志，随后 `liblitertlm_jni.so` 正常加载并完成推理；该日志未导致失败。
 - 设备上的 Bitap 设置：Miuix/Glasmio 与浅/深均实测过；截图使用 Miuix 深色与 Glasmio 深色作为代表。
+
+## 5. AI 词库链路复测（2026-11-07，task-7）
+
+设备 / 环境：22021211RC（Redmi K40S / lineage_munch），Android 16 / API 36；Bitap debug APK；模型 bitap-qwen3-0.6b.litertlm（Qwen3-0.6B dynamic INT4）343,490,560 bytes。
+
+| 步骤 | 观察 | 耗时 |
+| --- | --- | --- |
+| 在 Via 地址栏输入 nihao | 候选条显示「你好 你号 你灏 泥好 你豪」，本地拼音候选正常 | 即时 |
+| 点候选条右侧 ✦ AI | 候选条出现「AI 词库思考中…」 | 点击后 0.5 s 内 |
+| 等待 AI 终态 | 候选条显示红色「AI 词库没有返回候选」；键盘保持可用、无崩溃、无网络请求 | 约 5–6 s（首次 native 加载包含在内，20 s 超时未触发） |
+| AI 润色（D10 既有记录） | 约 10–15 s 返回「hello」，点插入成功 | PASS（历史证据） |
+
+**复现与根因：** suggestCandidates / runLexicon 链路本身可触发、无崩溃，但原始模型输出不能作为候选。用临时 debug 构建（已移除，未提交）读取模型原文：
+- 旧 prompt（仅规则、无示例）：模型输出 nihao（回显拼音，5 bytes），被控制器解析器判定为非中文而清空；
+- few-shot pingguo -> 苹果 prompt：模型输出「苹果」（与输入 nihao 无关），说明 Qwen3-0.6B 0.6B INT4 对词库指令跟随不稳。
+
+**本轮修复（已提交）：**
+- 新增 AiLexiconPromptBuilder：固定词库 system prompt（含 nihao / pingguo 示例）、保留「拼音」「上文」两项输入、pinyin ≤48 / context ≤160 字符。
+- 新增 AiCandidateParser：去掉编号/项目符号/包裹引号，拒绝拼音回显、英文、数字、解释行，中文候选去重并最多 5 个；runLexicon 解析为空时返回明确的「AI 词库没有返回候选」，不再让 UI 显示无反馈。
+- 新增 AiLexiconTest（9 个纯 JVM 测试）覆盖 prompt 上限/上下文保留和候选解析边界。
+
+**结论：D17 = PARTIAL。** 真机请求链路、加载、取消与错误提示可用，但本次 nihao 未返回可点选 AI 候选；不阻塞键盘自带拼音候选与 AI 润色。最终修复版在真机的复测受调试构建/安装冲突影响未完成；后续需换更强模型或继续调 prompt 后再验收。
+
