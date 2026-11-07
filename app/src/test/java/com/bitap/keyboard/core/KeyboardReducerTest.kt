@@ -26,15 +26,16 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun typingKeepsPreviousCandidatesUntilFreshQueryArrives() {
+    fun typingClearsStaleCandidatesUntilFreshQueryArrives() {
         val state = KeyboardUiState(
             composing = "ni",
+            candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100), Candidate("泥", "ni", 50)),
         )
         val result = reduce(state = state, action = KeyboardAction.AppendInput("h"))
         assertEquals("nih", result.state.composing)
-        assertEquals(2, result.state.candidates.size)
-        assertEquals("你", result.state.candidates.first().word)
+        assertTrue("stale candidates must not remain visible", result.state.candidates.isEmpty())
+        assertEquals("", result.state.candidatesFor)
     }
 
     @Test
@@ -81,19 +82,17 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun punctuationWithStaleCandidatesCommitsRawPinyin() {
+    fun punctuationWithStaleCandidatesWaitsForFreshQuery() {
         val state = KeyboardUiState(
             composing = "nihao",
             candidatesFor = "ni",
             candidates = listOf(Candidate("你", "ni", 100)),
         )
         val result = reduce(state = state, action = KeyboardAction.AppendInput("，"))
-        assertEquals(
-            listOf<ImeCommand>(ImeCommand.CommitText("nihao"), ImeCommand.CommitText("，")),
-            result.commands,
-        )
-        assertEquals("", result.state.composing)
+        assertTrue(result.commands.isEmpty())
+        assertEquals("nihao", result.state.composing)
         assertTrue(result.state.candidates.isEmpty())
+        assertTrue(result.state.pendingConfirmation is PendingConfirmation.Punctuation)
     }
 
     @Test
@@ -120,14 +119,20 @@ class KeyboardReducerTest {
             candidates = listOf(Candidate("你", "ni", 100)),
         )
         val result = reduce(state = state, action = KeyboardAction.Space)
-        assertEquals("nihao", (result.commands.single() as ImeCommand.CommitText).text)
-        assertEquals("", result.state.composing)
+        assertTrue(result.commands.isEmpty())
+        assertEquals("nihao", result.state.composing)
+        assertTrue(result.state.pendingConfirmation is PendingConfirmation.Space)
     }
 
     @Test
-    fun spaceCommitsRawPinyinWhenNoCandidates() {
-        val state = KeyboardUiState(composing = "nihao")
-        val result = reduce(state = state, action = KeyboardAction.Space)
+    fun spaceCommitsRawPinyinOnlyAfterFreshQueryHasNoCandidates() {
+        // Before any query result the confirmation must wait, not commit raw pinyin.
+        val waiting = reduce(state = KeyboardUiState(composing = "nihao"), action = KeyboardAction.Space)
+        assertTrue(waiting.commands.isEmpty())
+        assertEquals("nihao", waiting.state.composing)
+
+        val freshEmpty = KeyboardUiState(composing = "nihao", candidatesFor = "nihao")
+        val result = reduce(state = freshEmpty, action = KeyboardAction.Space)
         assertEquals("nihao", (result.commands.single() as ImeCommand.CommitText).text)
         assertEquals("", result.state.composing)
     }
@@ -478,7 +483,7 @@ class KeyboardReducerTest {
     }
 
     @Test
-    fun selectionInsideComposingRegionKeepsComposing() {
+    fun selectionInsideComposingRegionEndsCompositionSafely() {
         val state = KeyboardUiState(
             composing = "ni",
             candidatesFor = "ni",
@@ -493,8 +498,9 @@ class KeyboardReducerTest {
                 candidatesEnd = 2,
             ),
         )
-        assertEquals("ni", result.state.composing)
-        assertTrue(result.commands.isEmpty())
+        assertEquals("", result.state.composing)
+        assertTrue(result.state.candidates.isEmpty())
+        assertEquals(listOf<ImeCommand>(ImeCommand.FinishComposing), result.commands)
     }
 
     @Test

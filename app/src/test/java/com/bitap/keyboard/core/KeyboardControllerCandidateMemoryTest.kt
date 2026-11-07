@@ -14,7 +14,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -57,6 +60,64 @@ class KeyboardControllerCandidateMemoryTest {
         try {
             controller.dispatch(KeyboardAction.AiCandidateTapped("你好"))
             assertEquals(1, engine.selectionCount("你好"))
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun spaceWithin0To29MsWaitsForFreshQueryAndNeverCommitsRawPinyin() {
+        listOf(0L, 10L, 29L).forEach { elapsedMs ->
+            val scheduler = TestCoroutineScheduler()
+            val dispatcher = StandardTestDispatcher(scheduler)
+            val scope = CoroutineScope(SupervisorJob() + dispatcher)
+            val engine = PinyinEngine.fromLines(sequenceOf("nihao\t你好\t500"))
+            val session = RecordingTextSession()
+            val controller = KeyboardController(scope, session, engine, StubAiService(), dispatcher)
+            try {
+                controller.onStartInput(EditorInputInfo())
+                "nihao".forEach { char ->
+                    controller.dispatch(KeyboardAction.AppendInput(char.toString()))
+                }
+                scheduler.advanceTimeBy(elapsedMs)
+                controller.dispatch(KeyboardAction.Space)
+                assertTrue(
+                    "space at " + elapsedMs + "ms must not commit before query",
+                    session.log.none { it.startsWith("commit:") },
+                )
+                assertEquals("nihao", controller.state.value.composing)
+
+                scheduler.advanceUntilIdle()
+                assertEquals("commit:你好", session.log.last())
+                assertEquals("", controller.state.value.composing)
+            } finally {
+                scope.cancel()
+            }
+        }
+    }
+
+    @Test
+    fun selectionInsideCompositionEndsSafelyThroughControllerWithoutDelete() {
+        val engine = PinyinEngine.fromLines(sequenceOf("ni\t你\t100"))
+        val scope = CoroutineScope(SupervisorJob())
+        val session = RecordingTextSession()
+        val controller = KeyboardController(scope, session, engine, StubAiService())
+        try {
+            controller.onStartInput(EditorInputInfo())
+            controller.dispatch(KeyboardAction.AppendInput("n"))
+            controller.dispatch(KeyboardAction.AppendInput("i"))
+            controller.dispatch(
+                KeyboardAction.ComposingUpdated("ni", listOf(Candidate("你", "ni", 100))),
+            )
+            controller.onSelectionChanged(
+                selectionStart = 1,
+                selectionEnd = 1,
+                candidatesStart = 0,
+                candidatesEnd = 2,
+            )
+            assertEquals("", controller.state.value.composing)
+            assertEquals("finishComposing", session.log.last())
+            assertTrue(session.log.none { it == "deleteBackward" })
         } finally {
             scope.cancel()
         }

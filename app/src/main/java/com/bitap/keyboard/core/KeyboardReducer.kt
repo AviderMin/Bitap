@@ -63,6 +63,7 @@ object KeyboardReducer {
                 composing = "",
                 candidates = emptyList(),
                 candidatesFor = "",
+                pendingConfirmation = null,
                 lastShiftTapAt = 0L,
             ),
             commands,
@@ -97,6 +98,7 @@ object KeyboardReducer {
                 composing = if (leavesLetters) "" else state.composing,
                 candidates = if (leavesLetters) emptyList() else state.candidates,
                 candidatesFor = if (leavesLetters) "" else state.candidatesFor,
+                pendingConfirmation = if (leavesLetters) null else state.pendingConfirmation,
                 lastShiftTapAt = 0L,
             ),
             commands,
@@ -121,17 +123,27 @@ object KeyboardReducer {
             InputLanguage.Chinese -> {
                 val lower = text.lowercase()
                 if (lower.any { it !in 'a'..'z' }) {
-                    // Punctuation must not be inserted on top of an active pinyin
-                    // composition: commit the current candidate/raw text first.
+                    if (state.composing.isEmpty()) {
+                        return Reduction(
+                            state.copy(
+                                aiCandidates = emptyList(),
+                                aiCandidatesLoading = false,
+                                aiCandidatesError = null,
+                                pendingConfirmation = null,
+                            ),
+                            listOf(ImeCommand.CommitText(text)),
+                        )
+                    }
+                    // Punctuation is a confirmation action too: if the current
+                    // composing has no fresh query result yet, queue it instead of
+                    // committing the raw pinyin. An explicit CommitRaw tap remains
+                    // available for users who really want the letters.
+                    if (state.candidatesFor != state.composing) {
+                        return queueConfirmation(state, PendingConfirmation.Punctuation(text))
+                    }
+                    val currentCandidate = state.candidates.firstOrNull()?.word
                     val commands = buildList {
-                        if (state.composing.isNotEmpty()) {
-                            val currentCandidate = if (state.candidatesFor == state.composing) {
-                                state.candidates.firstOrNull()?.word
-                            } else {
-                                null
-                            }
-                            add(ImeCommand.CommitText(currentCandidate ?: state.composing))
-                        }
+                        add(ImeCommand.CommitText(currentCandidate ?: state.composing))
                         add(ImeCommand.CommitText(text))
                     }
                     Reduction(
@@ -139,6 +151,7 @@ object KeyboardReducer {
                             composing = "",
                             candidates = emptyList(),
                             candidatesFor = "",
+                            pendingConfirmation = null,
                             aiCandidates = emptyList(),
                             aiCandidatesLoading = false,
                             aiCandidatesError = null,
@@ -147,11 +160,15 @@ object KeyboardReducer {
                     )
                 } else {
                     val composing = state.composing + lower
-                    // Keep the previous candidates on screen until the debounced
-                    // pinyin result arrives; clearing them here makes fast typing
-                    // flash the candidate strip between every keystroke.
+                    // R03: never leave old candidates visible as if they belonged
+                    // to the longer composition. The raw-pinyin fallback chip is
+                    // still available as an explicit CommitRaw action.
                     Reduction(
-                        state.copy(composing = composing),
+                        state.copy(
+                            composing = composing,
+                            candidates = emptyList(),
+                            candidatesFor = "",
+                        ),
                         listOf(ImeCommand.SetComposingText(composing)),
                     )
                 }
@@ -166,18 +183,95 @@ object KeyboardReducer {
 
     private fun composingUpdated(state: KeyboardUiState, action: KeyboardAction.ComposingUpdated): Reduction {
         if (action.composing != state.composing) return Reduction(state)
+        val updated = state.copy(
+            candidates = action.candidates.take(PinyinEngine.MAX_CANDIDATES),
+            candidatesFor = action.composing,
+        )
+        val pending = state.pendingConfirmation ?: return Reduction(updated)
+        return resolvePending(updated, pending)
+    }
+
+    private fun candidateTapped(state: KeyboardUiState, index: Int): Reduction {
+        if (state.composing.isEmpty()) return Reduction(state)
+        if (state.pendingConfirmation != null) return Reduction(state)
+        if (state.candidatesFor != state.composing) {
+            return queueConfirmation(state, PendingConfirmation.Candidate(index))
+        }
+        val candidate = state.candidates.getOrNull(index) ?: return Reduction(state)
+        return commitCandidate(state, candidate.word)
+    }
+
+    /**
+     * A confirmation action arrived while the latest pinyin query is still
+     * outstanding. Store it and hide old candidates, but emit no text command.
+     */
+    private fun queueConfirmation(
+        state: KeyboardUiState,
+        pending: PendingConfirmation,
+    ): Reduction {
+        if (state.pendingConfirmation != null) return Reduction(state)
         return Reduction(
             state.copy(
-                candidates = action.candidates.take(PinyinEngine.MAX_CANDIDATES),
-                candidatesFor = action.composing,
+                candidates = emptyList(),
+                candidatesFor = "",
+                aiCandidates = emptyList(),
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+                pendingConfirmation = pending,
             ),
         )
     }
 
-    private fun candidateTapped(state: KeyboardUiState, index: Int): Reduction {
-        if (state.candidatesFor != state.composing) return commitRaw(state)
-        val candidate = state.candidates.getOrNull(index) ?: return Reduction(state)
-        return commitCandidate(state, candidate.word)
+    private fun resolvePending(
+        state: KeyboardUiState,
+        pending: PendingConfirmation,
+    ): Reduction {
+        val fresh = state.candidatesFor == state.composing
+        return when (pending) {
+            PendingConfirmation.Space -> when {
+                fresh && state.candidates.isNotEmpty() ->
+                    commitCandidate(state, state.candidates.first().word)
+
+                fresh -> commitRaw(state)
+                else -> Reduction(state.copy(pendingConfirmation = null))
+            }
+
+            is PendingConfirmation.Candidate -> {
+                if (!fresh || state.candidates.isEmpty()) {
+                    // No fresh candidate exists; never silently commit raw pinyin
+                    // for a candidate tap. Leave the composition for the user.
+                    Reduction(state.copy(pendingConfirmation = null))
+                } else {
+                    val word = state.candidates.getOrNull(pending.index)?.word
+                        ?: state.candidates.first().word
+                    commitCandidate(state, word)
+                }
+            }
+
+            is PendingConfirmation.Punctuation -> {
+                val commands = buildList {
+                    val text = if (fresh && state.candidates.isNotEmpty()) {
+                        state.candidates.first().word
+                    } else {
+                        state.composing
+                    }
+                    if (text.isNotEmpty()) add(ImeCommand.CommitText(text))
+                    add(ImeCommand.CommitText(pending.text))
+                }
+                Reduction(
+                    state.copy(
+                        composing = "",
+                        candidates = emptyList(),
+                        candidatesFor = "",
+                        pendingConfirmation = null,
+                        aiCandidates = emptyList(),
+                        aiCandidatesLoading = false,
+                        aiCandidatesError = null,
+                    ),
+                    commands,
+                )
+            }
+        }
     }
 
     private fun commitCandidate(state: KeyboardUiState, word: String): Reduction = Reduction(
@@ -185,6 +279,7 @@ object KeyboardReducer {
             composing = "",
             candidates = emptyList(),
             candidatesFor = "",
+            pendingConfirmation = null,
             aiCandidates = emptyList(),
             aiCandidatesLoading = false,
             aiCandidatesError = null,
@@ -196,20 +291,22 @@ object KeyboardReducer {
     private fun commitRaw(state: KeyboardUiState): Reduction {
         if (state.composing.isEmpty()) return Reduction(state)
         return Reduction(
-            state.copy(composing = "", candidates = emptyList(), candidatesFor = ""),
+            state.copy(
+                composing = "",
+                candidates = emptyList(),
+                candidatesFor = "",
+                pendingConfirmation = null,
+            ),
             listOf(ImeCommand.CommitText(state.composing)),
         )
     }
 
     private fun space(state: KeyboardUiState): Reduction = when {
-        state.composing.isNotEmpty() &&
-            state.candidates.isNotEmpty() &&
-            state.candidatesFor == state.composing ->
-            commitCandidate(state, state.candidates.first().word)
-
-        state.composing.isNotEmpty() -> commitRaw(state)
-
-        else -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
+        state.composing.isEmpty() -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
+        state.pendingConfirmation != null -> Reduction(state)
+        state.candidatesFor != state.composing -> queueConfirmation(state, PendingConfirmation.Space)
+        state.candidates.isNotEmpty() -> commitCandidate(state, state.candidates.first().word)
+        else -> commitRaw(state)
     }
 
     private fun backspace(state: KeyboardUiState): Reduction {
@@ -222,13 +319,23 @@ object KeyboardReducer {
             // the editor.  Finish the composing region, then delete the one
             // character that was inserted by SetComposingText.
             Reduction(
-                state.copy(composing = "", candidates = emptyList(), candidatesFor = ""),
+                state.copy(
+                    composing = "",
+                    candidates = emptyList(),
+                    candidatesFor = "",
+                    pendingConfirmation = null,
+                ),
                 listOf(ImeCommand.FinishComposing, ImeCommand.DeleteBackward),
             )
         } else {
             Reduction(
-                state.copy(composing = remaining),
-                listOf(ImeCommand.SetComposingText(remaining)), // candidatesFor stays old until fresh query
+                state.copy(
+                    composing = remaining,
+                    candidates = emptyList(),
+                    candidatesFor = "",
+                    pendingConfirmation = null,
+                ),
+                listOf(ImeCommand.SetComposingText(remaining)),
             )
         }
     }
@@ -240,6 +347,7 @@ object KeyboardReducer {
                     composing = "",
                     candidates = emptyList(),
                     candidatesFor = "",
+                    pendingConfirmation = null,
                     aiCandidates = emptyList(),
                     aiCandidatesLoading = false,
                     aiCandidatesError = null,
@@ -269,6 +377,7 @@ object KeyboardReducer {
                 composing = "",
                 candidates = emptyList(),
                 candidatesFor = "",
+                pendingConfirmation = null,
                 ai = AiPanelUiState(),
                 aiEnabled = action.aiSettingEnabled && info.aiContextAllowed,
                 aiCandidates = emptyList(),
@@ -291,24 +400,34 @@ object KeyboardReducer {
         if (state.composing.isEmpty()) return Reduction(state)
         val hasCandidatesRegion = action.candidatesStart >= 0 &&
             action.candidatesEnd >= action.candidatesStart
-        val selectionInsideRegion = hasCandidatesRegion &&
-            action.selectionStart >= action.candidatesStart &&
-            action.selectionEnd <= action.candidatesEnd
-        if (selectionInsideRegion) return Reduction(state)
-        return Reduction(
-            state.copy(
-                composing = "",
-                candidates = emptyList(),
-                candidatesFor = "",
-                ai = AiPanelUiState(),
-                aiCandidates = emptyList(),
-                aiCandidatesLoading = false,
-                aiCandidatesError = null,
-                shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
-            ),
-            listOf(ImeCommand.FinishComposing),
-        )
+        // The normal IME-own callback after setComposingText places a collapsed
+        // caret exactly at the end of the composing region; that must NOT end the
+        // composition on every keystroke.
+        val normalImeCallback = hasCandidatesRegion &&
+            action.selectionStart == action.selectionEnd &&
+            action.selectionEnd == action.candidatesEnd
+        if (normalImeCallback) return Reduction(state)
+
+        // Any caret inside the composition (before its end), any real selection,
+        // or a moved/cleared candidate region is handled safely: finish the
+        // composition without deleting text, clear candidates and queued confirms.
+        return endComposition(state)
     }
+
+    private fun endComposition(state: KeyboardUiState): Reduction = Reduction(
+        state.copy(
+            composing = "",
+            candidates = emptyList(),
+            candidatesFor = "",
+            pendingConfirmation = null,
+            ai = AiPanelUiState(),
+            aiCandidates = emptyList(),
+            aiCandidatesLoading = false,
+            aiCandidatesError = null,
+            shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
+        ),
+        listOf(ImeCommand.FinishComposing),
+    )
 
     private fun requestAiCandidates(state: KeyboardUiState): Reduction {
         if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)

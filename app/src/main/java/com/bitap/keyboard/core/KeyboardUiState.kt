@@ -140,6 +140,15 @@ data class EditorInputInfo(
     }
 }
 
+/** A confirmation action waiting for the latest composing query result. */
+sealed interface PendingConfirmation {
+    data object Space : PendingConfirmation
+
+    data class Candidate(val index: Int) : PendingConfirmation
+
+    data class Punctuation(val text: String) : PendingConfirmation
+}
+
 /** One pinyin candidate. */
 data class Candidate(
     val word: String,
@@ -188,6 +197,8 @@ data class KeyboardUiState(
     /** Pinyin string the current [candidates] were generated for. */
     val candidatesFor: String = "",
     val candidates: List<Candidate> = emptyList(),
+    /** Set when Space/Candidate/Punctuation waits for a fresh composing query. */
+    val pendingConfirmation: PendingConfirmation? = null,
     /** Current editor configuration; reset on every onStartInput. */
     val editorInfo: EditorInputInfo = EditorInputInfo(),
     val ai: AiPanelUiState = AiPanelUiState(),

@@ -16,9 +16,12 @@ import com.bitap.keyboard.core.ShiftState
 import com.bitap.keyboard.core.TextSession
 import com.bitap.keyboard.settings.BitapSettings
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +38,7 @@ class KeyboardController(
     private val textSession: TextSession,
     private val pinyinEngine: PinyinEngine,
     private val aiService: AiRewriteService,
+    private val queryDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val _state = MutableStateFlow(KeyboardUiState())
     val state: StateFlow<KeyboardUiState> = _state.asStateFlow()
@@ -201,11 +205,10 @@ class KeyboardController(
         if (composing.isEmpty()) return
         pinyinJob = scope.launch {
             delay(PINYIN_DEBOUNCE_MS)
-            val candidates = pinyinEngine.query(composing)
-            _state.value = KeyboardReducer.reduce(
-                _state.value,
-                KeyboardAction.ComposingUpdated(composing, candidates),
-            ).state
+            val candidates = withContext(queryDispatcher) { pinyinEngine.search(composing) }
+            // Dispatch through the same path as user actions so a queued
+            // confirmation executes its CommitText when the fresh result lands.
+            dispatch(KeyboardAction.ComposingUpdated(composing, candidates))
         }
     }
 
