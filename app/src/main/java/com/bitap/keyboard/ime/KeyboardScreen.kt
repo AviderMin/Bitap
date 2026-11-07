@@ -177,7 +177,7 @@ fun KeyboardScreen(
 
                 KeyboardLayer.Symbols -> SymbolLayout(
                     rows = SymbolRows,
-                    bottomRow = listOf(".", ",", "?", "!", ":", ";"),
+                    bottomRow = listOf(".", ",", "?", "!", ":", ";", "'"),
                     switchLabel = "ABC",
                     switchDescription = "切换到字母键盘",
                     nextLayer = KeyboardLayer.Letters,
@@ -205,6 +205,15 @@ private fun CandidateBar(
         if (state.candidates.isEmpty()) candidatesExpanded = false
     }
     Column(modifier = Modifier.fillMaxWidth()) {
+    if (state.composing.isNotEmpty()) {
+        ComposingStrip(
+            composing = state.composing,
+            onCommitRaw = {
+                haptic()
+                onAction(KeyboardAction.CommitRaw)
+            },
+        )
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -447,6 +456,66 @@ private fun CandidateExpandedPanel(
     }
 }
 
+/**
+ * Stable composing display above the candidate scroller. It keeps the current
+ * pinyin visible even when candidates are present, and exposes an explicit
+ * "commit raw" action so users can always submit the letters themselves.
+ */
+@Composable
+private fun ComposingStrip(
+    composing: String,
+    onCommitRaw: () -> Unit,
+) {
+    val palette = LocalBitapPalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .padding(start = 8.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "拼音",
+                    color = palette.textSecondary,
+                    fontSize = 10.sp,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = composing,
+                    color = palette.accent,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .clickable(onClick = onCommitRaw)
+                .padding(horizontal = 10.dp)
+                .semantics { contentDescription = "提交原始拼音 " + composing },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "上屏原文",
+                color = palette.accent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+    }
+}
+
 @Composable
 private fun CandidateChip(
     label: String,
@@ -502,6 +571,9 @@ private data class KeyCap(
     val isActive: Boolean = false,
     val fontSize: TextUnit = 20.sp,
     val showPressPreview: Boolean = false,
+    /** Fired once after the long-press threshold; release then does not click. */
+    val longPressAction: (() -> Unit)? = null,
+    /** Fired repeatedly after the long-press threshold (delete key). */
     val longPressRepeat: (() -> Unit)? = null,
     val onClick: () -> Unit,
 )
@@ -657,13 +729,21 @@ private fun KeyRow(
                     fun startRepeat(pointerId: Long) {
                         stopRepeat(pointerId)
                         val index = tracker.keyIndexOf(pointerId) ?: return
-                        val repeat = currentKeys.value.getOrNull(index)?.longPressRepeat ?: return
+                        val key = currentKeys.value.getOrNull(index) ?: return
+                        val repeat = key.longPressRepeat
+                        val longPressAction = key.longPressAction
+                        if (repeat == null && longPressAction == null) return
                         repeatJobs[pointerId] = pointerScope.launch {
                             delay(400)
-                            while (isActive) {
-                                repeat()
+                            if (repeat != null) {
                                 tracker.recordRepeat(pointerId)
-                                delay(55)
+                                while (isActive) {
+                                    repeat()
+                                    delay(55)
+                                }
+                            } else {
+                                tracker.recordRepeat(pointerId)
+                                longPressAction?.invoke()
                             }
                         }
                     }
@@ -989,9 +1069,10 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
             ),
             KeyCap(
                 label = comma,
-                description = "逗号",
+                description = "逗号（长按输入拼音分隔符）",
                 weight = 0.9f,
                 fontSize = 18.sp,
+                longPressAction = { press(KeyboardAction.AppendInput("'")) },
                 onClick = { press(KeyboardAction.AppendInput(comma)) },
             ),
             KeyCap(
