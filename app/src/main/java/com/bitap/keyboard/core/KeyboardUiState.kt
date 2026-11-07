@@ -201,6 +201,14 @@ sealed interface PendingConfirmation {
     data class Punctuation(val text: String) : PendingConfirmation
 }
 
+/** Metadata for a candidate that was actually committed and may be learned. */
+data class LearnedSelection(
+    val word: String,
+    val pinyin: String,
+    val source: String,
+    val consumedInputLength: Int,
+)
+
 /** One pinyin candidate.
  *
  * [consumedInputLength] is the number of composing characters this candidate
@@ -402,8 +410,9 @@ sealed interface ImeCommand {
     data object SendEnter : ImeCommand
 }
 
-/** Result of one reducer step: the next state plus the side effects to perform. */
+/** Result of one reducer step: next state, side effects, and optional learning attribution. */
 data class Reduction(
     val state: KeyboardUiState,
     val commands: List<ImeCommand> = emptyList(),
+    val learnedSelection: LearnedSelection? = null,
 )

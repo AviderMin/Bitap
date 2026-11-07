@@ -69,7 +69,7 @@ class KeyboardController(
         val reduction = KeyboardReducer.reduce(previous, effective)
         _state.value = reduction.state
         reduction.commands.forEach(::execute)
-        recordCandidateSelection(previous, reduction, effective)
+        recordLearnedSelection(reduction)
 
         if (reduction.state.composing != previous.composing) {
             _state.value = _state.value.copy(
@@ -213,51 +213,20 @@ class KeyboardController(
     }
 
     /**
-     * Remembers words the user explicitly committed from a local or AI candidate.
-     * Only a real CommitText of that exact word counts: stale candidates that fall
-     * back to raw pinyin are intentionally not learned.
+     * Records the candidate actually committed by the reducer. This covers direct
+     * taps and pending confirmations completed by ComposingUpdated alike; raw
+     * fallbacks/cancelled confirmations carry no LearnedSelection.
      */
-    private fun recordCandidateSelection(
-        previous: KeyboardUiState,
-        reduction: Reduction,
-        action: KeyboardAction,
-    ) {
-        val choice = when (action) {
-            is KeyboardAction.CandidateTapped -> {
-                previous.candidates.getOrNull(action.index)
-                    ?.takeIf { previous.candidatesFor == previous.composing }
-                    ?.let { candidate ->
-                        Pair(candidate.word, candidate.pinyin.ifBlank { previous.composing })
-                    }
-            }
-
-            is KeyboardAction.AiCandidateTapped -> action.word
-                .takeIf { it.isNotBlank() }
-                ?.let { word ->
-                    Pair(word, previous.aiCandidatesFor.ifBlank { previous.composing })
-                }
-
-            KeyboardAction.Space -> previous.candidates.firstOrNull()
-                ?.takeIf { previous.candidatesFor == previous.composing }
-                ?.let { candidate ->
-                    Pair(candidate.word, candidate.pinyin.ifBlank { previous.composing })
-                }
-
-            else -> null
-        } ?: return
-        val committed = reduction.commands.any { command ->
-            command is ImeCommand.CommitText && command.text == choice.first
-        }
-        val canLearn = settings.learningEnabled && _state.value.editorInfo.allowsPersonalizedLearning
-        if (committed && canLearn) {
-            pinyinEngine.recordSelection(
-                word = choice.first,
-                pinyin = choice.second,
-                source = if (action is KeyboardAction.AiCandidateTapped) "ai" else "candidate",
-                persist = false,
-            )
-            scheduleUserLexiconPersist()
-        }
+    private fun recordLearnedSelection(reduction: Reduction) {
+        val learned = reduction.learnedSelection ?: return
+        if (!settings.learningEnabled || !_state.value.editorInfo.allowsPersonalizedLearning) return
+        pinyinEngine.recordSelection(
+            word = learned.word,
+            pinyin = learned.pinyin,
+            source = learned.source,
+            persist = false,
+        )
+        scheduleUserLexiconPersist()
     }
 
     private fun schedulePinyinQuery(composing: String) {

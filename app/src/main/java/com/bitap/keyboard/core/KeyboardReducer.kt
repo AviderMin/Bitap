@@ -284,7 +284,7 @@ object KeyboardReducer {
                 commitCandidateThenText(clearPending, candidate, pending.text)
             }
         }
-        return replayQueued(base.state, queued, base.commands)
+        return replayQueued(base.state, queued, base.commands, base.learnedSelection)
     }
 
     /**
@@ -296,16 +296,23 @@ object KeyboardReducer {
         state: KeyboardUiState,
         queued: List<KeyboardAction>,
         initialCommands: List<ImeCommand>,
+        learnedSelection: LearnedSelection?,
     ): Reduction {
-        if (queued.isEmpty()) return Reduction(state, initialCommands)
+        if (queued.isEmpty()) return Reduction(state, initialCommands, learnedSelection)
         var current = state.copy(queuedActions = emptyList())
         val commands = initialCommands.toMutableList()
+        var learned = learnedSelection
         queued.forEach { action ->
             val result = reduce(current, action)
             current = result.state
             commands += result.commands
+            if (learned == null) learned = result.learnedSelection
         }
-        return Reduction(current.copy(queuedActions = emptyList(), pendingComposing = ""), commands)
+        return Reduction(
+            current.copy(queuedActions = emptyList(), pendingComposing = ""),
+            commands,
+            learned,
+        )
     }
 
     private fun commitCandidateThenText(
@@ -339,10 +346,22 @@ object KeyboardReducer {
                 aiCandidatesError = null,
             ),
             commands,
+            learnedSelection = candidate?.let {
+                LearnedSelection(
+                    word = it.word,
+                    pinyin = it.pinyin.ifBlank { state.composing.take(consumed) },
+                    source = "punctuation",
+                    consumedInputLength = consumed,
+                )
+            },
         )
     }
 
-    private fun commitCandidate(state: KeyboardUiState, candidate: Candidate): Reduction {
+    private fun commitCandidate(
+        state: KeyboardUiState,
+        candidate: Candidate,
+        source: String = "candidate",
+    ): Reduction {
         val consumed = if (candidate.consumedInputLength in 1..state.composing.length) {
             candidate.consumedInputLength
         } else {
@@ -353,6 +372,7 @@ object KeyboardReducer {
             add(ImeCommand.CommitText(candidate.word))
             if (remaining.isNotEmpty()) add(ImeCommand.SetComposingText(remaining))
         }
+        val learnedPinyin = candidate.pinyin.ifBlank { state.composing.take(consumed) }
         return Reduction(
             state.copy(
                 composing = remaining,
@@ -368,11 +388,25 @@ object KeyboardReducer {
                 shift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off,
             ),
             commands,
+            learnedSelection = LearnedSelection(
+                word = candidate.word,
+                pinyin = learnedPinyin,
+                source = source,
+                consumedInputLength = consumed,
+            ),
         )
     }
 
-    private fun commitCandidate(state: KeyboardUiState, word: String): Reduction =
-        commitCandidate(state, Candidate(word = word, consumedInputLength = state.composing.length))
+    private fun commitCandidate(
+        state: KeyboardUiState,
+        word: String,
+        pinyin: String,
+        source: String,
+    ): Reduction = commitCandidate(
+        state = state,
+        candidate = Candidate(word = word, pinyin = pinyin, consumedInputLength = state.composing.length),
+        source = source,
+    )
 
     private fun commitRaw(state: KeyboardUiState): Reduction {
         if (state.composing.isEmpty()) return Reduction(state)
@@ -620,7 +654,12 @@ object KeyboardReducer {
         ) {
             return Reduction(state)
         }
-        return commitCandidate(state, word)
+        return commitCandidate(
+            state = state,
+            word = word,
+            pinyin = state.aiCandidatesFor.ifBlank { state.composing },
+            source = "ai",
+        )
     }
 
     private fun aiPanelOpened(state: KeyboardUiState, rawSource: String): Reduction {

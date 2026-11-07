@@ -168,6 +168,7 @@ class PinyinEngine private constructor(
         val word: String,
         val frequency: Long,
         val group: Int,
+        val consumedInputLength: Int = 0,
     )
 
     /**
@@ -250,6 +251,23 @@ class PinyinEngine private constructor(
         }
         combinations.forEach(::consider)
 
+        // Explicit-separator partial selection: the first syllable is also a
+        // standalone candidate (e.g. xi'an -> 西 consumed=2) so users can select
+        // a word prefix before finishing the rest of the separated input.
+        if (parsed.segments.size > 1) {
+            val firstSegmentLength = parsed.segments.first().length
+            options.first().forEach { option ->
+                consider(
+                    SegmentCandidate(
+                        word = option.word,
+                        frequency = option.frequency,
+                        group = GROUP_PHRASE,
+                        consumedInputLength = firstSegmentLength,
+                    ),
+                )
+            }
+        }
+
         return collected.values
             .sortedWith(
                 compareByDescending<SegmentCandidate> { selectionWeights[it.word] ?: 0 }
@@ -264,7 +282,11 @@ class PinyinEngine private constructor(
                     word = candidate.word,
                     pinyin = parsed.segments.joinToString("'"),
                     frequency = candidate.frequency,
-                    consumedInputLength = parsed.consumedLength,
+                    consumedInputLength = if (candidate.consumedInputLength > 0) {
+                        candidate.consumedInputLength
+                    } else {
+                        parsed.consumedLength
+                    },
                 )
             }
     }
@@ -558,28 +580,74 @@ class PinyinEngine private constructor(
             }
         }
 
-        val out = ArrayList<Entry>(limit)
-        val outWords = HashSet<String>()
-        // Full-composition phrases first, then descending prefix lengths. This
-        // keeps the mature full-sentence candidate as the default while exposing
-        // prefix candidates for two-step selection.
+        val fullCandidates = ArrayList<Entry>()
+        val singleWordPartials = ArrayList<Entry>()
+        val multiWordPartials = ArrayList<Entry>()
+        val seenFull = HashSet<String>()
+        val seenPartial = HashSet<String>()
+        // Full-composition phrases and partial prefixes are collected separately.
+        // S05 reserves a quota for partial prefixes so 64 full-sentence paths can
+        // never push "我"/"我爱" style selections out of the candidate page.
         for (position in n downTo 2) {
-            if (!shouldContinue()) return out
+            if (!shouldContinue()) break
             buckets[position]
                 .asSequence()
-                .filter { it.words.size >= 2 }
                 .sortedByDescending { it.score }
                 .forEach { path ->
-                    if (out.size >= limit) return out
-                    val entry = Entry(
-                        pinyin = input.substring(0, position),
-                        word = path.words.joinToString(""),
-                        frequency = path.words.size.toLong(),
-                        consumedInputLength = position,
-                    )
-                    if (outWords.add(entry.word)) out.add(entry)
+                    if (position == n) {
+                        if (path.words.size >= 2) {
+                            val word = path.words.joinToString("")
+                            if (seenFull.add(word)) {
+                                fullCandidates += Entry(
+                                    pinyin = input,
+                                    word = word,
+                                    frequency = path.words.size.toLong(),
+                                    consumedInputLength = n,
+                                )
+                            }
+                        }
+                    } else if (path.words.isNotEmpty()) {
+                        val word = path.words.joinToString("")
+                        if (seenPartial.add(word)) {
+                            val entry = Entry(
+                                pinyin = input.substring(0, position),
+                                word = word,
+                                frequency = path.words.size.toLong(),
+                                consumedInputLength = position,
+                            )
+                            if (path.words.size == 1) {
+                                singleWordPartials += entry
+                            } else {
+                                multiWordPartials += entry
+                            }
+                        }
+                    }
                 }
         }
+
+        val out = ArrayList<Entry>(limit)
+        val outWords = HashSet<String>()
+        fun addAll(entries: List<Entry>, budget: Int) {
+            var added = 0
+            entries.forEach { entry ->
+                if (out.size >= limit || added >= budget) return@forEach
+                if (outWords.add(entry.word)) {
+                    out.add(entry)
+                    added++
+                }
+            }
+        }
+
+        val partialCandidates = singleWordPartials + multiWordPartials
+        val partialReserve = if (partialCandidates.isEmpty()) 0 else {
+            minOf(PARTIAL_QUOTA, maxOf(1, limit / 4))
+        }
+        val fullBudget = maxOf(1, limit - partialReserve)
+        addAll(fullCandidates, fullBudget)
+        if (partialReserve > 0) addAll(partialCandidates, partialReserve)
+        // Fill any unused full/partial slots without exceeding the candidate cap.
+        addAll(fullCandidates.drop(fullBudget), limit)
+        addAll(partialCandidates.drop(partialReserve), limit)
         return out
     }
 
@@ -635,6 +703,7 @@ class PinyinEngine private constructor(
         private const val MAX_COLLECT_PER_GROUP = 512
         private const val MAX_SEGMENT_OPTIONS = 8
         private const val MAX_SEGMENT_COMBINATIONS = 512
+        private const val PARTIAL_QUOTA = 16
         private const val MAX_SELECTION_WEIGHT = 1_000
         private const val DECAY_INTERVAL = 500
         /** User-lexicon capacity: least-used entries are evicted above this. */
