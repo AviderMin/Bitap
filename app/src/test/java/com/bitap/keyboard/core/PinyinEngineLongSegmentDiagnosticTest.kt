@@ -105,8 +105,8 @@ class PinyinEngineLongSegmentDiagnosticTest {
         var baseTop5 = 0
         var afterTop1 = 0
         var afterTop5 = 0
-        var baseTaps = 0
-        var afterTaps = 0
+        var baseRankCost = 0
+        var afterRankCost = 0
         var legacyRecall = 0
         var prodRecall = 0
         var wideRecall = 0
@@ -129,8 +129,8 @@ class PinyinEngineLongSegmentDiagnosticTest {
             if (baseRank in 0..4) baseTop5++
             if (afterRank == 0) afterTop1++
             if (afterRank in 0..4) afterTop5++
-            baseTaps += if (baseRank >= 0) baseRank + 1 else 9
-            afterTaps += if (afterRank >= 0) afterRank + 1 else 9
+            baseRankCost += if (baseRank >= 0) baseRank + 1 else 9
+            afterRankCost += if (afterRank >= 0) afterRank + 1 else 9
 
             val legacyHas = hasCorrectPath(legacy, case)
             val prodHas = hasCorrectPath(prod, case)
@@ -225,10 +225,10 @@ class PinyinEngineLongSegmentDiagnosticTest {
             "SUMMARY cases=" + cases.size +
                 " baseTop1=" + baseTop1 + "/" + cases.size +
                 " baseTop5=" + baseTop5 + "/" + cases.size +
-                " baseTaps=" + baseTaps +
+                " baseRankCost=" + baseRankCost +
                 " afterTop1=" + afterTop1 + "/" + cases.size +
                 " afterTop5=" + afterTop5 + "/" + cases.size +
-                " afterTaps=" + afterTaps +
+                " afterRankCost=" + afterRankCost +
                 " legacyRecall=" + legacyRecall + "/" + cases.size +
                 " prodRecall=" + prodRecall + "/" + cases.size +
                 " wideRecall=" + wideRecall + "/" + cases.size +
@@ -269,7 +269,7 @@ class PinyinEngineLongSegmentDiagnosticTest {
         val top1: Int,
         val top5: Int,
         val found8: Int,
-        val taps: Int,
+        val rankCost: Int,
         val ranks: List<Int>,
         val latencies: List<Long>,
     )
@@ -278,7 +278,7 @@ class PinyinEngineLongSegmentDiagnosticTest {
         var top1 = 0
         var top5 = 0
         var found = 0
-        var tapTotal = 0
+        var rankCostTotal = 0
         val ranks = ArrayList<Int>(cases.size)
         val latencies = ArrayList<Long>(cases.size)
         cases.forEach { case ->
@@ -291,9 +291,9 @@ class PinyinEngineLongSegmentDiagnosticTest {
             if (rank == 0) top1++
             if (rank in 0..4) top5++
             if (rank >= 0) found++
-            tapTotal += if (rank >= 0) rank + 1 else 9
+            rankCostTotal += if (rank >= 0) rank + 1 else 9
         }
-        return Metrics(top1, top5, found, tapTotal, ranks, latencies)
+        return Metrics(top1, top5, found, rankCostTotal, ranks, latencies)
     }
 
     private fun percentile(values: List<Long>, percent: Int): Long {
@@ -372,7 +372,7 @@ class PinyinEngineLongSegmentDiagnosticTest {
                     " top1=" + metrics.top1 + "/" + cases.size +
                     " top5=" + metrics.top5 + "/" + cases.size +
                     " found8=" + metrics.found8 + "/" + cases.size +
-                    " avgTaps=" + String.format(Locale.ROOT, "%.2f", metrics.taps.toDouble() / cases.size) +
+                    " rankCost=" + String.format(Locale.ROOT, "%.2f", metrics.rankCost.toDouble() / cases.size) +
                     " ranks=" + metrics.ranks.joinToString(",") +
                     " longP50us=" + percentile(longMetrics.latencies, 50) / 1_000 +
                     " longP95us=" + percentile(longMetrics.latencies, 95) / 1_000 +

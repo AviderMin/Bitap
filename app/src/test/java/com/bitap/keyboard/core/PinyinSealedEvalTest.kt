@@ -42,7 +42,7 @@ class PinyinSealedEvalTest {
     ) {
         val top1: Boolean get() = rank == 0
         val top5: Boolean get() = rank in 0..4
-        val taps: Int get() = if (rank >= 0) rank + 1 else MISS_TAPS
+        val rankCost: Int get() = if (rank >= 0) rank + 1 else MISS_RANK_COST
     }
 
     private val categoryOrder = listOf(
@@ -187,13 +187,13 @@ class PinyinSealedEvalTest {
         builder.appendLine("[all]")
         builder.appendLine("top1=" + ratio(results.count { it.top1 }, results.size))
         builder.appendLine("top5=" + ratio(results.count { it.top5 }, results.size))
-        builder.appendLine("avgTaps=" + averageTaps(results) + " totalTaps=" + results.sumOf { it.taps })
+        builder.appendLine("rankCost=" + averageRankCost(results) + " totalRankCost=" + results.sumOf { it.rankCost })
         appendLatency(builder, results)
         builder.appendLine()
         builder.appendLine("[engineScored]")
         builder.appendLine("top1=" + ratio(scored.count { it.top1 }, scored.size))
         builder.appendLine("top5=" + ratio(scored.count { it.top5 }, scored.size))
-        builder.appendLine("avgTaps=" + averageTaps(scored) + " totalTaps=" + scored.sumOf { it.taps })
+        builder.appendLine("rankCost=" + averageRankCost(scored) + " totalRankCost=" + scored.sumOf { it.rankCost })
         builder.appendLine()
         builder.appendLine("[byCategory]")
         categoryOrder.forEach { category ->
@@ -204,11 +204,11 @@ class PinyinSealedEvalTest {
             line.append("n=").append(categoryResults.size)
             line.append(" top1=").append(categoryResults.count { it.top1 }).append("/").append(categoryResults.size)
             line.append(" top5=").append(categoryResults.count { it.top5 }).append("/").append(categoryResults.size)
-            line.append(" avgTaps=").append(averageTaps(categoryResults))
+            line.append(" rankCost=").append(averageRankCost(categoryResults))
             if (categoryScored.size != categoryResults.size) {
                 line.append(" engineTop1=").append(categoryScored.count { it.top1 }).append("/").append(categoryScored.size)
                 line.append(" engineTop5=").append(categoryScored.count { it.top5 }).append("/").append(categoryScored.size)
-                line.append(" engineAvgTaps=").append(averageTaps(categoryScored))
+                line.append(" engineRankCost=").append(averageRankCost(categoryScored))
             }
             builder.appendLine(line.toString())
         }
@@ -224,10 +224,10 @@ class PinyinSealedEvalTest {
                 " n=" + results.size +
                 " all.top1=" + ratio(results.count { it.top1 }, results.size) +
                 " all.top5=" + ratio(results.count { it.top5 }, results.size) +
-                " all.avgTaps=" + averageTaps(results) +
+                " all.rankCost=" + averageRankCost(results) +
                 " engine.top1=" + ratio(scored.count { it.top1 }, scored.size) +
                 " engine.top5=" + ratio(scored.count { it.top5 }, scored.size) +
-                " engine.avgTaps=" + averageTaps(scored),
+                " engine.rankCost=" + averageRankCost(scored),
         )
         return builder.toString()
     }
@@ -337,8 +337,8 @@ class PinyinSealedEvalTest {
     private fun isCjk(char: Char): Boolean =
         char.code in 0x3400..0x4DBF || char.code in 0x4E00..0x9FFF || char.code in 0xF900..0xFAFF
 
-    private fun averageTaps(results: List<CaseResult>): String =
-        if (results.isEmpty()) "0.00" else String.format(Locale.ROOT, "%.2f", results.sumOf { it.taps }.toDouble() / results.size)
+    private fun averageRankCost(results: List<CaseResult>): String =
+        if (results.isEmpty()) "0.00" else String.format(Locale.ROOT, "%.2f", results.sumOf { it.rankCost }.toDouble() / results.size)
 
     private fun ratio(value: Int, total: Int): String =
         value.toString() + "/" + total + "(" + percent(value, total) + "%)"
@@ -350,6 +350,6 @@ class PinyinSealedEvalTest {
 
     companion object {
         private const val SEARCH_LIMIT = 8
-        private const val MISS_TAPS = 9
+        private const val MISS_RANK_COST = 9
     }
 }

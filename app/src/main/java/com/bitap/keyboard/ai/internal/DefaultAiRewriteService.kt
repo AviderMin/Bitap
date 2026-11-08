@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -24,24 +25,64 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Local AI rewrite service used by the IME and the settings screens.
+ * Local AI service used by the IME and the settings screens.
  *
- * Construction only scans the model directory. The LiteRT-LM engine is loaded
- * on the first rewrite, one request runs at a time and every conversation is
- * short-lived. No prompt or result is ever written to disk or to a log.
+ * Construction only scans the model directory; the LiteRT-LM engine is created
+ * on the first request and released again by [unload]/[setEnabled] false/close.
+ * No prompt or result is ever written to disk or to a log.
+ *
+ * D02 lifecycle contract:
+ *  - Every request registration, teardown and close goes through one
+ *    [lifecycleMutex]. Teardown first detaches and cancels the active job, then
+ *    waits for it to leave native inference OUTSIDE the lock (so a 20 s
+ *    generation cannot block a UI toggle) and only then releases the engine.
+ *  - The release is guarded by an epoch token: if a new request registered while
+ *    the old one was being joined (the user toggled AI back on), the engine is
+ *    kept for that request instead of being pulled from under it. A later
+ *    teardown releases it.
+ *  - [engine.release] is therefore never called while a generation is running.
+ *  - Repeated [close] is a no-op; [requestUnload] schedules the same serialised
+ *    teardown on the service-owned scope so an IME onDestroy cannot orphan it.
  */
-class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
+class DefaultAiRewriteService internal constructor(
+    private val modelStore: AiModelStore,
+    private val engine: AiEngine,
+    private val scope: CoroutineScope,
+    private val dictionaryLoader: suspend () -> AiPinyinDictionary = { AiPinyinDictionary.EMPTY },
+) : AiRewriteService {
 
-    private val modelStore = ModelStore(context)
-    private val engine = LiteRtQwenEngine(cacheDir = context.cacheDir.absolutePath)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    constructor(context: Context) : this(
+        modelStore = ModelStore(context.applicationContext),
+        engine = LiteRtQwenEngine(cacheDir = context.applicationContext.cacheDir.absolutePath),
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        dictionaryLoader = {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    context.applicationContext.assets.open(PINYIN_DICT_ASSET)
+                        .bufferedReader(Charsets.UTF_8)
+                        .useLines { lines -> AiPinyinDictionary.parse(lines) }
+                }.getOrElse { AiPinyinDictionary.EMPTY }
+            }
+        },
+    )
+
+    private val lifecycleMutex = Mutex()
+    private val stateLock = Any()
     private val closed = AtomicBoolean(false)
-    private val requestLock = Any()
 
+    /** Guarded by [stateLock]. */
     private var activeJob: Job? = null
+
+    /** Guarded by [stateLock]; bumped whenever a request starts or a teardown begins. */
+    private var epoch = 0L
+
+    /** Guarded by [lifecycleMutex]. */
+    private var enabled = true
 
     @Volatile
     private var pinyinDictionary: AiPinyinDictionary? = null
@@ -53,6 +94,9 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     )
     override val runtimeState: StateFlow<AiRuntimeState> = _runtimeState.asStateFlow()
 
+    override val isEngineLoaded: Boolean
+        get() = engine.isLoaded
+
     override fun refresh() {
         val info = modelStore.refresh()
         _runtimeState.value = if (info.installed) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
@@ -60,8 +104,8 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
 
     override suspend fun importModel(uri: Uri): Result<AiModelInfo> {
         if (closed.get()) return Result.failure(IllegalStateException("AI 服务已关闭"))
-        cancelActiveRequest()
-        if (engine.isInitialized) engine.release()
+        // A new model file must never replace the file a live engine has mapped.
+        cancelAndRelease()
         _runtimeState.value = AiRuntimeState.Loading
         val result = modelStore.importModel(uri)
         val info = modelStore.modelInfo.value
@@ -73,10 +117,16 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     }
 
     override fun deleteModel() {
-        cancelActiveRequest()
-        engine.release()
-        modelStore.deleteModel()
-        _runtimeState.value = AiRuntimeState.NotInstalled
+        if (closed.get()) return
+        // Deletion and engine release are serialised on the service scope. The
+        // file is only removed after the active generation left native inference.
+        scope.launch {
+            withContext(NonCancellable + Dispatchers.IO) {
+                runCatching { cancelAndRelease() }
+                modelStore.deleteModel()
+                _runtimeState.value = AiRuntimeState.NotInstalled
+            }
+        }
     }
 
     override fun rewrite(text: String, tone: RewriteTone): Flow<AiEvent> = flow {
@@ -100,23 +150,18 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         val request = scope.launch(start = CoroutineStart.LAZY) {
             runRewrite(modelPath, input, tone, events)
         }
-        val previous = synchronized(requestLock) {
-            val old = activeJob
-            activeJob = request
-            old
+        if (!registerRequest(request)) {
+            request.cancel()
+            events.close()
+            emit(AiEvent.Failed("AI 已关闭"))
+            return@flow
         }
-        previous?.cancel()
-        engine.cancel()
-        request.start()
-
         try {
             for (event in events) emit(event)
         } finally {
             request.cancel()
             events.close()
-            synchronized(requestLock) {
-                if (activeJob === request) activeJob = null
-            }
+            unregisterRequest(request)
         }
     }.flowOn(Dispatchers.Default)
 
@@ -130,6 +175,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
             emit(AiEvent.Failed("没有可用的拼音"))
             return@flow
         }
+        // Critical D02 invariant: without a model no native engine is created.
         val modelPath = modelStore.currentModelPath()
         if (modelPath == null) {
             _runtimeState.value = AiRuntimeState.NotInstalled
@@ -141,28 +187,51 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         val request = scope.launch(start = CoroutineStart.LAZY) {
             runLexicon(modelPath, query, context.trim().take(160), events)
         }
-        val previous = synchronized(requestLock) {
-            val old = activeJob
-            activeJob = request
-            old
+        if (!registerRequest(request)) {
+            request.cancel()
+            events.close()
+            emit(AiEvent.Failed("AI 已关闭"))
+            return@flow
         }
-        previous?.cancel()
-        engine.cancel()
-        request.start()
-
         try {
             for (event in events) emit(event)
         } finally {
             request.cancel()
             events.close()
-            synchronized(requestLock) {
-                if (activeJob === request) activeJob = null
-            }
+            unregisterRequest(request)
         }
     }.flowOn(Dispatchers.Default)
 
+    override suspend fun setEnabled(enabled: Boolean) {
+        if (closed.get()) return
+        if (enabled) {
+            lifecycleMutex.withLock {
+                if (!closed.get()) {
+                    this.enabled = true
+                    _runtimeState.value =
+                        if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
+                }
+            }
+        } else {
+            lifecycleMutex.withLock { this.enabled = false }
+            cancelAndRelease()
+        }
+    }
+
+    override suspend fun unload() {
+        if (closed.get()) return
+        cancelAndRelease()
+    }
+
+    override fun requestUnload() {
+        if (closed.get()) return
+        scope.launch { runCatching { cancelAndRelease() } }
+    }
+
     override fun cancel() {
-        cancelActiveRequest()
+        val job = synchronized(stateLock) { activeJob }
+        job?.cancel()
+        engine.cancel()
         if (_runtimeState.value == AiRuntimeState.Busy || _runtimeState.value == AiRuntimeState.Loading) {
             _runtimeState.value = if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
         }
@@ -170,9 +239,81 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        cancelActiveRequest()
-        engine.close()
-        scope.cancel()
+        // The IME/settings may drop the last reference right after this call;
+        // the teardown therefore runs on the service scope and only then
+        // cancels it.
+        scope.launch {
+            try {
+                cancelAndRelease()
+            } finally {
+                runCatching {
+                    withContext(NonCancellable + Dispatchers.IO) { engine.close() }
+                }
+                scope.cancel()
+            }
+        }
+    }
+
+    /**
+     * Register [request] as the single active request and start it. Returns
+     * false when the service is closed or AI was disabled, in which case the
+     * caller must not start native work.
+     */
+    private suspend fun registerRequest(request: Job): Boolean {
+        var previous: Job? = null
+        val accepted = lifecycleMutex.withLock {
+            if (closed.get() || !enabled) {
+                false
+            } else {
+                synchronized(stateLock) {
+                    epoch++
+                    previous = activeJob
+                    activeJob = request
+                }
+                true
+            }
+        }
+        if (!accepted) return false
+        previous?.cancel()
+        engine.cancel()
+        request.start()
+        return true
+    }
+
+    private fun unregisterRequest(request: Job) {
+        synchronized(stateLock) {
+            if (activeJob === request) activeJob = null
+        }
+    }
+
+    /**
+     * Serialised "stop and release" path: detach + cancel, wait outside the
+     * lock, then release only if no newer request needs the engine.
+     */
+    private suspend fun cancelAndRelease() = withContext(NonCancellable + Dispatchers.IO) {
+        var job: Job? = null
+        var token = 0L
+        lifecycleMutex.withLock {
+            synchronized(stateLock) {
+                epoch++
+                token = epoch
+                job = activeJob
+                activeJob = null
+            }
+        }
+        job?.cancel()
+        engine.cancel()
+        job?.join()
+        lifecycleMutex.withLock {
+            val releaseNow = synchronized(stateLock) { epoch == token }
+            if (releaseNow && engine.isLoaded) {
+                engine.release()
+                if (_runtimeState.value == AiRuntimeState.Busy || _runtimeState.value == AiRuntimeState.Loading) {
+                    _runtimeState.value =
+                        if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
+                }
+            }
+        }
     }
 
     private suspend fun runRewrite(
@@ -182,7 +323,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         output: SendChannel<AiEvent>,
     ) {
         try {
-            if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
+            if (!engine.isLoaded) _runtimeState.value = AiRuntimeState.Loading
             val prompt = AiPromptBuilder.build(input, tone)
             engine.rewrite(modelPath, prompt.system, prompt.user).collect { event ->
                 when (event) {
@@ -213,7 +354,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
             _runtimeState.value = if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
             throw cancelled
         } catch (outOfMemory: OutOfMemoryError) {
-            engine.release()
+            runCatching { engine.release() }
             _runtimeState.value = AiRuntimeState.Error
             output.send(AiEvent.Failed("设备内存不足"))
         } catch (error: Throwable) {
@@ -231,7 +372,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
         output: SendChannel<AiEvent>,
     ) {
         try {
-            if (!engine.isInitialized) _runtimeState.value = AiRuntimeState.Loading
+            if (!engine.isLoaded) _runtimeState.value = AiRuntimeState.Loading
             val dictionary = lexiconDictionary()
             val prompt = AiLexiconPromptBuilder.build(pinyin, context)
             engine.rewrite(
@@ -270,7 +411,7 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
             _runtimeState.value = if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
             throw cancelled
         } catch (outOfMemory: OutOfMemoryError) {
-            engine.release()
+            runCatching { engine.release() }
             _runtimeState.value = AiRuntimeState.Error
             output.send(AiEvent.Failed("设备内存不足"))
         } catch (error: Throwable) {
@@ -282,27 +423,10 @@ class DefaultAiRewriteService(private val context: Context) : AiRewriteService {
     }
 
     private suspend fun lexiconDictionary(): AiPinyinDictionary {
-        val existing = pinyinDictionary
-        if (existing != null) return existing
-        return withContext(Dispatchers.IO) {
-            val loaded = runCatching {
-                context.assets.open(PINYIN_DICT_ASSET).bufferedReader(Charsets.UTF_8).useLines { lines ->
-                    AiPinyinDictionary.parse(lines)
-                }
-            }.getOrElse { AiPinyinDictionary.EMPTY }
-            pinyinDictionary = loaded
-            loaded
-        }
-    }
-
-    private fun cancelActiveRequest() {
-        val job = synchronized(requestLock) {
-            val current = activeJob
-            activeJob = null
-            current
-        }
-        job?.cancel()
-        engine.cancel()
+        pinyinDictionary?.let { return it }
+        val loaded = dictionaryLoader()
+        pinyinDictionary = loaded
+        return loaded
     }
 
     private fun failureMessage(reason: AiResultSanitizer.FailureReason): String = when (reason) {

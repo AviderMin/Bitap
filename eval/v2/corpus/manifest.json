@@ -1,0 +1,134 @@
+{
+  "schema_version": 2,
+  "generator": "eval/v2/corpus/build_v2_corpus.py",
+  "generator_version": "1.0.0",
+  "command": "python eval/v2/corpus/build_v2_corpus.py",
+  "source": {
+    "name": "Tatoeba Chinese (cmn) sentences export",
+    "file": ".tmp/tatoeba/cmn_sentences.tsv",
+    "sha256": "a11463da289d918050e441a003848a795a97dcc47ffd1b9ed5345d1d70e0c84f",
+    "license": "CC BY 2.0 FR",
+    "url": "https://downloads.tatoeba.org/exports/per_language/cmn/cmn_sentences.tsv.bz2",
+    "rows": 89289,
+    "attribution": "ATTRIBUTION.md"
+  },
+  "auxiliary_sources": {
+    "jieba": {
+      "file": ".tmp/jieba.txt",
+      "sha256": "7197c3211ddd98962b036cdf40324d1ea2bfaa12bd028e68faa70111a88e12a8",
+      "license": "MIT",
+      "use": "special-category word seeds only"
+    },
+    "pypinyin": {
+      "license": "MIT",
+      "version": "0.55.0",
+      "use": "pinyin generation for all corpus rows"
+    }
+  },
+  "files": {
+    "dev": {
+      "path": "eval/v2/corpus/pinyin_cases_v2_dev.tsv",
+      "sha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+      "rows": 1430
+    },
+    "validation": {
+      "path": "eval/v2/corpus/pinyin_cases_v2_validation.tsv",
+      "sha256": "9097f226f1709d8b5e20d0faf4a661419d46d051e04271e5d302b0ce7f072994",
+      "rows": 710
+    }
+  },
+  "category_counts": {
+    "dev": {
+      "natural_short": 400,
+      "natural_medium": 450,
+      "natural_long": 300,
+      "homophone": 40,
+      "shorthand": 40,
+      "typo": 40,
+      "mixed_pinyin": 40,
+      "number_punct": 40,
+      "proper_noun": 40,
+      "mixed_en": 40
+    },
+    "validation": {
+      "natural_short": 200,
+      "natural_medium": 220,
+      "natural_long": 150,
+      "homophone": 20,
+      "shorthand": 20,
+      "typo": 20,
+      "mixed_pinyin": 20,
+      "number_punct": 20,
+      "proper_noun": 20,
+      "mixed_en": 20
+    }
+  },
+  "split": {
+    "method": "near-duplicate clusters assigned whole to one split; both splits share the same Tatoeba source",
+    "near_duplicate": {
+      "features": "character 2-gram Jaccard",
+      "jaccard_threshold": 0.75,
+      "lsh": "MinHash 64 permutations, 16 bands x 4 rows",
+      "max_members_per_cluster": 3
+    },
+    "natural_pool": {
+      "filtered": 43359,
+      "pool": 9873,
+      "clusters": 9851,
+      "multi_member_clusters": 20
+    },
+    "natural_bucket_targets": {
+      "short": {
+        "dev": 400,
+        "validation": 200
+      },
+      "medium": {
+        "dev": 450,
+        "validation": 220
+      },
+      "long": {
+        "dev": 300,
+        "validation": 150
+      }
+    },
+    "special_category_targets": {
+      "dev": 40,
+      "validation": 20
+    }
+  },
+  "filters": {
+    "language": "cmn",
+    "script": "simplified Chinese (CJK Unified Ideographs encodable with GB2312) plus Chinese punctuation",
+    "natural_length_chars": {
+      "short": [
+        2,
+        8
+      ],
+      "medium": [
+        9,
+        16
+      ],
+      "long": [
+        17,
+        24
+      ]
+    },
+    "max_pinyin_length": 60,
+    "excluded": {
+      "dictionary_whole_sentence": "normalized sentence equals a whole pinyin_dict.tsv word",
+      "v1_corpus_overlap": "normalized sentence equals an expected sentence in eval/pinyin_cases_{dev,holdout,sealed}.tsv"
+    },
+    "rejected_counts": {
+      "rejected_filter": 44878,
+      "rejected_pinyin_length": 661,
+      "rejected_dictionary_leak": 288,
+      "rejected_v1_overlap": 8,
+      "rejected_duplicate": 95,
+      "filtered_total": 43359,
+      "pool_total": 9873,
+      "clusters": 9851,
+      "multi_member_clusters": 20
+    }
+  },
+  "engine_independence": "no PinyinEngine call is made during corpus generation; pinyin comes from pypinyin only"
+}

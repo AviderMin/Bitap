@@ -14,12 +14,19 @@ import com.bitap.keyboard.core.KeyboardReducer
 import com.bitap.keyboard.core.KeyboardUiState
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.core.Reduction
+import com.bitap.keyboard.core.engine.InputEngine
+import com.bitap.keyboard.core.engine.PinyinInputEngine
+import com.bitap.keyboard.core.engine.QueryContext
+import com.bitap.keyboard.core.engine.QueryRequest
+import com.bitap.keyboard.core.engine.SelectionEvent
+import com.bitap.keyboard.core.engine.toKeyboardCandidate
 import com.bitap.keyboard.core.ShiftState
 import com.bitap.keyboard.core.TextSession
 import com.bitap.keyboard.settings.BitapSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,10 +46,23 @@ import kotlinx.coroutines.launch
 class KeyboardController(
     private val scope: CoroutineScope,
     private val textSession: TextSession,
-    private val pinyinEngine: PinyinEngine,
+    private val inputEngine: InputEngine,
     private val aiService: AiRewriteService,
     private val queryDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
+    /**
+     * Compatibility constructor for the pre-D03 caller and tests: the bundled
+     * [PinyinEngine] is wrapped in [PinyinInputEngine] so production and tests
+     * exercise the exact same [InputEngine] path. A future librime/other engine
+     * can be supplied through the primary constructor without touching the IME.
+     */
+    constructor(
+        scope: CoroutineScope,
+        textSession: TextSession,
+        pinyinEngine: PinyinEngine,
+        aiService: AiRewriteService,
+        queryDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    ) : this(scope, textSession, PinyinInputEngine(pinyinEngine), aiService, queryDispatcher)
     private val _state = MutableStateFlow(KeyboardUiState())
     val state: StateFlow<KeyboardUiState> = _state.asStateFlow()
 
@@ -56,6 +76,10 @@ class KeyboardController(
     private var rawAiPlanToken = -1L
     private var userLexiconPersistJob: Job? = null
     private var lastSelectionSnapshot: SelectionSnapshot? = null
+
+    /** Monotonic per-input-connection id; late query results carry it for rejection. */
+    private var inputSessionId: String = "ime-0"
+    private var inputSessionCounter = 0L
 
     private data class SelectionSnapshot(
         val selectionStart: Int,
@@ -135,9 +159,25 @@ class KeyboardController(
     }
 
     fun onSettingsChanged(newSettings: BitapSettings) {
+        val aiWasEnabled = settings.aiEnabled
         settings = newSettings
         applyLearningPolicy()
-        if (!newSettings.aiEnabled) cancelAi()
+        if (!newSettings.aiEnabled) {
+            cancelAi()
+            if (aiWasEnabled) {
+                // D02: turning AI off must release the native engine, not merely
+                // cancel the current generation. setEnabled(false) serialises
+                // cancel -> join -> release inside the service.
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    runCatching { aiService.setEnabled(false) }
+                }
+            }
+        } else if (!aiWasEnabled) {
+            // D02: re-enabling is lazy; no engine is loaded until the next request.
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { aiService.setEnabled(true) }
+            }
+        }
         dispatch(KeyboardAction.HapticsChanged(newSettings.hapticsEnabled))
         dispatch(KeyboardAction.SoundChanged(newSettings.soundEnabled))
         _state.value = _state.value.copy(
@@ -165,17 +205,18 @@ class KeyboardController(
         pinyinJob?.cancel()
         lastSelectionSnapshot = null
         cancelAi()
-        dispatch(KeyboardAction.EditorInfoChanged(editorInfo, settings.aiEnabled))
+        inputSessionId = nextInputSessionId()
+        dispatch(KeyboardAction.EditorInfoChanged(editorInfo, settings.aiEnabled, inputSessionId))
         applyLearningPolicy()
     }
 
     /** Clears the running engine's in-memory and persisted user lexicon. */
     fun clearUserLexicon() {
-        pinyinEngine.clearSelectionMemory()
+        inputEngine.clearLearning()
     }
 
     private fun applyLearningPolicy() {
-        pinyinEngine.setLearningEnabled(
+        inputEngine.setLearningEnabled(
             settings.learningEnabled && _state.value.editorInfo.allowsPersonalizedLearning,
         )
     }
@@ -184,7 +225,7 @@ class KeyboardController(
         userLexiconPersistJob?.cancel()
         userLexiconPersistJob = scope.launch {
             delay(USER_LEXICON_PERSIST_DEBOUNCE_MS)
-            withContext(Dispatchers.IO) { pinyinEngine.persistSelectionWeights() }
+            withContext(Dispatchers.IO) { inputEngine.persistSelectionWeights() }
         }
     }
 
@@ -193,7 +234,8 @@ class KeyboardController(
         lastSelectionSnapshot = null
         cancelAi()
         runCatching { textSession.finishComposingText() }
-        dispatch(KeyboardAction.EditorInfoChanged(EditorInputInfo(), settings.aiEnabled))
+        inputSessionId = nextInputSessionId()
+        dispatch(KeyboardAction.EditorInfoChanged(EditorInputInfo(), settings.aiEnabled, inputSessionId))
     }
 
     /**
@@ -247,13 +289,23 @@ class KeyboardController(
         )
     }
 
-    /** Releases coroutines and cancels any in-flight AI request when the service dies. */
+    /** Releases coroutines, cancels any in-flight AI request and unloads the native engine. */
     fun dispose() {
         pinyinJob?.cancel()
         userLexiconPersistJob?.cancel()
         cancelAi()
+        // D02: IME teardown must release the AI engine. requestUnload() keeps the
+        // serialised cancel -> join -> release on the service-owned scope because
+        // BitapImeService cancels this controller's scope immediately after dispose().
+        runCatching { aiService.requestUnload() }
         // Persist synchronously only at service teardown, never on the key path.
-        runCatching { pinyinEngine.persistSelectionWeights() }
+        runCatching { inputEngine.persistSelectionWeights() }
+        runCatching { inputEngine.close() }
+    }
+
+    private fun nextInputSessionId(): String {
+        inputSessionCounter++
+        return "ime-" + inputSessionCounter
     }
 
     private fun execute(command: ImeCommand) {
@@ -278,11 +330,13 @@ class KeyboardController(
         if (learned.isEmpty()) return
         if (!settings.learningEnabled || !_state.value.editorInfo.allowsPersonalizedLearning) return
         learned.forEach { event ->
-            pinyinEngine.recordSelection(
-                word = event.word,
-                pinyin = event.pinyin,
-                source = event.source,
-                persist = false,
+            inputEngine.recordSelection(
+                SelectionEvent(
+                    word = event.word,
+                    pinyin = event.pinyin,
+                    source = event.source,
+                    consumedInputLength = event.consumedInputLength,
+                ),
             )
         }
         scheduleUserLexiconPersist()
@@ -292,18 +346,34 @@ class KeyboardController(
         pinyinJob?.cancel()
         if (composing.isEmpty()) return
         val token = ++pinyinQueryToken
+        val sessionId = inputSessionId
         pinyinJob = scope.launch {
             delay(PINYIN_DEBOUNCE_MS)
             if (token != pinyinQueryToken) return@launch
-            val candidates = withContext(queryDispatcher) {
-                // Pinyin decoding cooperates with coroutine cancellation on its
-                // internal loops so old queries stop using the CPU.
-                pinyinEngine.search(composing) { isActive }
+            val result = withContext(queryDispatcher) {
+                // The engine cooperates with coroutine cancellation so old
+                // queries stop using the CPU. QueryRequest carries the session
+                // and composition version; the result is only applied when both
+                // still match the visible composition (D03).
+                inputEngine.query(
+                    QueryRequest(
+                        sessionId = sessionId,
+                        compositionVersion = version,
+                        rawInput = composing,
+                        limit = InputEngine.DEFAULT_LIMIT,
+                        context = QueryContext.None,
+                        shouldContinue = { isActive },
+                    ),
+                )
             }
             if (!isActive || token != pinyinQueryToken) return@launch
+            if (result.sessionId != sessionId || result.compositionVersion != version) return@launch
+            val candidates = result.candidates.map {
+                it.toKeyboardCandidate(result.compositionVersion, result.sessionId)
+            }
             // Dispatch through the same path as user actions so a queued
             // confirmation executes its CommitText when the fresh result lands.
-            dispatch(KeyboardAction.ComposingUpdated(composing, candidates, version))
+            dispatch(KeyboardAction.ComposingUpdated(composing, candidates, version, result.sessionId))
         }
     }
 
@@ -420,7 +490,14 @@ class KeyboardController(
         if (!plan.selected) repeat(plan.original.length) { textSession.deleteBackward() }
         textSession.commitText(word)
         if (settings.learningEnabled && state.editorInfo.allowsPersonalizedLearning) {
-            pinyinEngine.recordSelection(word = word, pinyin = plan.query, source = "ai", persist = false)
+            inputEngine.recordSelection(
+                SelectionEvent(
+                    word = word,
+                    pinyin = plan.query,
+                    source = "ai",
+                    consumedInputLength = plan.original.length,
+                ),
+            )
             scheduleUserLexiconPersist()
         }
         clearRawAiPlan()

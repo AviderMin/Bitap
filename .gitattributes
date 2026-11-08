@@ -1,0 +1,9 @@
+# Keep evaluation corpus byte-identical across checkouts: manifest SHA-256 values
+# are computed from LF-encoded files and the checker must pass on every clone.
+eval/v2/corpus/*.tsv text eol=lf
+eval/v2/corpus/*.json text eol=lf
+eval/v2/corpus/*.py text eol=lf
+eval/v2/corpus/*.md text eol=lf
+eval/v2/events/*.jsonl text eol=lf
+eval/v2/events/*.md text eol=lf
+eval/v2/*.py text eol=lf

@@ -43,7 +43,7 @@ class PinyinQualityEvalTest {
     ) {
         val top1: Boolean get() = rank == 0
         val top5: Boolean get() = rank in 0..4
-        val taps: Int get() = if (rank >= 0) rank + 1 else MISS_TAPS
+        val rankCost: Int get() = if (rank >= 0) rank + 1 else MISS_RANK_COST
     }
 
     private data class Stats(
@@ -53,7 +53,7 @@ class PinyinQualityEvalTest {
         val n: Int get() = results.size
         val top1: Int get() = results.count { it.top1 }
         val top5: Int get() = results.count { it.top5 }
-        val tapTotal: Int get() = results.sumOf { it.taps }
+        val rankCostTotal: Int get() = results.sumOf { it.rankCost }
         val misses: Int get() = results.count { !it.top5 }
     }
 
@@ -297,22 +297,22 @@ class PinyinQualityEvalTest {
                 " dev.n=" + devResults.size +
                 " dev.top1=" + ratio(devResults.count { it.top1 }, devResults.size) +
                 " dev.top5=" + ratio(devResults.count { it.top5 }, devResults.size) +
-                " dev.avgTaps=" + averageTaps(devResults) +
+                " dev.rankCost=" + averageRankCost(devResults) +
                 " holdout.n=" + holdoutResults.size +
                 " holdout.top1=" + ratio(holdoutResults.count { it.top1 }, holdoutResults.size) +
                 " holdout.top5=" + ratio(holdoutResults.count { it.top5 }, holdoutResults.size) +
-                " holdout.avgTaps=" + averageTaps(holdoutResults),
+                " holdout.rankCost=" + averageRankCost(holdoutResults),
         )
         builder.appendLine(
             "SUMMARY_ENGINE stage=" + stage +
                 " dev.n=" + devScored.size +
                 " dev.top1=" + ratio(devScored.count { it.top1 }, devScored.size) +
                 " dev.top5=" + ratio(devScored.count { it.top5 }, devScored.size) +
-                " dev.avgTaps=" + averageTaps(devScored) +
+                " dev.rankCost=" + averageRankCost(devScored) +
                 " holdout.n=" + holdScored.size +
                 " holdout.top1=" + ratio(holdScored.count { it.top1 }, holdScored.size) +
                 " holdout.top5=" + ratio(holdScored.count { it.top5 }, holdScored.size) +
-                " holdout.avgTaps=" + averageTaps(holdScored),
+                " holdout.rankCost=" + averageRankCost(holdScored),
         )
         builder.appendLine(
             "SUMMARY_STAGE stage=" + stage +
@@ -332,10 +332,10 @@ class PinyinQualityEvalTest {
         builder.appendLine("allCases=" + all.n + " engineScoredCases=" + engine.n + " interactionExcluded=" + (all.n - engine.n))
         builder.appendLine("all.top1=" + all.top1 + "/" + all.n + " (" + percent(all.top1, all.n) + "%)")
         builder.appendLine("all.top5=" + all.top5 + "/" + all.n + " (" + percent(all.top5, all.n) + "%)")
-        builder.appendLine("all.avgTaps=" + averageTaps(results) + " all.totalTaps=" + all.tapTotal)
+        builder.appendLine("all.rankCost=" + averageRankCost(results) + " all.totalRankCost=" + all.rankCostTotal)
         builder.appendLine("engine.top1=" + engine.top1 + "/" + engine.n + " (" + percent(engine.top1, engine.n) + "%)")
         builder.appendLine("engine.top5=" + engine.top5 + "/" + engine.n + " (" + percent(engine.top5, engine.n) + "%)")
-        builder.appendLine("engine.avgTaps=" + averageTaps(scored) + " engine.totalTaps=" + engine.tapTotal)
+        builder.appendLine("engine.rankCost=" + averageRankCost(scored) + " engine.totalRankCost=" + engine.rankCostTotal)
         appendLatency(builder, results)
         builder.appendLine("byCategory:")
         categoryOrder.forEach { category ->
@@ -347,7 +347,7 @@ class PinyinQualityEvalTest {
             line.append("n=").append(categoryResults.size)
             line.append(" top1=").append(categoryResults.count { it.top1 }).append("/").append(categoryResults.size)
             line.append(" top5=").append(categoryResults.count { it.top5 }).append("/").append(categoryResults.size)
-            line.append(" avgTaps=").append(averageTaps(categoryResults))
+            line.append(" rankCost=").append(averageRankCost(categoryResults))
             if (categoryScored.size != categoryResults.size) {
                 line.append(" engineTop1=").append(categoryScored.count { it.top1 }).append("/").append(categoryScored.size)
                 line.append(" engineTop5=").append(categoryScored.count { it.top5 }).append("/").append(categoryScored.size)
@@ -375,7 +375,7 @@ class PinyinQualityEvalTest {
                     " category=" + result.case.category +
                     " result=" + status +
                     " rank=" + result.rank +
-                    " taps=" + result.taps +
+                    " rankCost=" + result.rankCost +
                     " scored=" + result.scored +
                     " reason=" + (result.failureReason ?: "-") +
                     " input=" + result.case.input +
@@ -454,8 +454,8 @@ class PinyinQualityEvalTest {
     private fun isCjk(char: Char): Boolean =
         char.code in 0x3400..0x4DBF || char.code in 0x4E00..0x9FFF || char.code in 0xF900..0xFAFF
 
-    private fun averageTaps(results: List<CaseResult>): String =
-        if (results.isEmpty()) "0.00" else String.format(Locale.ROOT, "%.2f", results.sumOf { it.taps }.toDouble() / results.size)
+    private fun averageRankCost(results: List<CaseResult>): String =
+        if (results.isEmpty()) "0.00" else String.format(Locale.ROOT, "%.2f", results.sumOf { it.rankCost }.toDouble() / results.size)
 
     private fun ratio(value: Int, total: Int): String =
         value.toString() + "/" + total + "(" + percent(value, total) + "%)"
@@ -467,6 +467,6 @@ class PinyinQualityEvalTest {
 
     companion object {
         private const val SEARCH_LIMIT = 8
-        private const val MISS_TAPS = 9
+        private const val MISS_RANK_COST = 9
     }
 }

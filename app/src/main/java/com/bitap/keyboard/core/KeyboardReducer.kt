@@ -241,13 +241,63 @@ object KeyboardReducer {
         // Old query results must never cross composition sessions even when the
         // visible composing string happens to be identical (e.g. ni -> Space -> ni).
         if (action.version != 0L && action.version != state.compositionVersion) return Reduction(state)
+        if (action.sessionId.isNotEmpty() &&
+            state.compositionSessionId.isNotEmpty() &&
+            action.sessionId != state.compositionSessionId
+        ) {
+            return Reduction(state)
+        }
         if (action.composing != state.composing) return Reduction(state)
+        // Stamp every candidate with the composition version/session it was
+        // produced for, so a later tap can prove it still belongs to the visible
+        // composition. An explicit non-negative candidate version/session is
+        // authoritative and never overwritten: a result must not launder a stale
+        // candidate into the current version. version == 0L is the legacy
+        // "unversioned" escape hatch and keeps candidate defaults (-1).
+        val stamped = action.candidates.take(PinyinEngine.MAX_CANDIDATES).map { candidate ->
+            candidate.copy(
+                compositionVersion = if (candidate.compositionVersion != Candidate.UNVERSIONED) {
+                    candidate.compositionVersion
+                } else if (action.version != 0L) {
+                    action.version
+                } else {
+                    Candidate.UNVERSIONED
+                },
+                sessionId = candidate.sessionId ?: action.sessionId.ifEmpty { null },
+            )
+        }
         val updated = state.copy(
-            candidates = action.candidates.take(PinyinEngine.MAX_CANDIDATES),
+            candidates = stamped,
             candidatesFor = action.composing,
+            compositionSessionId = if (state.compositionSessionId.isEmpty() && action.sessionId.isNotEmpty()) {
+                action.sessionId
+            } else {
+                state.compositionSessionId
+            },
         )
         val pending = state.pendingConfirmation ?: return Reduction(updated)
         return resolvePending(updated, pending)
+    }
+
+    /**
+     * True when [this] candidate provably belongs to the state's current
+     * composition. Unversioned legacy candidates (-1 / null session) remain
+     * accepted so existing behavior is unchanged; a versioned candidate whose
+     * version or session does not match is stale and must never write text.
+     */
+    private fun Candidate.matchesComposition(state: KeyboardUiState): Boolean {
+        if (compositionVersion != Candidate.UNVERSIONED &&
+            compositionVersion != state.compositionVersion
+        ) {
+            return false
+        }
+        if (sessionId != null &&
+            state.compositionSessionId.isNotEmpty() &&
+            sessionId != state.compositionSessionId
+        ) {
+            return false
+        }
+        return true
     }
 
     private fun candidateTapped(state: KeyboardUiState, index: Int): Reduction {
@@ -375,6 +425,9 @@ object KeyboardReducer {
         candidate: Candidate?,
         text: String,
     ): Reduction {
+        // A stale candidate must not leak into a commit, not even through the
+        // punctuation path: drop the whole action with no ImeCommand.
+        if (candidate != null && !candidate.matchesComposition(state)) return Reduction(state)
         val consumed = if (candidate != null && candidate.consumedInputLength in 1..state.composing.length) {
             candidate.consumedInputLength
         } else {
@@ -420,6 +473,9 @@ object KeyboardReducer {
         candidate: Candidate,
         source: String = "candidate",
     ): Reduction {
+        // Stale candidates (older composition version or input session) are
+        // dropped without any ImeCommand: no text, no composing update.
+        if (!candidate.matchesComposition(state)) return Reduction(state)
         val consumed = if (candidate.consumedInputLength in 1..state.composing.length) {
             candidate.consumedInputLength
         } else {
@@ -465,7 +521,12 @@ object KeyboardReducer {
         source: String,
     ): Reduction = commitCandidate(
         state = state,
-        candidate = Candidate(word = word, pinyin = pinyin, consumedInputLength = state.composing.length),
+        candidate = Candidate(
+            word = word,
+            pinyin = pinyin,
+            consumedInputLength = state.composing.length,
+            compositionVersion = state.compositionVersion,
+        ),
         source = source,
     )
 
@@ -589,6 +650,9 @@ object KeyboardReducer {
                 shift = ShiftState.Off,
                 composing = "",
                 compositionVersion = state.compositionVersion + 1,
+                compositionSessionId = action.sessionId.ifEmpty {
+                    "editor-" + (state.compositionVersion + 1)
+                },
                 candidates = emptyList(),
                 candidatesFor = "",
                 pendingConfirmation = null,

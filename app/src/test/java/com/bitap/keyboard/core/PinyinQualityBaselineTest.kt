@@ -75,7 +75,7 @@ class PinyinQualityBaselineTest {
 
         var top1 = 0
         var top5 = 0
-        var taps = 0
+        var rankCost = 0
         val failures = mutableListOf<String>()
         val failureCategories = LinkedHashMap<String, Int>()
         val byCategory = LinkedHashMap<String, IntArray>()
@@ -89,7 +89,7 @@ class PinyinQualityBaselineTest {
             val hit5 = rank in 0..4
             if (hit1) top1++
             if (hit5) top5++
-            taps += if (rank >= 0) rank + 1 else 9
+            rankCost += if (rank >= 0) rank + 1 else 9
             val category = byCategory.getOrPut(case.category) { IntArray(2) }
             if (hit1) category[0]++
             category[1]++
@@ -105,7 +105,7 @@ class PinyinQualityBaselineTest {
             appendLine("cases=" + cases.size)
             appendLine("top1=" + top1 + "/" + cases.size + " (" + (top1 * 100 / cases.size) + "%)")
             appendLine("top5=" + top5 + "/" + cases.size + " (" + (top5 * 100 / cases.size) + "%)")
-            appendLine("avgTaps=" + String.format("%.2f", taps.toDouble() / cases.size))
+            appendLine("rankCost=" + String.format("%.2f", rankCost.toDouble() / cases.size))
             appendLine("p50Us=" + p50 / 1_000 + " p95Us=" + p95 / 1_000)
             byCategory.forEach { (category, counts) ->
                 appendLine(category + ": top1=" + counts[0] + "/" + counts[1])

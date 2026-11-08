@@ -207,7 +207,10 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                         settings = settings,
                         onAiEnabled = {
                             repository.setAiEnabled(it)
-                            if (!it) aiService.cancel()
+                            // D02: turning AI off must release the native engine,
+                            // not just cancel one generation. setEnabled(true)
+                            // only re-arms the lazy path and never loads eagerly.
+                            scope.launch { aiService.setEnabled(it) }
                         },
                         onHaptics = repository::setHapticsEnabled,
                         onSound = repository::setSoundEnabled,

@@ -13,6 +13,10 @@ local.properties
 # Log/OS Files
 *.log
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # Android Studio generated files and folders
 captures/
 .externalNativeBuild/

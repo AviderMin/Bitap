@@ -10,6 +10,7 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.LogSeverity
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ThinkingConfig
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -26,14 +27,25 @@ import kotlinx.coroutines.withTimeout
  * Lazily initialised wrapper around a single LiteRT-LM engine.
  *
  * The constructor is cheap: the native engine is only created on the first
- * [rewrite] collection. Requests are serialised with a mutex, use a fresh
+ * [rewrite] collection. Requests are serialised with [requestLock], use a fresh
  * short-lived conversation and release it as soon as the request ends.
+ *
+ * Concurrency invariants (D02):
+ *  - [ensureEngine] creates the native engine outside [engineLock] and only
+ *    publishes it if [generation] did not change meanwhile. A concurrent
+ *    [release]/[close] therefore can never close an engine while it is being
+ *    initialised: the creator observes the bumped generation and closes its own
+ *    temporary engine instead.
+ *  - [release] detaches the engine under [engineLock] and closes it outside the
+ *    lock. Callers must not release while a request is producing tokens; the
+ *    service layer cancels and joins the request first.
  */
-class LiteRtQwenEngine(private val cacheDir: String? = null) {
+class LiteRtQwenEngine(private val cacheDir: String? = null) : AiEngine {
 
-    private val initLock = Mutex()
     private val requestLock = Mutex()
+    private val engineLock = Any()
     private val activeConversation = AtomicReference<Conversation?>(null)
+    private val closeRequested = AtomicBoolean(false)
 
     @Volatile
     private var engine: Engine? = null
@@ -41,24 +53,28 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
     @Volatile
     private var closed: Boolean = false
 
-    @Volatile
+    /** Guarded by [engineLock]. */
     private var generation: Long = 0L
 
+    override val isLoaded: Boolean
+        get() = synchronized(engineLock) { engine != null }
+
+    /** Pre-D02 name kept as a read-only alias for diagnostics. */
     val isInitialized: Boolean
-        get() = engine?.isInitialized() == true
+        get() = isLoaded
 
     /**
      * Streams one rewrite request. Emits [AiEvent.Started], zero or more
      * [AiEvent.Delta] chunks and exactly one terminal event.
      */
-    fun rewrite(
+    override fun rewrite(
         modelPath: String,
         systemPrompt: String,
         userPrompt: String,
-        temperature: Double = TEMPERATURE,
-        topK: Int = TOP_K,
-        topP: Double = TOP_P,
-        maxOutputTokens: Int = MAX_OUTPUT_TOKENS,
+        temperature: Double,
+        topK: Int,
+        topP: Double,
+        maxOutputTokens: Int,
     ): Flow<AiEvent> = flow {
         val finalText = withTimeout(TIMEOUT_MS) {
             requestLock.withLock {
@@ -112,12 +128,13 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
         }
     }.flowOn(Dispatchers.IO)
 
-    private suspend fun ensureEngine(modelPath: String): Engine = initLock.withLock {
-        if (closed) throw IllegalStateException("Engine is closed")
-        val existing = engine
-        if (existing != null && existing.isInitialized()) return@withLock existing
+    private suspend fun ensureEngine(modelPath: String): Engine {
+        synchronized(engineLock) {
+            if (closed) throw IllegalStateException("Engine is closed")
+            engine?.takeIf { it.isInitialized() }?.let { return it }
+        }
 
-        val expectedGeneration = generation
+        val expectedGeneration = synchronized(engineLock) { generation }
         runCatching { Engine.setNativeMinLogSeverity(LogSeverity.ERROR) }
         val created = Engine(
             EngineConfig(
@@ -127,16 +144,22 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
             ),
         )
         created.initialize()
-        if (closed || generation != expectedGeneration) {
-            runCatching { created.close() }
-            throw IllegalStateException("Engine was released")
+        synchronized(engineLock) {
+            if (closed || generation != expectedGeneration) {
+                // release()/close() ran while the native engine was initialising.
+                // Never publish (or keep) an engine that the release path has
+                // already declared dead.
+                runCatching { created.close() }
+                throw IllegalStateException("Engine was released")
+            }
+            // Requests are serialised by requestLock, so no other creator can win.
+            engine = created
         }
-        engine = created
-        created
+        return created
     }
 
     /** Stop the request that is currently generating, if any. */
-    fun cancel() {
+    override fun cancel() {
         activeConversation.getAndSet(null)?.let { conversation ->
             runCatching { conversation.cancelProcess() }
         }
@@ -145,30 +168,36 @@ class LiteRtQwenEngine(private val cacheDir: String? = null) {
     /**
      * Release the native engine so a different model file can be imported,
      * keeping this wrapper reusable for the next rewrite.
+     *
+     * Acquiring [requestLock] is the final safety net: even if the service-level
+     * bookkeeping ever missed a request, native memory is never released while
+     * [rewrite] is still inside the engine.
      */
-    fun release() {
-        generation++
-        activeConversation.getAndSet(null)?.let { conversation ->
-            runCatching { conversation.cancelProcess() }
-            runCatching { conversation.close() }
+    override suspend fun release() {
+        requestLock.withLock {
+            activeConversation.getAndSet(null)?.let { conversation ->
+                runCatching { conversation.cancelProcess() }
+                runCatching { conversation.close() }
+            }
+            val detached = synchronized(engineLock) {
+                generation++
+                val current = engine
+                engine = null
+                current
+            }
+            runCatching { detached?.close() }
         }
-        val current = engine
-        engine = null
-        runCatching { current?.close() }
     }
 
     /** Release the engine permanently. Safe to call repeatedly. */
-    fun close() {
+    override suspend fun close() {
+        if (!closeRequested.compareAndSet(false, true)) return
         closed = true
         release()
     }
 
     private companion object {
         const val TIMEOUT_MS: Long = 20_000L
-        const val MAX_OUTPUT_TOKENS: Int = 128
-        const val TOP_K: Int = 20
-        const val TOP_P: Double = 0.9
-        const val TEMPERATURE: Double = 0.2
         const val SEED: Int = 0
         const val TIMEOUT_MESSAGE: String = "本地思考超时，请重试"
         const val MEMORY_MESSAGE: String = "设备内存不足"

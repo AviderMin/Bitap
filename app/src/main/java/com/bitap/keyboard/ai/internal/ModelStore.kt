@@ -17,6 +17,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 /**
+ * Narrow model-storage surface consumed by [DefaultAiRewriteService]. The seam
+ * lets lifecycle tests provide an in-memory model without touching Android
+ * files or a real 328 MiB model file.
+ */
+interface AiModelStore {
+    val modelInfo: StateFlow<AiModelInfo>
+
+    fun refresh(): AiModelInfo
+
+    suspend fun importModel(uri: Uri): Result<AiModelInfo>
+
+    fun deleteModel()
+
+    /** Absolute path of a complete model, or null when no usable model exists. */
+    fun currentModelPath(): String?
+
+    fun isInstalled(): Boolean
+}
+
+/**
  * Owns the single imported model file inside private app storage.
  *
  * Import contract: copy the SAF stream to a sibling .part file, validate it,
@@ -24,7 +44,7 @@ import kotlinx.coroutines.withContext
  * temporary file. This class deliberately performs no logging and no network
  * I/O.
  */
-class ModelStore(context: Context) {
+class ModelStore(context: Context) : AiModelStore {
 
     private val appContext: Context = context.applicationContext
     private val modelsDir: File = File(appContext.filesDir, MODELS_DIR)
@@ -32,29 +52,29 @@ class ModelStore(context: Context) {
     private val partFile: File = File(modelsDir, ModelFileRules.MODEL_FILE_NAME + ".part")
 
     private val _modelInfo = MutableStateFlow(scanModel())
-    val modelInfo: StateFlow<AiModelInfo> = _modelInfo.asStateFlow()
+    override val modelInfo: StateFlow<AiModelInfo> = _modelInfo.asStateFlow()
 
     /** Rescan the file system and publish the result. */
-    fun refresh(): AiModelInfo {
+    override fun refresh(): AiModelInfo {
         val info = scanModel()
         _modelInfo.value = info
         return info
     }
 
     /** Absolute path of a complete model, or null when no usable model exists. */
-    fun currentModelPath(): String? {
+    override fun currentModelPath(): String? {
         if (!modelFile.isFile) return null
         val size = modelFile.length()
         return if (ModelFileRules.isSizeValid(size)) modelFile.absolutePath else null
     }
 
-    fun isInstalled(): Boolean = currentModelPath() != null
+    override fun isInstalled(): Boolean = currentModelPath() != null
 
     /**
      * Copy [uri] into private storage. Suspends on [Dispatchers.IO]; the caller
      * already owns model-import serialisation.
      */
-    suspend fun importModel(uri: Uri): Result<AiModelInfo> = withContext(Dispatchers.IO) {
+    override suspend fun importModel(uri: Uri): Result<AiModelInfo> = withContext(Dispatchers.IO) {
         var tempCreated = false
         try {
             val displayName = queryDisplayName(uri)
@@ -109,7 +129,7 @@ class ModelStore(context: Context) {
     }
 
     /** Delete the installed model and any leftover temporary file. */
-    fun deleteModel() {
+    override fun deleteModel() {
         modelFile.delete()
         partFile.delete()
         _modelInfo.value = scanModel()
