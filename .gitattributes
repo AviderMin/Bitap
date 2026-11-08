@@ -15,3 +15,7 @@ eval/v3/*.py text eol=lf
 eval/d04/results/*.json text eol=lf
 eval/d04/same_dictionary/*.json text eol=lf
 eval/d04/same_dictionary/*.py text eol=lf
+eval/d05/dev/*.tsv text eol=lf
+eval/d05/dev/*.json text eol=lf
+eval/d05/dev/*.py text eol=lf
+eval/d05/dev/*.md text eol=lf

@@ -1,0 +1,188 @@
+{
+  "schema_version": "d05-dev-v1",
+  "generator": "eval/d05/dev/build_d05_dev.py",
+  "generator_version": "1.0.0",
+  "command": "python eval/d05/dev/build_d05_dev.py",
+  "purpose": "D05 cross-source diagnostic development set; per-case diagnosis allowed, never acceptance",
+  "source": {
+    "name": "irvin/cc0-sentences zh-TW remaining lines after v3 exclusion",
+    "repository": "https://github.com/irvin/cc0-sentences",
+    "license": "CC0-1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "archive": ".tmp/cc0/cc0-sentences.zip",
+    "archive_sha256": "e229d8e3bef48473d55b3ab1a123555080f855120206ee5a82b34bb9413d9fc5",
+    "files": [
+      {
+        "name": "setences.txt",
+        "sha256": "53db978baebacf126f11dfdd19a48a61a4c46bec77c64766e328b8911733e90d",
+        "bytes": 75729
+      },
+      {
+        "name": "g0v_slack_rand0m.txt",
+        "sha256": "6bde40bb34ddc97b860876d03de1a04171787854bfb6aefaf596a0d2ded8086f",
+        "bytes": 217398
+      },
+      {
+        "name": "tg_common_voice.txt",
+        "sha256": "b0cd7d2f9b572b5a954a186fd782786e76befd99de4a09e3ad13dbaf0b0aa9d8",
+        "bytes": 2669
+      },
+      {
+        "name": "sayit.txt",
+        "sha256": "87b59d5c4c80984e36877c8ff2c70fc7619ea2ce18d886db6ec579451835c58d",
+        "bytes": 7695
+      },
+      {
+        "name": "lms.txt",
+        "sha256": "3fbbe5110e2b6dea7bcd8b78ff1b607f501bf67d28af3c97c9420fd0c9662d22",
+        "bytes": 4722
+      },
+      {
+        "name": "cvsprint_201902.txt",
+        "sha256": "5a73483f97a33e61064eb9b54f2fd39b85be0a92e8a7863fa1614f682874bf45",
+        "bytes": 33455
+      },
+      {
+        "name": "exam_text.txt",
+        "sha256": "b152df7f85b996556093249270f12061e22a0e8f2c3b4adde9b5b690de1d9593",
+        "bytes": 35127
+      },
+      {
+        "name": "gov_press_release.txt",
+        "sha256": "17bc82327a57dac2f1684ebb0395824462a127c64863e111522a527411d5a1c8",
+        "bytes": 27351
+      },
+      {
+        "name": "cofacts.txt",
+        "sha256": "10103628c09e91a7c47a89c732b3878df6e166db87eca52edeaf39c9ecfd9475",
+        "bytes": 515
+      },
+      {
+        "name": "web_slang.txt",
+        "sha256": "8d82042c29f9bb553461e85b1e6b2695e02012ed5c9630713ff4a4125962ab48",
+        "bytes": 9164
+      },
+      {
+        "name": "chatlogs.txt",
+        "sha256": "b40e2adf456cfaee38683faf52df1e4f46e8fd0dbec4a76d9619f4a0d0a55a54",
+        "bytes": 8802
+      }
+    ],
+    "conversion": "zhconv 1.4.3 zh-TW -> zh-CN (simplified), UTF-8",
+    "primary_files": [
+      "setences.txt",
+      "g0v_slack_rand0m.txt",
+      "tg_common_voice.txt"
+    ],
+    "supplement_files": [
+      "sayit.txt",
+      "lms.txt",
+      "cvsprint_201902.txt",
+      "exam_text.txt",
+      "gov_press_release.txt",
+      "cofacts.txt",
+      "web_slang.txt",
+      "chatlogs.txt"
+    ]
+  },
+  "reference_files": {
+    "eval/pinyin_cases_dev.tsv": "9a5193da6f2869d513ce0fb7d5bc3fbadc5da9398ff658e9ee12c587d651c5a3",
+    "eval/pinyin_cases_holdout.tsv": "4caf2b4f75aa8d425534b0eb726c167d044994822a40d66e8429c89e479304ce",
+    "eval/pinyin_cases_sealed.tsv": "d9e2d946ca131ac452654bfac66d44a21c9cf1757f59e5ed2e5a66aff3a5b987",
+    "eval/v2/corpus/pinyin_cases_v2_dev.tsv": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+    "eval/v2/corpus/pinyin_cases_v2_validation.tsv": "9097f226f1709d8b5e20d0faf4a661419d46d051e04271e5d302b0ce7f072994",
+    "eval/v3/corpus/pinyin_cases_v3_validation.tsv": "355d1e7ee611eed492c6d937a7d6261b015c3b7ef8df22a083a5c97b8ab6c8f2"
+  },
+  "files": {
+    "dev": {
+      "path": "eval/d05/dev/dev.tsv",
+      "sha256": "1d628eb46783ffe337dcbe5887b4126f58ba66b638f7d58159b58d235d74b9b4",
+      "rows": 950
+    }
+  },
+  "category_counts": {
+    "natural_short": 300,
+    "natural_medium": 289,
+    "natural_long": 11,
+    "typo": 100,
+    "shorthand": 100,
+    "mixed_pinyin": 100,
+    "mixed_en": 50
+  },
+  "natural_source_counts": {
+    "natural_short": {
+      "g0v_slack_rand0m.txt": 221,
+      "setences.txt": 79
+    },
+    "natural_medium": {
+      "g0v_slack_rand0m.txt": 220,
+      "setences.txt": 69
+    },
+    "natural_long": {
+      "web_slang.txt": 6,
+      "exam_text.txt": 4,
+      "cvsprint_201902.txt": 1
+    }
+  },
+  "long_shortfall_note": "natural_long target >=30 could not be met: v3 selected 601 includes the long chat lines; after v3 exact/near exclusion only 11 long sentences remain (all from supplement files exam_text/web_slang/cvsprint_201902), reported honestly without rewriting.",
+  "filters": {
+    "natural_script": "simplified Chinese (CJK Unified Ideographs encodable with GB2312) plus Chinese punctuation",
+    "natural_length_chars": {
+      "natural_short": [
+        2,
+        8
+      ],
+      "natural_medium": [
+        9,
+        16
+      ],
+      "natural_long": [
+        17,
+        24
+      ]
+    },
+    "max_pinyin_length": 60,
+    "dedup": "exact normalized character sequence",
+    "excluded": {
+      "dictionary_whole_sentence": "normalized natural sentence equals a whole pinyin_dict.tsv word",
+      "v1_v2_v3_exact": "normalized natural sentence equals any expected text in v1/v2/v3",
+      "v1_v2_v3_near_duplicate": "character 2-gram Jaccard >= 0.75 against v1/v2/v3 expected text"
+    },
+    "rejected_counts": {
+      "source_lines": 16766,
+      "rejected_filter": 752,
+      "rejected_duplicate": 14,
+      "unique_texts": 16000,
+      "rejected_v1_v2_v3_exact": 602,
+      "rejected_dictionary_leak": 118,
+      "rejected_pinyin_length": 4,
+      "natural_pool": 15276,
+      "selected_long": 11,
+      "rejected_reference_near_duplicate": 2,
+      "selected_medium": 289,
+      "selected_short": 300,
+      "clusters": 15160,
+      "multi_member_clusters": 115
+    }
+  },
+  "special_construction": {
+    "source": ".tmp/jieba.txt (MIT); pypinyin 0.55.0",
+    "jieba_sha256": "7197c3211ddd98962b036cdf40324d1ea2bfaa12bd028e68faa70111a88e12a8",
+    "categories": {
+      "typo": 100,
+      "shorthand": 100,
+      "mixed_pinyin": 100,
+      "mixed_en": 50
+    },
+    "rule": "constructed from generic jieba dictionary words; never rewritten from v3/v2 expected sentences"
+  },
+  "split": {
+    "mode": "dev-only diagnostic set; no acceptance split",
+    "natural_near_duplicate": {
+      "features": "character 2-gram Jaccard",
+      "jaccard_threshold": 0.75,
+      "max_members_per_cluster": 2
+    }
+  },
+  "engine_independence": "no PinyinEngine call during generation"
+}
