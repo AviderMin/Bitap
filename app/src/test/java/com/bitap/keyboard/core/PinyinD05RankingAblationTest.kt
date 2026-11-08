@@ -2,27 +2,76 @@ package com.bitap.keyboard.core
 
 import java.io.File
 import java.util.Locale
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Temporary D05 ranking sweep probe; final selected-mechanism test will extend this. */
+/**
+ * D05 ranking-mechanism ablation and selected-after evidence.
+ *
+ * D05 dev has 123 natural_long cases, 33 of which have pinyin length 65-70 and
+ * exceed PinyinEngine's 64-character hard input budget. Ranking comparisons use
+ * only the effective input subset (<=64); input-budget cases are reported
+ * separately and must not be counted as ranking failures.
+ *
+ * Candidate variants are evaluated through EngineTuning/withTuning only. The
+ * selected mechanism (corpusWordNgramWeight 0.35 -> 0.50) changes one score
+ * weight; word list, search budgets and candidate display (including the
+ * early-partial-after-5-full policy) stay fixed.
+ */
 class PinyinD05RankingAblationTest {
 
-    private data class Case(val id: String, val category: String, val input: String, val expected: List<String>)
+    private data class EvalCase(
+        val id: String,
+        val category: String,
+        val input: String,
+        val expected: List<String>,
+    )
 
-    private data class Result(val rank8: Int, val latencyNanos: Long, val oracle: Boolean, val full: Boolean) {
-        val top1 get() = rank8 == 0
-        val top5 get() = rank8 in 0..4
-        val cost get() = if (rank8 in 0..4) rank8 + 1 else 9
+    private data class Row(
+        val case: EvalCase,
+        val rank8: Int,
+        val latencyNanos: Long,
+        val oracle: Boolean,
+        val fullCoverage: Boolean,
+        val failureClass: String?,
+    ) {
+        val top1: Boolean get() = rank8 == 0
+        val top5: Boolean get() = rank8 in 0..4
+        val rankCost: Int get() = if (rank8 in 0..4) rank8 + 1 else MISS_RANK_COST
     }
+
+    private data class Summary(
+        val n: Int,
+        val top1: Int,
+        val top5: Int,
+        val rankCost: Double,
+        val oracle: Int,
+        val fullCoverage: Int,
+        val p50: Double,
+        val p95: Double,
+    )
+
+    private val categoryOrder = listOf(
+        "natural_short",
+        "natural_medium",
+        "natural_long",
+        "typo",
+        "shorthand",
+        "mixed_pinyin",
+    )
 
     @Test
     fun runRankingAblations() {
-        val root = findRoot()
-        val cases = loadCases(File(root, "eval/d05/dev/dev.tsv")).filter { it.category.startsWith("natural_") }
-        assertTrue("natural cases missing", cases.size >= 600)
+        val root = findRepoRoot()
+        val devFile = File(root, "eval/d05/dev/dev.tsv")
+        assertEquals("D05 dev hash", DEV_SHA256, sha256(devFile))
+        val allNatural = loadCases(devFile).filter { it.category.startsWith("natural_") }
+        val cases = allNatural.filter { rankable(it) }
+        assertTrue("natural rankable cases missing", cases.size >= 500)
+
         val engine = dictionaryEngine(root)
-        val base = PinyinEngine.EngineTuning()
+        val base = PinyinEngine.EngineTuning(corpusWordNgramWeight = 0.35)
         val variants = linkedMapOf(
             "baseline" to base,
             "wordInsertionCompensation-8" to base.copy(wordInsertionCompensation = 8.0),
@@ -54,113 +103,249 @@ class PinyinD05RankingAblationTest {
             "sentenceDictionaryWeight-0.10" to base.copy(sentenceDictionaryWeight = 0.10),
         )
         val builder = StringBuilder()
-        builder.appendLine("variant	n	top1	top5	rankCost	oracle	fullCoverage	p50	p95")
+        builder.appendLine("variant\tn\ttop1\ttop5\trankCost\toracle\tfullCoverage\tp50\tp95")
         variants.forEach { (name, tuning) ->
-            val variantEngine = engine.withTuning(tuning)
-            val rows = cases.map { evaluate(variantEngine, it) }
-            val values = rows.map { it.latencyNanos / 1_000_000.0 }.sorted()
-            fun pct(value: Int): String = String.format(Locale.ROOT, "%.1f", value * 100.0 / rows.size)
+            val rows = cases.map { evaluate(engine.withTuning(tuning), it, diagnoseFailures = false) }
+            val summary = summarize(rows)
             builder.appendLine(
-                name + "\t" + rows.size + "\t" +
-                    rows.count { it.top1 } + "/" + rows.size + "(" + pct(rows.count { it.top1 }) + ")\t" +
-                    rows.count { it.top5 } + "/" + rows.size + "(" + pct(rows.count { it.top5 }) + ")\t" +
-                    String.format(Locale.ROOT, "%.3f", rows.sumOf { it.cost }.toDouble() / rows.size) + "\t" +
-                    rows.count { it.oracle } + "/" + rows.size + "\t" +
-                    rows.count { it.full } + "/" + rows.size + "\t" +
-                    String.format(Locale.ROOT, "%.3f", values[(values.size - 1) * 50 / 100]) + "\t" +
-                    String.format(Locale.ROOT, "%.3f", values[(values.size - 1) * 95 / 100]),
+                name + "\t" + summary.n + "\t" +
+                    summary.top1 + "/" + summary.n + "(" + pct(summary.top1, summary.n) + ")\t" +
+                    summary.top5 + "/" + summary.n + "(" + pct(summary.top5, summary.n) + ")\t" +
+                    fmt(summary.rankCost) + "\t" +
+                    summary.oracle + "/" + summary.n + "\t" +
+                    summary.fullCoverage + "/" + summary.n + "\t" +
+                    fmt(summary.p50) + "\t" + fmt(summary.p95),
             )
         }
-        val file = File(root, "build/d05/ranking-ablation.txt")
-        file.parentFile?.mkdirs()
-        file.writeText(builder.toString(), Charsets.UTF_8)
+        write(root, "build/d05/ranking-ablation.txt", builder.toString())
         println(builder)
     }
 
     @Test
-    fun evaluateSelectedCorpusWeight() {
-        val root = findRoot()
+    fun evaluateRankingMechanism() {
+        val root = findRepoRoot()
+        val devFile = File(root, "eval/d05/dev/dev.tsv")
+        assertEquals("D05 dev hash", DEV_SHA256, sha256(devFile))
+        val all = loadCases(devFile)
+        val natural = all.filter { it.category.startsWith("natural_") && rankable(it) }
+        val engineScored = all.filter { !isInteraction(it) && rankable(it) }
         val engine = dictionaryEngine(root)
-        val base = PinyinEngine.EngineTuning()
-        val after = base.copy(corpusWordNgramWeight = 0.45)
-        val all = loadCases(File(root, "eval/d05/dev/dev.tsv"))
-        val cats = listOf("natural_short", "natural_medium", "natural_long", "typo", "shorthand", "mixed_pinyin")
-        val out = StringBuilder()
-        cats.forEach { category ->
-            val cases = all.filter { it.category == category }
-            listOf("baseline" to base, "after" to after).forEach { (name, tuning) ->
-                val rows = cases.map { evaluate(engine.withTuning(tuning), it) }
-                out.appendLine(
-                    category + " " + name + " n=" + rows.size +
-                        " top1=" + rows.count { it.top1 } + "/" + rows.size +
-                        " top5=" + rows.count { it.top5 } + "/" + rows.size +
-                        " rankCost=" + String.format(Locale.ROOT, "%.3f", rows.sumOf { it.cost }.toDouble() / rows.size) +
-                        " oracle=" + rows.count { it.oracle } + "/" + rows.size +
-                        " full=" + rows.count { it.full } + "/" + rows.size,
-                )
-            }
+
+        val off = PinyinEngine.EngineTuning(corpusWordNgramWeight = 0.0)
+        val baseline = PinyinEngine.EngineTuning(corpusWordNgramWeight = 0.35)
+        val after = PinyinEngine.EngineTuning() // production default: corpusWordNgramWeight=0.50
+
+        val builder = StringBuilder()
+        builder.appendLine("# D05 ranking ablation: baseline / after (0.50) / off (0.0)")
+        builder.appendLine("d05DevSha256=" + DEV_SHA256)
+        builder.appendLine("naturalTotal=" + all.count { it.category.startsWith("natural_") })
+        builder.appendLine("naturalRankable=" + natural.size)
+        builder.appendLine("naturalInputBudgetExcluded=" + all.count { it.category.startsWith("natural_") && !rankable(it) })
+        builder.appendLine("engineScoredRankable=" + engineScored.size)
+        builder.appendLine("baselineCorpusWordNgramWeight=0.35")
+        builder.appendLine("afterCorpusWordNgramWeight=0.50")
+        builder.appendLine("offCorpusWordNgramWeight=0.0")
+        builder.appendLine("note=inputBudget cases are pinyin length >64 and excluded from ranking metrics")
+        builder.appendLine()
+        appendTriplet(builder, "d05.naturalRankable", engine, off, baseline, after, natural)
+        builder.appendLine()
+        appendTriplet(builder, "d05.engineScoredRankable", engine, off, baseline, after, engineScored)
+        builder.appendLine()
+        builder.appendLine("[d05.byCategory]")
+        categoryOrder.forEach { category ->
+            val rows = engineScored.filter { it.category == category }
+            appendTriplet(builder, category, engine, off, baseline, after, rows, indent = "  ")
         }
-        listOf("eval/pinyin_cases_dev.tsv" to "v1dev", "eval/pinyin_cases_holdout.tsv" to "v1holdout").forEach { (path,label) ->
-            val cases = loadV1Cases(File(root, path)).filter { it.category != "mixed_en" && !(it.category == "number_punct" && it.input.any { c -> c.isDigit() }) }
-            listOf("baseline" to base, "after" to after).forEach { (name,tuning) ->
-                val rows=cases.map { evaluate(engine.withTuning(tuning),it) }
-                out.appendLine(label+" "+name+" n="+rows.size+" top1="+rows.count{it.top1}+"/"+rows.size+" top5="+rows.count{it.top5}+"/"+rows.size+" rankCost="+String.format(Locale.ROOT,"%.3f",rows.sumOf{it.cost}.toDouble()/rows.size)+" oracle="+rows.count{it.oracle}+"/"+rows.size)
-            }
+        builder.appendLine()
+        builder.appendLine("[d05.failureClasses]")
+        listOf("off" to off, "baseline" to baseline, "after" to after).forEach { (name, tuning) ->
+            builder.appendLine(name + "=" + failureDistribution(engine.withTuning(tuning), natural))
         }
-        val file=File(root,"build/d05/ranking-selected.txt"); file.writeText(out.toString(),Charsets.UTF_8); println(out)
+        builder.appendLine()
+        appendV1(builder, root, "v1dev", File(root, "eval/pinyin_cases_dev.tsv"), engine, off, baseline, after)
+        appendV1(builder, root, "v1holdout", File(root, "eval/pinyin_cases_holdout.tsv"), engine, off, baseline, after)
+        write(root, "build/d05/ranking-mechanism.txt", builder.toString())
+        println(builder)
     }
 
-    private fun loadV1Cases(file: File): List<Case> = file.useLines { lines ->
-        lines.mapNotNull { raw ->
-            val line = raw.removePrefix("\uFEFF").trimEnd('\r')
-            if (line.isBlank() || line.startsWith("#")) return@mapNotNull null
-            val p = line.split('\t')
-            if (p.size < 4) return@mapNotNull null
-            Case(p[0], p[1], p[2], p[3].split('|').map { it.trim() }.filter { it.isNotEmpty() })
-        }.toList()
+    private fun appendTriplet(
+        builder: StringBuilder,
+        label: String,
+        engine: PinyinEngine,
+        off: PinyinEngine.EngineTuning,
+        baseline: PinyinEngine.EngineTuning,
+        after: PinyinEngine.EngineTuning,
+        cases: List<EvalCase>,
+        indent: String = "",
+    ) {
+        listOf("off" to off, "baseline" to baseline, "after" to after).forEach { (name, tuning) ->
+            val rows = cases.map { evaluate(engine.withTuning(tuning), it, diagnoseFailures = true) }
+            builder.appendLine(indent + label + "." + name + " " + summaryText(summarize(rows)))
+        }
     }
 
-    private fun evaluate(engine: PinyinEngine, case: Case): Result {
+    private fun appendV1(
+        builder: StringBuilder,
+        root: File,
+        label: String,
+        file: File,
+        engine: PinyinEngine,
+        off: PinyinEngine.EngineTuning,
+        baseline: PinyinEngine.EngineTuning,
+        after: PinyinEngine.EngineTuning,
+    ) {
+        val cases = loadV1Cases(file).filter { !isInteraction(it) }
+        listOf("off" to off, "baseline" to baseline, "after" to after).forEach { (name, tuning) ->
+            val rows = cases.map { evaluate(engine.withTuning(tuning), it, diagnoseFailures = false) }
+            builder.appendLine(label + "." + name + " " + summaryText(summarize(rows)))
+        }
+    }
+
+    private fun evaluate(engine: PinyinEngine, case: EvalCase, diagnoseFailures: Boolean): Row {
         val started = System.nanoTime()
-        val top8 = engine.search(case.input, limit = 8)
-        val latency = System.nanoTime() - started
-        val rank = top8.indexOfFirst { matches(it, case) }
-        val pool = engine.search(case.input, limit = 64)
+        val top8 = engine.search(case.input, limit = SEARCH_LIMIT)
+        val latencyNanos = System.nanoTime() - started
+        val pool = engine.search(case.input, limit = FULL_LIMIT)
         val coverage = requiredCoverage(case.input)
-        return Result(rank, latency, pool.any { matches(it, case) }, pool.any { it.consumedInputLength >= coverage })
+        val rank8 = top8.indexOfFirst { matches(it, case) }
+        val oracle = pool.any { matches(it, case) }
+        val fullCoverage = pool.any { it.consumedInputLength >= coverage }
+        var failureClass: String? = null
+        if (diagnoseFailures && rank8 !in 0..4) {
+            val debug = engine.debugSearch(case.input)
+            val finalRank = debug.finalCandidates.indexOfFirst { matches(it, case) }
+            val latticeHas = debug.latticeFullTexts.any { matchesText(it, case) }
+            val collectedHas = debug.collected.any { candidate ->
+                matchesText(candidate.word, case) && candidate.consumed >= coverage
+            }
+            failureClass = when {
+                finalRank >= 8 -> "rankedLow"
+                finalRank in 0..7 -> "displayLoss"
+                latticeHas || collectedHas -> "pruningLoss"
+                else -> "noRecall"
+            }
+        }
+        return Row(case, rank8, latencyNanos, oracle, fullCoverage, failureClass)
     }
 
-    private fun matches(candidate: Candidate, case: Case): Boolean {
+    private fun failureDistribution(engine: PinyinEngine, cases: List<EvalCase>): String {
+        val rows = cases.map { evaluate(engine, it, diagnoseFailures = true) }
+        val order = listOf("noRecall", "pruningLoss", "rankedLow", "displayLoss")
+        return order.joinToString(" ") { name -> name + "=" + rows.count { it.failureClass == name } }
+    }
+
+    private fun summarize(rows: List<Row>): Summary {
+        val values = rows.map { it.latencyNanos / 1_000_000.0 }.sorted()
+        return Summary(
+            n = rows.size,
+            top1 = rows.count { it.top1 },
+            top5 = rows.count { it.top5 },
+            rankCost = if (rows.isEmpty()) 0.0 else rows.sumOf { it.rankCost }.toDouble() / rows.size,
+            oracle = rows.count { it.oracle },
+            fullCoverage = rows.count { it.fullCoverage },
+            p50 = if (values.isEmpty()) 0.0 else values[(values.size - 1) * 50 / 100],
+            p95 = if (values.isEmpty()) 0.0 else values[(values.size - 1) * 95 / 100],
+        )
+    }
+
+    private fun summaryText(summary: Summary): String =
+        "n=" + summary.n +
+            " top1=" + summary.top1 + "/" + summary.n + "(" + pct(summary.top1, summary.n) + ")" +
+            " top5=" + summary.top5 + "/" + summary.n + "(" + pct(summary.top5, summary.n) + ")" +
+            " rankCost=" + fmt(summary.rankCost) +
+            " oracle=" + summary.oracle + "/" + summary.n +
+            " fullCoverage=" + summary.fullCoverage + "/" + summary.n +
+            " p50=" + fmt(summary.p50) + "ms p95=" + fmt(summary.p95) + "ms"
+
+    private fun matches(candidate: Candidate, case: EvalCase): Boolean {
         val text = normalize(candidate.word)
         return text.isNotEmpty() && candidate.consumedInputLength >= requiredCoverage(case.input) &&
             case.expected.any { normalize(it) == text }
     }
 
+    private fun matchesText(text: String, case: EvalCase): Boolean {
+        val normalized = normalize(text)
+        return normalized.isNotEmpty() && case.expected.any { normalize(it) == normalized }
+    }
+
     private fun requiredCoverage(input: String): Int = input.count { it.isLetterOrDigit() || it == '\'' }
+
+    private fun rankable(case: EvalCase): Boolean = requiredCoverage(case.input) <= 64
 
     private fun normalize(text: String): String = text.filter { it.isLetterOrDigit() || isCjk(it) }
 
-    private fun isCjk(char: Char): Boolean = char.code in 0x3400..0x4DBF || char.code in 0x4E00..0x9FFF
+    private fun isCjk(char: Char): Boolean =
+        char.code in 0x3400..0x4DBF || char.code in 0x4E00..0x9FFF || char.code in 0xF900..0xFAFF
+
+    private fun isInteraction(case: EvalCase): Boolean =
+        case.category == "mixed_en" || (case.category == "number_punct" && case.input.any { it.isDigit() })
 
     private fun dictionaryEngine(root: File): PinyinEngine =
-        File(root, "app/src/main/assets/pinyin_dict.tsv").useLines { PinyinEngine.fromLines(it) }.also { it.setLearningEnabled(false) }
+        File(root, "app/src/main/assets/pinyin_dict.tsv").useLines { PinyinEngine.fromLines(it) }.also {
+            it.setLearningEnabled(false)
+        }
 
-    private fun loadCases(file: File): List<Case> = file.useLines { lines ->
+    private fun loadCases(file: File): List<EvalCase> = file.useLines { lines ->
         lines.mapNotNull { raw ->
             val line = raw.removePrefix("\uFEFF").trimEnd('\r')
             if (line.isBlank() || line.startsWith("#")) return@mapNotNull null
-            val p = line.split('\t')
-            if (p.size != 6) return@mapNotNull null
-            Case(p[0], p[1], p[2], p[3].split('|').map { it.trim() }.filter { it.isNotEmpty() })
+            val parts = line.split('\t')
+            if (parts.size != 6) return@mapNotNull null
+            EvalCase(parts[0], parts[1], parts[2], parts[3].split('|').map { it.trim() }.filter { it.isNotEmpty() })
         }.toList()
     }
 
-    private fun findRoot(): File {
-        var dir: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
-        while (dir != null) {
-            if (File(dir, "eval/d05/dev/dev.tsv").isFile && File(dir, "app/src/main/assets/pinyin_dict.tsv").isFile) return dir
-            dir = dir.parentFile
+    private fun loadV1Cases(file: File): List<EvalCase> = file.useLines { lines ->
+        lines.mapNotNull { raw ->
+            val line = raw.removePrefix("\uFEFF").trimEnd('\r')
+            if (line.isBlank() || line.startsWith("#")) return@mapNotNull null
+            val parts = line.split('\t')
+            if (parts.size < 4) return@mapNotNull null
+            EvalCase(parts[0], parts[1], parts[2], parts[3].split('|').map { it.trim() }.filter { it.isNotEmpty() })
+        }.toList()
+    }
+
+    private fun sha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { stream ->
+            val buffer = ByteArray(1 shl 16)
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { String.format(Locale.ROOT, "%02x", it) }
+    }
+
+    private fun findRepoRoot(): File {
+        var directory: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
+        while (directory != null) {
+            if (File(directory, "eval/d05/dev/dev.tsv").isFile &&
+                File(directory, "app/src/main/assets/pinyin_dict.tsv").isFile
+            ) {
+                return directory
+            }
+            directory = directory.parentFile
         }
         error("repo root not found")
+    }
+
+    private fun write(root: File, path: String, text: String) {
+        val file = File(root, path)
+        file.parentFile?.mkdirs()
+        file.writeText(text, Charsets.UTF_8)
+    }
+
+    private fun fmt(value: Double): String = String.format(Locale.ROOT, "%.3f", value)
+
+    private fun pct(value: Int, total: Int): String =
+        if (total == 0) "0.0" else String.format(Locale.ROOT, "%.1f", value * 100.0 / total)
+
+    companion object {
+        private const val DEV_SHA256 = "63983c5f9a490040592d6740e2e747e2b5a574d0a068accb44f25179153110ad"
+        private const val SEARCH_LIMIT = 8
+        private const val FULL_LIMIT = 64
+        private const val MISS_RANK_COST = 9
     }
 }

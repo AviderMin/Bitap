@@ -1635,8 +1635,14 @@ class PinyinEngine private constructor(
         private const val CONTEXT_WEIGHT = 1.2
         /** Weight of the corpus character prior for single-character words. */
         private const val CHAR_FREQ_WEIGHT = 0.8
-        /** Weight of the corpus character-bigram score inside a word. */
-        private const val WORD_NGRAM_WEIGHT = 0.35
+        /**
+         * Weight of the corpus character-bigram score inside a word.
+         *
+         * D05 ranking ablation: 0.35 -> 0.50 improves naturalOnly Top5
+         * 54.4% -> 54.9% (and oracle 477 -> 479) with no search/display changes;
+         * see docs/D05_RANKING_IMPROVEMENT.md.
+         */
+        private const val WORD_NGRAM_WEIGHT = 0.50
         /** Weight of the dictionary-trained character-bigram score inside a word. */
         private const val DICTIONARY_WORD_NGRAM_WEIGHT = 0.4
         /** Weight of a complete candidate's average corpus trigram log probability. */

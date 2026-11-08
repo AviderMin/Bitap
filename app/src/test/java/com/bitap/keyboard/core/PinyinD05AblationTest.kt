@@ -74,7 +74,11 @@ class PinyinD05AblationTest {
 
         // Explicit pre-change tuning: production was earlySlotCount=1 with the
         // old hard-coded earlyFull=3 (afterFull=3) before the selected change.
-        val oldDefault = PinyinEngine.EngineTuning(partialEarlySlotCount = 1, partialEarlySlotAfterFull = 3)
+        val oldDefault = PinyinEngine.EngineTuning(
+            partialEarlySlotCount = 1,
+            partialEarlySlotAfterFull = 3,
+            corpusWordNgramWeight = 0.35,
+        )
         val variants = linkedMapOf(
             "baseline" to oldDefault,
             "A-partialQuota-0" to oldDefault.copy(partialQuota = 0, partialEarlySlotCount = 0),
@@ -118,8 +122,19 @@ class PinyinD05AblationTest {
         val allCases = loadCases(File(root, "eval/d05/dev/dev.tsv"))
         assertTrue("D05 dev needs >=900 cases", allCases.size >= 900)
         val engine = dictionaryEngine(root)
-        val oldDefault = PinyinEngine.EngineTuning(partialEarlySlotCount = 1, partialEarlySlotAfterFull = 3)
-        val afterDefault = PinyinEngine.EngineTuning() // current production default: early slot after 5 full candidates
+        val oldDefault = PinyinEngine.EngineTuning(
+            partialEarlySlotCount = 1,
+            partialEarlySlotAfterFull = 3,
+            corpusWordNgramWeight = 0.35,
+        )
+        // Historical task-11 after tuning: the ranking weight was still 0.35 then.
+        // Explicit values keep this evidence reproducible after task-13 changed the
+        // production ranking default; do not rebase old D05 results onto new weights.
+        val afterDefault = PinyinEngine.EngineTuning(
+            partialEarlySlotCount = 1,
+            partialEarlySlotAfterFull = 5,
+            corpusWordNgramWeight = 0.35,
+        )
         val beforeEngine = engine.withTuning(oldDefault)
         val afterEngine = engine.withTuning(afterDefault)
         val engineScored = allCases.filter { !isInteraction(it) }

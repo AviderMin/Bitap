@@ -82,3 +82,37 @@ python eval/d05/dev/check_d05_dev.py
 - natural_long 仅 11 条，长句结论不充分；来源为台湾社群文本转简体，存在地区用词/口语碎片。
 - JVM 延迟不是 Android 端到端；本批未做设备/Android/JNI 工作。
 - 下一批建议：按 D05 诊断继续做排序/召回/候选组织，每次只改一个机制；候选冻结后才安排 v3/新验收集验收。
+
+## 7. 最终补充：1,050 条 dev 与排序改进（task-12/13）
+
+> 本节是 D05 的最终数据/排序结果；§1–§6 是 950 条旧 dev 的早期交付记录，不能与本节数字混用。
+
+### 7.1 最终 dev
+
+- `eval/d05/dev/dev.tsv`：**1,050 条**，SHA-256 `63983c5f9a490040592d6740e2e747e2b5a574d0a068accb44f25179153110ad`。
+- natural_short 300 / natural_medium 277 / natural_long **123**（中文维基百科 108 条 CC BY-SA 4.0 + CC0 15 条）/ typo 100 / shorthand 100 / mixed_pinyin 100 / mixed_en 50。
+- 其中 33 条 natural_long 的 pinyin 长度 65–70，超过 `PinyinEngine` 64 字符硬上限，作为 inputBudget 单列；排序评估使用 naturalRankable=667。
+- 仍与 v1/v2/v3 exact + Jaccard≥0.75 近重复隔离；checker 通过（CC0 592 + Wikipedia 108 来源可追溯，词典整句泄漏 0）。
+
+### 7.2 排序机制（只改一个权重）
+
+- 机制：`PinyinEngine.WORD_NGRAM_WEIGHT`（`corpusWordNgramWeight`）**0.35 → 0.50**；词库、beam/entries、候选上限、partialQuota、early partial 排列、学习/上下文全部固定。
+- 关闭对照：`corpusWordNgramWeight=0.0` 明显更差（naturalRankable Top1 33.4%、Top5 52.6%、oracle 468），证明该权重参与排序。
+
+| naturalRankable（667） | baseline 0.35 | after 0.50 | off 0.0 |
+|---|---:|---:|---:|
+| Top1 | 235/667 35.2% | 234/667 35.1% | 223/667 33.4% |
+| Top5 | 363/667 54.4% | **366/667 54.9%** | 351/667 52.6% |
+| rankCost | 5.025 | **4.994** | 5.166 |
+| oracle64 | 477/667 | **479/667** | 468/667 |
+| fullCoverage64 | 667/667 | 667/667 | 667/667 |
+
+分类：natural_medium Top5 149→152，natural_short 持平，natural_long（≤64）14→14；typo 不变、mixed_pinyin 93→93；shorthand Top5 98→97（单条边界回退，已如实记录）。v1 dev/holdout Top1 不变、Top5 各 +2，oracle/fullCoverage 不变。
+
+**解释边界**：正确完整候选略微更容易进入 Top5（+3/667，+0.4pp），oracle +2；但 Top1 -1 条，不能宣称 Top1 或真实输入操作改善。关闭机制后指标明显下降，说明该特征不是无效；该结果仍是 dev 证据，不是验收或设备证据。
+
+### 7.3 仍需设备验证
+
+- partial 从 rank4 移到 rank6 后，是否增加滚动/展开/修正操作——需真机检查；「前 8 项返回」不等于屏幕直接可见。
+- 排序改进是否减少真实输入操作——需真机任务对比；当前只有 JVM 分类指标。
+
