@@ -1,0 +1,33 @@
+{
+  "counts": {
+    "rows": 601,
+    "exactTrainingOverlap": 1,
+    "nearTrainingOverlapIncludingExact": 1
+  },
+  "byCategory": {
+    "natural_short": {
+      "rows": 320,
+      "exactTrainingOverlap": 1,
+      "nearTrainingOverlapIncludingExact": 1
+    },
+    "natural_medium": {
+      "rows": 240,
+      "exactTrainingOverlap": 0,
+      "nearTrainingOverlapIncludingExact": 0
+    },
+    "natural_long": {
+      "rows": 41,
+      "exactTrainingOverlap": 0,
+      "nearTrainingOverlapIncludingExact": 0
+    }
+  },
+  "normalization": "CJK U+4E00..U+9FFF only; no script conversion",
+  "nearDuplicate": {
+    "charBigramJaccard": 0.8,
+    "minimumLengthRatio": 0.5
+  },
+  "trainingSourceSha256": "a11463da289d918050e441a003848a795a97dcc47ffd1b9ed5345d1d70e0c84f",
+  "corpusSha256": "355d1e7ee611eed492c6d937a7d6261b015c3b7ef8df22a083a5c97b8ab6c8f2",
+  "trainingSourceRows": 89289,
+  "engineExecuted": false
+}

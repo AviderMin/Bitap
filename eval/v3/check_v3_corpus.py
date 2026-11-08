@@ -13,12 +13,14 @@ Checks:
 
 Run from the repository root:
 
-    python eval/v3/check_v3_corpus.py
+    python eval/v3/check_v3_corpus.py            # light offline check (skips source traceability if source files are absent)
+    python eval/v3/check_v3_corpus.py --strict   # release gate: sources + pinned archive must exist and match hashes
 
 Exit code 0 means all checks passed. Output is ASCII only.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import io
 import json
@@ -42,10 +44,24 @@ SOURCE_FILES = ["setences.txt", "chatlogs.txt", "g0v_slack_rand0m.txt", "tg_comm
 CATEGORY_ORDER = ["natural_short", "natural_medium", "natural_long"]
 MIN_COUNTS = {"natural_short": 200, "natural_medium": 150, "natural_long": 20}
 LENGTH_RANGES = {"natural_short": (2, 8), "natural_medium": (9, 16), "natural_long": (17, 24)}
+PUNCT = set("，。！？、；：（）《》〈〉“”‘’…—～·")
+MAX_PINYIN_LENGTH = 60
 
 
 def cjk(ch: str) -> bool:
     return 0x4E00 <= ord(ch) <= 0x9FFF
+
+
+def gb2312_ok(ch: str) -> bool:
+    try:
+        ch.encode("gb2312")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def allowed_char(ch: str) -> bool:
+    return (cjk(ch) and gb2312_ok(ch)) or ch in PUNCT
 
 
 def norm_text(text: str) -> str:
@@ -174,6 +190,10 @@ def check_format(rows: list[dict], errors: list[str]) -> None:
             errors.append(label + ": category length mismatch " + str(length) + " for " + row["category"])
         if pinyin_of(normalized) != row["input"]:
             errors.append(label + ": pinyin mismatch")
+        if len(row["input"]) > MAX_PINYIN_LENGTH:
+            errors.append(label + ": pinyin longer than " + str(MAX_PINYIN_LENGTH))
+        if any(not allowed_char(ch) for ch in row["expected"]):
+            errors.append(label + ": expected contains a disallowed character")
 
 
 def check_manifest(rows: list[dict], manifest: dict, errors: list[str]) -> dict[str, int]:
@@ -246,11 +266,14 @@ def load_source_lines() -> dict[str, list[str]]:
     return content
 
 
-def check_source(rows: list[dict], manifest: dict, errors: list[str]) -> None:
+def check_source(rows: list[dict], manifest: dict, errors: list[str], strict: bool = False) -> None:
     source_lines = load_source_lines()
     files_manifest = {entry["name"]: entry for entry in manifest.get("source", {}).get("files", [])}
     if not source_lines:
-        print("source_traceability: skipped (CC0 zh-TW files not found)")
+        if strict:
+            errors.append("source files missing: strict provenance check requires all CC0 source files")
+        else:
+            print("source_traceability: skipped (CC0 zh-TW files not found)")
         return
     for filename, entry in files_manifest.items():
         path = SOURCE_DIR / filename
@@ -259,9 +282,11 @@ def check_source(rows: list[dict], manifest: dict, errors: list[str]) -> None:
             continue
         if sha256_file(path) != entry.get("sha256"):
             errors.append("source file sha256 mismatch: " + filename)
-    if ARCHIVE.is_file():
-        if sha256_file(ARCHIVE) != manifest.get("source", {}).get("archive_sha256"):
-            errors.append("source archive sha256 mismatch")
+    if not ARCHIVE.is_file():
+        if strict:
+            errors.append("source archive missing: strict provenance check requires the pinned CC0 zip")
+    elif sha256_file(ARCHIVE) != manifest.get("source", {}).get("archive_sha256"):
+        errors.append("source archive sha256 mismatch")
     checked = 0
     mismatches = 0
     for row in rows:
@@ -295,6 +320,13 @@ def check_source(rows: list[dict], manifest: dict, errors: list[str]) -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="require all CC0 source files and archive with matching SHA-256 (release gate)",
+    )
+    args = parser.parse_args()
     errors: list[str] = []
     manifest = load_manifest()
     rows = load_rows(CORPUS_DIR / "pinyin_cases_v3_validation.tsv")
@@ -303,7 +335,7 @@ def main() -> int:
     dict_words = load_dictionary_words()
     check_dictionary_leak(rows, dict_words, errors)
     check_reference_overlap(rows, load_reference_texts(), errors)
-    check_source(rows, manifest, errors)
+    check_source(rows, manifest, errors, strict=args.strict)
     print("rows: " + str(len(rows)))
     print("category_counts: " + json.dumps(counts, ensure_ascii=False))
     if errors:

@@ -124,11 +124,11 @@ Rime 首次 setup/initialize/部署/创建会话合计本次 266.35ms，不是 A
 | oracle64 | 1169 | 468 | Rime 候选结构/句子模型不等价 |
 | rankCost | 3.5809 | 6.3338 | 前五外记 9 |
 
-同时对比“不同词典”的 Rime（pinyin-simp 词表）Top1 41.40%/Top5 43.42%：换成本项目词表后 Rime Top1 下降 9.25pp，说明此前不同词典差值中有明显词典/权重贡献，不能解释为纯引擎能力。但同词表也不等于同语言模型：Bitap 的字符 n-gram 句子重排无法写入 Rime 词典格式，Rime 最小方案对自然输入只产出一个完整句候选，因此本实验只能作为宿主诊断，不能作为 Android 选型或产品结论。
+同时对比“不同词典”的 Rime（pinyin-simp 词表）Top1 41.40%/Top5 43.42%：换成本项目词表这一整体替换使 Rime Top1 下降 9.25pp；该差值包含词表集合、词频权重与搜索/切分交互的净效应，不能拆成可加的“词典贡献”，也不能解释为纯引擎能力。同词表也不等于同语言模型：Bitap 的字符 n-gram 统计参与解码/排序（默认 `SENTENCE_CORPUS_WEIGHT=0`、`SENTENCE_DICTIONARY_WEIGHT=0`，不是整句后置重排），Rime 词典格式无法承接这些统计；Rime 最小方案对自然输入只产出一个完整句候选，因此本实验只能作为宿主诊断，不能作为 Android 选型或产品结论。
 
 ### B. 训练源独立的 v3 验收集
 
-为解决 §阶段一审查发现 2 的训练源重合，新增 `docs/EVALUATION_V3_PROTOCOL.md` 与 `docs/EVALUATION_V3_BASELINE.md`：来源为 irvin/cc0-sentences 的 zh-TW 日常聊天文件（CC0-1.0，`zhconv` 转简体），共 601 条（short 320 / medium 240 / long 41），与 v1/v2 无 exact/近重复，且与生产词库整句无重叠。
+为解决 §阶段一审查发现 2 的训练源重合，新增 `docs/EVALUATION_V3_PROTOCOL.md` 与 `docs/EVALUATION_V3_BASELINE.md`：来源为 irvin/cc0-sentences 的 zh-TW 日常聊天文件（CC0-1.0，`zhconv` 转简体），共 601 条（short 320 / medium 240 / long 41），与 v1/v2 无 exact/近重复，且与生产词库整句无重叠；但完整训练源审计发现 **1/601 条规范化精确训练句重合**，其余在字符 bigram Jaccard≥0.80 规则下未检出（见 `docs/D04_REVIEW_08b5543.md`）。
 
 | 数据集 | 口径 | n | Top1 | Top5 | rankCost | oracle |
 |---|---|---:|---:|---:|---:|---:|
@@ -136,7 +136,7 @@ Rime 首次 setup/initialize/部署/创建会话合计本次 266.35ms，不是 A
 | v2 validation（同源探索） | 引擎可评分 | 685 | 52.4% | 72.7% | 3.49（旧口径） | 84.8% |
 | **v3 validation（训练源独立）** | 引擎可评分 | 601 | **38.8%** [35.0,42.7] | **59.4%** [55.4,63.3] | **4.61** | **77.0%** |
 
-v3 明显低于 v2，符合“v2 与生产统计同源、被高估”的预期；不能解释为引擎在 v3 上突然变差（PinyinEngine 未改）。v3 只作独立验收，不进入调参；其首轮结果应作为后续 D05–D07 的真实基线。
+v3 在新来源上明显低于 v2，提示跨来源泛化不足；但 v3 同时更换来源、地区用词与句长分布，当前实验未隔离训练重合与分布变化，不能把整个差值归因于同源训练。也不能解释为引擎在 v3 上突然变差（PinyinEngine 未改）。v3 只作独立验收，不进入调参；其首轮结果应作为后续 D05–D07 的新来源自然句基线。
 
 ### C. D04 仍未完成
 
