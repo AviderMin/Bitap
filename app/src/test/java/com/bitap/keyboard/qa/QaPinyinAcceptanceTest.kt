@@ -10,7 +10,7 @@ import org.junit.Test
 
 /**
  * Acceptance checks against the real dictionary asset shipped inside the APK
- * (not a synthetic fixture): docs/06-quality-bar.md A4 expects nihao -> 你好.
+ * (not a synthetic fixture): docs/EVALUATION.md covers dictionary-backed acceptance (nihao -> 你好).
  */
 class QaPinyinAcceptanceTest {
 

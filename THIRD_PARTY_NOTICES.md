@@ -27,9 +27,9 @@ Tatoeba 的中文普通话（cmn）句子由 Tatoeba 贡献者提供，按 **Cre
 
 **要求的署名文本（本仓库实际使用）**：
 
-> Contains Chinese sentence data from Tatoeba (https://tatoeba.org), licensed under Creative Commons Attribution 2.0 France (CC BY 2.0 FR, https://creativecommons.org/licenses/by/2.0/fr/). Authors: see `docs/TATOEBA_CONTRIBUTORS.txt` (976 contributors, generated mechanically from the detailed sentences export). Changes: sentence text was used only to derive aggregate character n-gram counts; no original sentences are redistributed.
+> Contains Chinese sentence data from Tatoeba (https://tatoeba.org), licensed under Creative Commons Attribution 2.0 France (CC BY 2.0 FR, https://creativecommons.org/licenses/by/2.0/fr/). Authors: see `legal/TATOEBA_CONTRIBUTORS.txt` (976 contributors, generated mechanically from the detailed sentences export). Changes: sentence text was used only to derive aggregate character n-gram counts; no original sentences are redistributed.
 
-署名履行方式：Tatoeba wiki 的 Terms of Use 允许通过“列出所有作者”（a list of all authors）方式署名；`docs/TATOEBA_CONTRIBUTORS.txt` 由 `scripts/generate_tatoeba_contributors.py` 从 detailed 导出机械生成，按用户名排序去重，共 976 位作者，含导出文件名、SHA-256 与生成命令。
+署名履行方式：Tatoeba wiki 的 Terms of Use 允许通过“列出所有作者”（a list of all authors）方式署名；`legal/TATOEBA_CONTRIBUTORS.txt` 由 `scripts/generate_tatoeba_contributors.py` 从 detailed 导出机械生成，按用户名排序去重，共 976 位作者，含导出文件名、SHA-256 与生成命令。
 
 **边界与保留**：
 
@@ -37,4 +37,10 @@ Tatoeba 的中文普通话（cmn）句子由 Tatoeba 贡献者提供，按 **Cre
 - Tatoeba 中可能包含从外部来源导入的句子，其额外署名/许可要求无法完全排除；若发现此类句子，应将其排除或替换，不能仅以“聚合统计”或“demo”作为许可已解决的依据。
 - Tatoeba 的 CC BY 2.0 FR 仅覆盖该数据集；不覆盖 jieba/pypinyin（各自 MIT）、LiteRT-LM / Qwen3-0.6B 模型权重或其他第三方资源，也不构成“所有资源均可商用”的声明。
 
-具体处理过程、验证命令、产物与评测对比见 [docs/LICENSE_CLEANUP.md](docs/LICENSE_CLEANUP.md)。
+当前数据来源、核验命令与原件缺失边界见 [legal/DATA_PROVENANCE.md](legal/DATA_PROVENANCE.md)。历史处理与实验对比保留在 Git 历史。
+
+## 仅用于评测的资源
+
+v2 包含选取的 Tatoeba 原句，署名见 `eval/v2/corpus/ATTRIBUTION.md` 和 `legal/TATOEBA_CONTRIBUTORS.txt`；上文“不包含原始句子”限定为生产拼音资产，不涵盖评测目录。
+
+v3 与 D05 的 CC0 句子、D05 中文维基百科 CC BY-SA 4.0 快照，以及 Rime 宿主实验的 BSD/Apache 资源分别保留各目录的来源、许可证和署名。维基百科逐行 pageid/oldid/URL 见 `eval/d05/dev/wikipedia_long_source.tsv`。这些资源不进入生产 APK；主项目 Apache-2.0 不替代它们各自的数据许可。

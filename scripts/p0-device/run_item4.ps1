@@ -5,7 +5,7 @@
 # After each action wait 20s+ and verify no loading remains and text unchanged.
 # Key coordinates are detected from a screenshot via detect_keys.py.
 param(
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\p0final\precheck-item4",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/precheck-item4'),
   [string]$Tag = "precheck-item4",
   [string]$BaseUrl = "http://127.0.0.1:8769"
 )

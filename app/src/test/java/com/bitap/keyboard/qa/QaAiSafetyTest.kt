@@ -12,8 +12,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * QA acceptance guard for the AI safety invariants in docs/03-ai-design.md and
- * docs/01-experience-spec.md: cleaned output only, bounded length, never auto-insert.
+ * QA acceptance guard for the AI safety invariants in docs/ARCHITECTURE.md and
+ * docs/PRODUCT_REQUIREMENTS.md: cleaned output only, bounded length, never auto-insert.
  */
 class QaAiSafetyTest {
 

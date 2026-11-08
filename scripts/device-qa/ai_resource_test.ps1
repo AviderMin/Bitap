@@ -5,7 +5,7 @@
 # Usage: pwsh -NoProfile -File scripts/device-qa/ai_resource_test.ps1 -Tag d02
 param(
   [string]$Serial = "fe4ab855",
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\device-qa\ai",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/device-qa/ai'),
   [string]$Tag = "d02",
   [string]$Query = "nihao",
   [int]$PeakSeconds = 25

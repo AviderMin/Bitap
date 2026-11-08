@@ -1638,9 +1638,9 @@ class PinyinEngine private constructor(
         /**
          * Weight of the corpus character-bigram score inside a word.
          *
-         * D05 ranking ablation: 0.35 -> 0.50 improves naturalOnly Top5
+         * D05 ranking ablation: 0.35 -> 0.50 improves naturalRankable Top5
          * 54.4% -> 54.9% (and oracle 477 -> 479) with no search/display changes;
-         * see docs/D05_RANKING_IMPROVEMENT.md.
+         * see docs/PROGRESS.md.
          */
         private const val WORD_NGRAM_WEIGHT = 0.50
         /** Weight of the dictionary-trained character-bigram score inside a word. */
@@ -1657,9 +1657,10 @@ class PinyinEngine private constructor(
         /**
          * D05 A-early-slot-after-full-5: keep one early partial pick for long
          * inputs, but place it after five full candidates (rank 6) so Top5 is
-         * not displaced while the partial remains visible in the top eight.
+         * not displaced while the partial remains among the first eight returned candidates.
+         * Device checks show rank 6 can require scrolling; it is not guaranteed visible.
          * NaturalOnly Top5 59.0% -> 60.7%, oracle unchanged; see
-         * docs/D05_MECHANISM_IMPROVEMENT.md.
+         * docs/PROGRESS.md.
          */
         private const val PARTIAL_EARLY_SLOT_COUNT = 1
         /** Number of full candidates placed before the early partial pick. */

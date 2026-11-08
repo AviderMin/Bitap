@@ -5,7 +5,7 @@
 # IME window height/offset can vary between sessions. Reference tables for the
 # default layout are in detect_keys.py (portrait 1080x2400 / landscape 2400x1080).
 param(
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\p0final\precheck-item2",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/precheck-item2'),
   [string]$Tag = "precheck-item2",
   [string]$BaseUrl = "http://127.0.0.1:8769"
 )

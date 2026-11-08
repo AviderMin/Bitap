@@ -1,14 +1,19 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Bitap 0.1 QA gate: unit tests -> debug APK -> network permission check.
+    Bitap engineering gate: baseline/regression unit tests -> lint -> debug APK -> corpus + privacy checks.
 
 .DESCRIPTION
-    Runs the three release gates from docs/06-quality-bar.md and docs/05-privacy-security.md:
-      1. .\gradlew.bat :app:testDebugUnitTest
-      2. .\gradlew.bat :app:assembleDebug
-      3. build-tools 36.0.0 aapt dump permissions on app-debug.apk
-    Any failing step exits with code 1. Warnings are printed but do not fail the gate.
+    Maintained engineering gate described in
+    docs/DEVELOPMENT.md and docs/EVALUATION.md:
+      1. .\gradlew.bat :app:testDebugUnitTest --rerun-tasks (never cached)
+      2. .\gradlew.bat :app:lintDebug
+      3. .\gradlew.bat :app:assembleDebug
+      4. python eval/check_corpus.py + eval/check_no_leak.py + eval/v2/check_v2_corpus.py + eval/v3/check_v3_corpus.py
+      5. aapt permission check: no INTERNET / ACCESS_NETWORK_STATE
+    D05 data, Python contracts and documentation references are also checked.
+    StrictSources enables strict v3 source/archive verification.
+    Any failing step exits with code 1. The script writes no product data.
 
 .PARAMETER BuildToolsVersion
     Android build-tools version used for aapt. Defaults to 36.0.0.
@@ -18,12 +23,15 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$BuildToolsVersion = '36.0.0'
+    [string]$BuildToolsVersion = '36.0.0',
+    [switch]$StrictSources
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apkPath = Join-Path $repoRoot 'app\build\outputs\apk\debug\app-debug.apk'
+$optInNames = @('PINYIN_SEALED_RUN','PINYIN_V2_VALIDATION','PINYIN_V3_ACCEPTANCE','BITAP_D04_EXPORT')
+$savedOptIns = @{}
 
 function Write-Section {
     param([string]$Title)
@@ -33,10 +41,10 @@ function Write-Section {
     Write-Host ('=' * 72) -ForegroundColor Cyan
 }
 
-function Invoke-GradleStep {
-    param([string]$Label, [string[]]$Arguments)
+function Invoke-Step {
+    param([string]$Label, [scriptblock]$Body)
     Write-Section $Label
-    & $script:gradlew @Arguments
+    & $Body
     if ($LASTEXITCODE -ne 0) {
         throw ("$Label failed with exit code $LASTEXITCODE")
     }
@@ -45,9 +53,7 @@ function Invoke-GradleStep {
 
 function Resolve-AndroidSdk {
     foreach ($candidate in @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME)) {
-        if ($candidate -and (Test-Path (Join-Path $candidate 'build-tools'))) {
-            return $candidate
-        }
+        if ($candidate -and (Test-Path (Join-Path $candidate 'build-tools'))) { return $candidate }
     }
     $localProperties = Join-Path $repoRoot 'local.properties'
     if (Test-Path $localProperties) {
@@ -57,36 +63,32 @@ function Resolve-AndroidSdk {
         if ($line) {
             $value = ($line -replace '^\s*sdk\.dir\s*=\s*', '').Trim()
             $value = $value -replace '\\\\', '\' -replace '\\:', ':'
-            if (Test-Path $value) {
-                return $value
-            }
+            if (Test-Path $value) { return $value }
         }
     }
     $fallback = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
-    if (Test-Path $fallback) {
-        return $fallback
-    }
+    if (Test-Path $fallback) { return $fallback }
     return $null
 }
 
 function Resolve-Aapt {
     param([string]$SdkRoot, [string]$Version)
-    $candidates = New-Object System.Collections.Generic.List[string]
     $buildTools = Join-Path $SdkRoot 'build-tools'
-    $candidates.Add((Join-Path $buildTools (Join-Path $Version 'aapt.exe')))
-    $candidates.Add((Join-Path $buildTools (Join-Path $Version 'aapt')))
+    foreach ($candidate in @(
+        (Join-Path $buildTools (Join-Path $Version 'aapt.exe')),
+        (Join-Path $buildTools (Join-Path $Version 'aapt'))
+    )) {
+        if (Test-Path $candidate) { return $candidate }
+    }
     if (Test-Path $buildTools) {
         $latest = Get-ChildItem $buildTools -Directory |
             Sort-Object { [Version]($_.Name.Split('-')[0]) } -Descending |
             Select-Object -First 1
         if ($latest) {
-            $candidates.Add((Join-Path $latest.FullName 'aapt.exe'))
-            $candidates.Add((Join-Path $latest.FullName 'aapt'))
-        }
-    }
-    foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path $candidate)) {
-            return $candidate
+            foreach ($name in @('aapt.exe', 'aapt')) {
+                $candidate = Join-Path $latest.FullName $name
+                if (Test-Path $candidate) { return $candidate }
+            }
         }
     }
     return $null
@@ -94,13 +96,8 @@ function Resolve-Aapt {
 
 function Get-TestSummary {
     $resultsDir = Join-Path $repoRoot 'app\build\test-results\testDebugUnitTest'
-    if (-not (Test-Path $resultsDir)) {
-        return 'test results directory not found'
-    }
-    $total = 0
-    $failures = 0
-    $errors = 0
-    $skipped = 0
+    if (-not (Test-Path $resultsDir)) { return 'test results directory not found' }
+    $total = 0; $failures = 0; $errors = 0; $skipped = 0
     Get-ChildItem $resultsDir -Filter '*.xml' | ForEach-Object {
         [xml]$xml = Get-Content -Raw $_.FullName
         $suite = $xml.testsuite
@@ -115,66 +112,73 @@ function Get-TestSummary {
 function Test-NetworkPermissions {
     param([string]$Apk, [string]$Aapt)
     Write-Section 'Privacy check: aapt dump permissions'
-    if (-not (Test-Path $Apk)) {
-        throw "APK not found: $Apk"
-    }
+    if (-not (Test-Path $Apk)) { throw "APK not found: $Apk" }
     $raw = & $Aapt dump permissions $Apk 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "aapt dump permissions failed with exit code $LASTEXITCODE"
-    }
+    if ($LASTEXITCODE -ne 0) { throw "aapt dump permissions failed with exit code $LASTEXITCODE" }
     $text = ($raw | Out-String)
     Write-Host $text
-
-    $forbidden = @(
-        'android.permission.INTERNET',
-        'android.permission.ACCESS_NETWORK_STATE'
-    )
     $violations = @()
-    foreach ($permission in $forbidden) {
-        if ($text -match [regex]::Escape($permission)) {
-            $violations += $permission
-        }
+    foreach ($permission in @('android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE')) {
+        if ($text -match [regex]::Escape($permission)) { $violations += $permission }
     }
-    if ($violations.Count -gt 0) {
-        throw ('Forbidden network permission(s): ' + ($violations -join ', '))
-    }
+    if ($violations.Count -gt 0) { throw ('Forbidden network permission(s): ' + ($violations -join ', ')) }
     Write-Host 'OK: no INTERNET / ACCESS_NETWORK_STATE permission declared.' -ForegroundColor Green
 }
 
 Push-Location $repoRoot
 try {
-    Write-Host "Bitap QA gate - repo: $repoRoot"
-
-    $script:gradlew = Join-Path $repoRoot 'gradlew.bat'
-    if (-not (Test-Path $script:gradlew)) {
-        $script:gradlew = Join-Path $repoRoot 'gradlew'
+    foreach ($name in $optInNames) {
+        $savedOptIns[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+        [Environment]::SetEnvironmentVariable($name, $null, 'Process')
     }
-    if (-not (Test-Path $script:gradlew)) {
-        throw 'Gradle wrapper not found (gradlew.bat / gradlew).'
-    }
+    Write-Host "Bitap engineering gate - repo: $repoRoot"
+    $gradlew = Join-Path $repoRoot 'gradlew.bat'
+    if (-not (Test-Path $gradlew)) { $gradlew = Join-Path $repoRoot 'gradlew' }
+    if (-not (Test-Path $gradlew)) { throw 'Gradle wrapper not found.' }
 
-    Invoke-GradleStep -Label 'Unit tests: :app:testDebugUnitTest' -Arguments @(':app:testDebugUnitTest', '--console=plain')
+    Invoke-Step 'Unit tests: :app:testDebugUnitTest --rerun-tasks' {
+        & $gradlew ':app:testDebugUnitTest' '--rerun-tasks' '--console=plain'
+    }
     Write-Host ('Test results: ' + (Get-TestSummary))
 
-    Invoke-GradleStep -Label 'Build: :app:assembleDebug' -Arguments @(':app:assembleDebug', '--console=plain')
-
-    if (-not (Test-Path $apkPath)) {
-        throw "Debug APK not found after assemble: $apkPath"
+    Invoke-Step 'Lint: :app:lintDebug' {
+        & $gradlew ':app:lintDebug' '--console=plain'
     }
+
+    Invoke-Step 'Build: :app:assembleDebug' {
+        & $gradlew ':app:assembleDebug' '--console=plain'
+    }
+
+    Invoke-Step 'Corpus checks (v1 + v2 + v3 + D05)' {
+        python eval/check_corpus.py
+        if ($LASTEXITCODE -ne 0) { throw "check_corpus.py failed" }
+        python eval/check_no_leak.py
+        if ($LASTEXITCODE -ne 0) { throw "check_no_leak.py failed" }
+        python eval/v2/check_v2_corpus.py
+        if ($LASTEXITCODE -ne 0) { throw "check_v2_corpus.py failed" }
+        if ($StrictSources) { python eval/v3/check_v3_corpus.py --strict }
+        else { python eval/v3/check_v3_corpus.py }
+        if ($LASTEXITCODE -ne 0) { throw "check_v3_corpus.py failed" }
+        python eval/d05/dev/check_d05_dev.py
+        if ($LASTEXITCODE -ne 0) { throw "D05 corpus check failed" }
+        python -m unittest discover -s eval/d04 -p 'test_*.py'
+        if ($LASTEXITCODE -ne 0) { throw "D04 scorer contracts failed" }
+        python -m unittest discover -s eval/v3 -p 'test_*.py'
+        if ($LASTEXITCODE -ne 0) { throw "v3 overlap contracts failed" }
+        python scripts/check_repo_links.py
+        if ($LASTEXITCODE -ne 0) { throw "documentation references failed" }
+        $global:LASTEXITCODE = 0
+    }
+
+    if (-not (Test-Path $apkPath)) { throw "Debug APK not found: $apkPath" }
     $apk = Get-Item $apkPath
     Write-Host ('APK: ' + $apk.FullName)
-    Write-Host ('APK size: ' + $apk.Length + ' bytes (' + [math]::Round($apk.Length / 1MB, 2) + ' MB)')
+    Write-Host ('APK size: ' + $apk.Length + ' bytes')
 
     $sdkRoot = Resolve-AndroidSdk
-    if (-not $sdkRoot) {
-        throw 'Android SDK not found. Set ANDROID_HOME or sdk.dir in local.properties.'
-    }
+    if (-not $sdkRoot) { throw 'Android SDK not found.' }
     $aapt = Resolve-Aapt -SdkRoot $sdkRoot -Version $BuildToolsVersion
-    if (-not $aapt) {
-        throw "aapt not found under $sdkRoot\build-tools (requested $BuildToolsVersion)."
-    }
-    Write-Host ('aapt: ' + $aapt)
-
+    if (-not $aapt) { throw "aapt not found under $sdkRoot\build-tools." }
     Test-NetworkPermissions -Apk $apk.FullName -Aapt $aapt
 
     Write-Section 'RESULT: PASS'
@@ -186,5 +190,8 @@ catch {
     exit 1
 }
 finally {
+    foreach ($name in $savedOptIns.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $savedOptIns[$name], 'Process')
+    }
     Pop-Location
 }

@@ -18,7 +18,7 @@ import org.junit.Test
 /**
  * A4 independent regression: input correctness at the pure state-machine level.
  *
- * Covers docs/06-quality-bar.md A4 plus the regressions fixed in d48480f:
+ * Covers the correctness requirements in docs/EVALUATION.md and regressions fixed in d48480f:
  * continuous pinyin sentences, punctuation, stale candidates, last-letter
  * backspace and repeated backspace (what a held key emits).
  *

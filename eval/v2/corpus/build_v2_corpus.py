@@ -913,7 +913,7 @@ def attribution_text(source_sha: str) -> str:
         "SHA-256: " + source_sha + "\n"
         "\n"
         "Contains Chinese sentence data from Tatoeba (https://tatoeba.org), licensed\n"
-        "under CC BY 2.0 FR. Authors: see docs/TATOEBA_CONTRIBUTORS.txt (976\n"
+        "under CC BY 2.0 FR. Authors: see legal/TATOEBA_CONTRIBUTORS.txt (976\n"
         "contributors, generated mechanically from the 2026-11-07 detailed export).\n"
         "Changes: a subset of sentences was filtered, punctuation-normalized for\n"
         "near-duplicate comparison, and redistributed verbatim as evaluation\n"

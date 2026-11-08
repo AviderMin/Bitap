@@ -9,7 +9,7 @@ param(
   [Parameter(Mandatory=$true)][string]$Match,
   [switch]$Text,
   [switch]$Exact,
-  [string]$Out = "D:\Projects\Github\Bitap\.tmp\p0final\ui-tap.xml"
+  [string]$Out = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/ui-tap.xml')
 )
 $ErrorActionPreference = "Stop"
 $serial = if ($env:BITAP_DEVICE) { $env:BITAP_DEVICE } else { "fe4ab855" }

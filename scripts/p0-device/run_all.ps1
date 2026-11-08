@@ -1,12 +1,12 @@
 # Run all P0 acceptance items on a given final APK (single operator).
 # Usage:
-#   powershell -File scripts/p0-device/run_all.ps1 -ApkPath dist/bitap-0.1.0-demo.apk -Commit <sha> -EvidenceDir docs/evidence
+#   powershell -File scripts/p0-device/run_all.ps1 -ApkPath dist/bitap-0.1.0-demo.apk -Commit <sha> -EvidenceDir .tmp/p0final/evidence
 # Item4 is run separately because the AI cancel affordance must be inspected on the final UI;
-# use run_item4.ps1 with -EvidenceDir docs/evidence -Tag p0-final-item4.
+# use run_item4.ps1 with -EvidenceDir .tmp/p0final/evidence -Tag p0-final-item4.
 param(
   [Parameter(Mandatory=$true)][string]$ApkPath,
   [string]$Commit = "",
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\docs\evidence"
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/evidence')
 )
 $ErrorActionPreference = "Stop"
 $serial = if ($env:BITAP_DEVICE) { $env:BITAP_DEVICE } else { "fe4ab855" }

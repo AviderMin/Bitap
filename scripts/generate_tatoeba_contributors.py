@@ -17,7 +17,7 @@ usernames with their sentence counts. It does not edit or invent names.
 Usage:
   python scripts/generate_tatoeba_contributors.py \
     --corpus .tmp/tatoeba/cmn_sentences_detailed.tsv.bz2 \
-    --out docs/TATOEBA_CONTRIBUTORS.txt
+    --out legal/TATOEBA_CONTRIBUTORS.txt
 """
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def main() -> None:
         "# SHA-256: " + digest,
         "# Sentences: " + str(len(rows)) + " | Authors: " + str(len(authors)) + " | Empty username rows: " + str(empty_usernames),
         "# Columns: sentence id, language, text, username, added, modified (no per-row license column)",
-        "# Generation command: python scripts/generate_tatoeba_contributors.py --corpus .tmp/tatoeba/cmn_sentences_detailed.tsv.bz2 --out docs/TATOEBA_CONTRIBUTORS.txt",
+        "# Generation command: python scripts/generate_tatoeba_contributors.py --corpus .tmp/tatoeba/cmn_sentences_detailed.tsv.bz2 --out legal/TATOEBA_CONTRIBUTORS.txt",
         "# username\tsentence_count",
     ]
     lines.extend(name + "\t" + str(count) for name, count in sorted(authors.items(), key=lambda kv: kv[0].lower()))

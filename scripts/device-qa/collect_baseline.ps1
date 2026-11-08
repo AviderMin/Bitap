@@ -1,7 +1,7 @@
 # Collect the Phase-1 device baseline for Bitap (read-only except local files).
-# Usage: .\collect_baseline.ps1 [-OutDir D:\Projects\Github\Bitap\.tmp\device-qa] [-Serial fe4ab855]
+# Usage: .\collect_baseline.ps1 [-OutDir .tmp/device-qa] [-Serial fe4ab855]
 param(
-  [string]$OutDir = "D:\Projects\Github\Bitap\.tmp\device-qa",
+  [string]$OutDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/device-qa'),
   [string]$Serial = "fe4ab855"
 )
 $ErrorActionPreference = "Stop"

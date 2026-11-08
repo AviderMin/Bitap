@@ -34,7 +34,7 @@ import org.junit.Test
 
 /**
  * Cross-module acceptance: core reducer -> KeyboardController -> TextSession ordering.
- * Uses a FakeTextSession per docs/06-quality-bar.md section 4 ("TextSessionTest").
+ * Uses a FakeTextSession for the state/contract verification in docs/EVALUATION.md.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class QaKeyboardControllerIntegrationTest {

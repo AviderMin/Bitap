@@ -46,4 +46,4 @@ python -m unittest discover -s eval/d04 -p 'test_*.py' -v
 - Tatoeba/jieba/pypinyin 的 v2 评测署名继续见 `eval/v2/corpus/ATTRIBUTION.md`。
 - 实验原始依赖只在 `.tmp/`，本目录不重新分发第三方二进制或词典。
 
-本次结果与限制见 `docs/D04_HOST_COMPARISON.md` 和 `docs/adr/0002-input-engine-d04.md`。
+本次结果与限制见 `docs/PROGRESS.md` 和 `docs/ARCHITECTURE.md`。

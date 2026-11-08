@@ -9,7 +9,7 @@
   Print every node (otherwise only text/desc/EditText nodes).
 #>
 param(
-  [string]$Out = "D:\Projects\Github\Bitap\.tmp\p0final\ui-last.xml",
+  [string]$Out = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/ui-last.xml'),
   [string]$Find = "",
   [switch]$All
 )

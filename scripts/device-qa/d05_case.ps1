@@ -5,7 +5,7 @@ param(
   [Parameter(Mandatory=$true)][string]$Tag,
   [switch]$Expand,
   [string]$Serial = "fe4ab855",
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\device-qa\d05"
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/device-qa/d05')
 )
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path $EvidenceDir)) { New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null }

@@ -9,7 +9,7 @@ data class AiPrompt(
 )
 
 /**
- * Builds the fixed single-turn prompt described in docs/03-ai-design.md.
+ * Builds the fixed single-turn prompt described in docs/ARCHITECTURE.md.
  *
  * Pure Kotlin: this object is safe to exercise from JVM unit tests and never
  * reads or persists user input beyond the in-memory string it is given.

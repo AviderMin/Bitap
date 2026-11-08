@@ -9,7 +9,7 @@
 # Taps are chained inside one adb shell with 50 ms gaps so key events stay
 # discrete while remaining fast enough to exercise the 30 ms query debounce.
 param(
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\p0final\precheck-item1",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/precheck-item1'),
   [string]$Tag = "precheck-item1",
   [string]$BaseUrl = "http://127.0.0.1:8769"
 )

@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Static privacy gates from docs/05-privacy-security.md section 5.
+ * Static privacy gates described in docs/ARCHITECTURE.md.
  * These are file-level checks so they fail fast if a future change adds a network
  * permission or prints user text, without needing an emulator.
  */

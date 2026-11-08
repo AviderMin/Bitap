@@ -4,7 +4,7 @@
 # Run with PowerShell 7: pwsh -NoProfile -File scripts/device-qa/smoke.ps1 -Tag smoke
 param(
   [string]$Serial = "fe4ab855",
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\device-qa\smoke",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/device-qa/smoke'),
   [string]$Tag = "smoke",
   [switch]$SkipSettings,
   [switch]$SkipPassword

@@ -6,7 +6,7 @@
 #   space (590,2204); comma (293,2204); period (887,2204); enter (1004,2204)
 #   page buttons: 清空 (121,1009), 全选 (306,1009)
 param(
-  [string]$EvidenceDir = "D:\Projects\Github\Bitap\.tmp\p0final\precheck",
+  [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/p0final/precheck'),
   [string]$Tag = "precheck-item3",
   [string]$BaseUrl = "http://127.0.0.1:8769"
 )

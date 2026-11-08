@@ -14,7 +14,7 @@ Source file: .tmp/tatoeba/cmn_sentences.tsv
 SHA-256: a11463da289d918050e441a003848a795a97dcc47ffd1b9ed5345d1d70e0c84f
 
 Contains Chinese sentence data from Tatoeba (https://tatoeba.org), licensed
-under CC BY 2.0 FR. Authors: see docs/TATOEBA_CONTRIBUTORS.txt (976
+under CC BY 2.0 FR. Authors: see legal/TATOEBA_CONTRIBUTORS.txt (976
 contributors, generated mechanically from the 2026-11-07 detailed export).
 Changes: a subset of sentences was filtered, punctuation-normalized for
 near-duplicate comparison, and redistributed verbatim as evaluation

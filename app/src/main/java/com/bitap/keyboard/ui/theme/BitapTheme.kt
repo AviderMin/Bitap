@@ -28,7 +28,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
 
 // ---------------------------------------------------------------------------
-// Palette tokens (docs/04-design-system.md, section 3)
+// Palette tokens; UI ownership is described in docs/ARCHITECTURE.md
 // ---------------------------------------------------------------------------
 
 private val MiuixAccentLight = Color(0xFF3482FF)
