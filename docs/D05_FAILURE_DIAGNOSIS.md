@@ -2,6 +2,8 @@
 
 日期：2026-11-08（Asia/Shanghai）。数据：D05 跨来源诊断 dev（task-9 / d05-v1），950 条；基线工具：`app/src/test/java/com/bitap/keyboard/core/PinyinD05DevEvalTest.kt`。**D05 是允许逐条诊断的开发集，不是验收集；v3 validation 仍是唯一独立验收，本次没有运行 v3。**
 
+> 后记：本文件的 Top5/failureClass 是机制改变前的历史基线；机制改进（early partial 放到 5 个 full 之后）后的 after 指标见 `docs/D05_MECHANISM_IMPROVEMENT.md`，不要把两组数字混用。
+
 ## 1. 数据与方法
 
 - 数据文件：`eval/d05/dev/dev.tsv`，950 行、6 列（id/category/input/expected/note/source），SHA-256 `1d628eb46783ffe337dcbe5887b4126f58ba66b638f7d58159b58d235d74b9b4`。

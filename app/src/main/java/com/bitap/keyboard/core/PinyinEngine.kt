@@ -58,6 +58,8 @@ class PinyinEngine private constructor(
         val partialCoverageMinInput: Int = PARTIAL_COVERAGE_MIN_INPUT,
         /** Number of best partial picks shown before the tail of long full sentences. */
         val partialEarlySlotCount: Int = PARTIAL_EARLY_SLOT_COUNT,
+        /** Number of full candidates shown before an early partial slot. */
+        val partialEarlySlotAfterFull: Int = PARTIAL_EARLY_SLOT_AFTER_FULL,
         /** Keep only the best path per last word before applying the beam. */
         val dedupeBeamByLastWord: Boolean = false,
         /** Queries at least this long use the long-input rerank terms below. */
@@ -143,6 +145,7 @@ class PinyinEngine private constructor(
             tuning.partialQuota,
             tuning.partialEarlySlotCount,
             tuning.longInputThreshold,
+            tuning.partialEarlySlotAfterFull,
         )
     }
 
@@ -237,6 +240,7 @@ class PinyinEngine private constructor(
                 tuning.partialQuota,
                 tuning.partialEarlySlotCount,
                 tuning.longInputThreshold,
+                tuning.partialEarlySlotAfterFull,
             ),
             collected = collector.snapshot().map {
                 DebugCandidate(it.word, it.score, it.consumed, it.isCorrection, it.isPrefix)
@@ -337,6 +341,7 @@ class PinyinEngine private constructor(
             partialQuota: Int = PARTIAL_QUOTA,
             partialEarlySlotCount: Int = 0,
             longInputThreshold: Int = LONG_INPUT_THRESHOLD,
+            partialEarlySlotAfterFull: Int = PARTIAL_EARLY_SLOT_AFTER_FULL,
         ): List<Candidate> {
             if (byWord.isEmpty()) return emptyList()
             // Learning only re-orders full-coverage candidates; partial prefix
@@ -382,7 +387,7 @@ class PinyinEngine private constructor(
                 0
             }
             if (earlyPartial > 0) {
-                val earlyFull = min(3, fullBudget)
+                val earlyFull = min(partialEarlySlotAfterFull.coerceAtLeast(0), fullBudget)
                 full.take(earlyFull).forEach { out += it.toCandidate() }
                 partial.take(earlyPartial).forEach { out += it.toCandidate() }
                 full.drop(earlyFull).take(fullBudget - earlyFull)
@@ -1643,7 +1648,16 @@ class PinyinEngine private constructor(
         /** Preferred share of the input covered by a first-segment partial pick. */
         private const val PARTIAL_COVERAGE_TARGET = 0.36
         private const val PARTIAL_COVERAGE_MIN_INPUT = 24
+        /**
+         * D05 A-early-slot-after-full-5: keep one early partial pick for long
+         * inputs, but place it after five full candidates (rank 6) so Top5 is
+         * not displaced while the partial remains visible in the top eight.
+         * NaturalOnly Top5 59.0% -> 60.7%, oracle unchanged; see
+         * docs/D05_MECHANISM_IMPROVEMENT.md.
+         */
         private const val PARTIAL_EARLY_SLOT_COUNT = 1
+        /** Number of full candidates placed before the early partial pick. */
+        private const val PARTIAL_EARLY_SLOT_AFTER_FULL = 5
         /** Input length above which sentence-level rerank terms may apply. */
         private const val LONG_INPUT_THRESHOLD = 24
         private const val MIN_TRIGRAM_CONTEXT = 3L
