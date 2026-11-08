@@ -1,6 +1,7 @@
 package com.bitap.keyboard.core.engine
 
 import com.bitap.keyboard.core.Candidate
+import com.bitap.keyboard.core.LongInputBoundaryMode
 import com.bitap.keyboard.core.PinyinEngine
 
 /**
@@ -28,6 +29,26 @@ class PinyinInputEngine(
 
     override val isReady: Boolean
         get() = delegate.isReady
+
+    /**
+     * The legacy baseline rejects inputs longer than
+     * [PinyinEngine.MAX_SEARCH_INPUT_LENGTH]. Declaring it here lets the
+     * controller segment long compositions while the baseline keeps its own
+     * hard guard for direct callers of [PinyinEngine.search].
+     */
+    override val maxQueryInputLength: Int
+        get() = PinyinEngine.MAX_SEARCH_INPUT_LENGTH
+
+    override fun queryInputFor(rawInput: String, mode: QueryInputMode): String =
+        delegate.queryPrefixForBoundary(
+            rawInput,
+            maxQueryInputLength,
+            when (mode) {
+                QueryInputMode.FIXED -> LongInputBoundaryMode.FIXED
+                QueryInputMode.SYLLABLE -> LongInputBoundaryMode.SYLLABLE
+                QueryInputMode.WORD -> LongInputBoundaryMode.WORD
+            },
+        )
 
     override fun query(request: QueryRequest): QueryResult {
         val startedAt = nanoTime()

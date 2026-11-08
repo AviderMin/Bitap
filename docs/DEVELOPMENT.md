@@ -59,6 +59,10 @@ python eval/v3/audit_training_overlap.py
 # D05 dev是可查看、可调参的开发集
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05DevEvalTest --rerun-tasks --console=plain
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05RankingAblationTest --rerun-tasks --console=plain
+# 长输入边界诊断：输出 build/d05/long-input-boundary.txt 与 -sweep.txt
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinLongInputBoundaryEvalTest --rerun-tasks --console=plain
+# Partial排序诊断：输出 build/d05/partial-ranking.txt
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinPartialRankingEvalTest --rerun-tasks --console=plain
 python eval/d05/dev/check_d05_dev.py
 
 # 宿主Rime实验，非Android集成

@@ -14,6 +14,9 @@ package com.bitap.keyboard.core.engine
  * implementation; [PinyinInputEngine] adapts it without changing candidate
  * order, candidate fields, consumed prefix lengths or correction flags.
  */
+/** Experimental long-input split policies; production defaults to [FIXED]. */
+enum class QueryInputMode { FIXED, SYLLABLE, WORD }
+
 interface InputEngine : AutoCloseable {
 
     /** Stable engine id used by diagnostics and A/B reports. */
@@ -21,6 +24,38 @@ interface InputEngine : AutoCloseable {
 
     /** True when the engine can serve queries (dictionary/model loaded). */
     val isReady: Boolean
+
+    /**
+     * Maximum number of raw-input characters [query] can decode in one call.
+     *
+     * This is an engine-declared decoding budget, not a UI limit: the caller
+     * keeps the full composition visible and editable in
+     * `KeyboardUiState.composing`, and only narrows the text sent to [query].
+     * The default [Int.MAX_VALUE] preserves the pre-existing contract for
+     * engines that do not opt in, so they keep receiving the complete composing
+     * text unchanged.
+     */
+    val maxQueryInputLength: Int
+        get() = Int.MAX_VALUE
+
+    /**
+     * Pure helper for one query: returns [rawInput] unchanged when it fits
+     * [maxQueryInputLength], otherwise exactly its first [maxQueryInputLength]
+     * characters. The caller keeps the full composition, so the omitted tail is
+     * not lost: it stays in composing and is re-queried after a candidate
+     * consumes the returned prefix.
+     */
+    fun queryInputFor(rawInput: String): String {
+        val budget = maxQueryInputLength
+        return if (rawInput.length <= budget) rawInput else rawInput.substring(0, budget)
+    }
+
+    /**
+     * Policy-aware variant for the long-input experiment. Engines that do not
+     * implement [QueryInputMode.SYLLABLE]/[QueryInputMode.WORD] fall back to the
+     * fixed prefix, so the default contract stays safe.
+     */
+    fun queryInputFor(rawInput: String, mode: QueryInputMode): String = queryInputFor(rawInput)
 
     /**
      * Runs one synchronous query. Callers execute this on a background
@@ -137,7 +172,11 @@ data class QueryRequest(
     val sessionId: String,
     /** Monotonic composition version from KeyboardUiState. */
     val compositionVersion: Long,
-    /** Exact composing text (raw pinyin) this query is for. */
+    /**
+     * Exact raw-input text this query is for. For budgeted engines the caller
+     * passes [InputEngine.queryInputFor] of the visible composition here, so
+     * this may be a prefix of `KeyboardUiState.composing`.
+     */
     val rawInput: String,
     /** Maximum number of candidates the caller wants back. */
     val limit: Int = InputEngine.DEFAULT_LIMIT,

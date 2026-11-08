@@ -100,7 +100,71 @@ private val LocalKeyboardRowGap = staticCompositionLocalOf { 0.dp }
  */
 internal fun usesCandidatePanelOverlay(compact: Boolean): Boolean = compact
 
-internal fun candidatePanelMaxHeightDp(compact: Boolean): Int = if (compact) 120 else 220
+/**
+ * Expanded panel geometry.
+ *
+ * One row is a 48 dp [CandidateChip] minimum plus the 2 dp gap to the next row.
+ * The footer is one 48 dp [PanelTextButton] row and is fixed outside the item
+ * scroller; the panel inner padding is 8 dp on top and 8 dp on the bottom.
+ * Page size is chosen so all page rows plus the footer fit inside
+ * [candidatePanelMaxHeightDp] without the item list scrolling at the default
+ * font scale. A larger accessibility font (or a long multi-line candidate) can
+ * still make chips taller; only the item list (never the footer) scrolls then.
+ */
+internal const val CANDIDATE_PANEL_ROW_HEIGHT_DP = 50
+internal const val CANDIDATE_PANEL_FOOTER_HEIGHT_DP = 48
+internal const val CANDIDATE_PANEL_INNER_PADDING_DP = 16
+
+internal fun candidatePanelPageSize(compact: Boolean): Int = if (compact) 2 else 4
+
+internal fun candidatePanelMaxHeightDp(compact: Boolean): Int =
+    candidatePanelPageSize(compact) * CANDIDATE_PANEL_ROW_HEIGHT_DP +
+        CANDIDATE_PANEL_FOOTER_HEIGHT_DP + CANDIDATE_PANEL_INNER_PADDING_DP
+
+/** Number of pages for [candidateCount] candidates; an empty result still has one page. */
+internal fun candidatePanelPageCount(candidateCount: Int, pageSize: Int): Int {
+    if (candidateCount <= 0 || pageSize <= 0) return 1
+    return (candidateCount + pageSize - 1) / pageSize
+}
+
+/** Page containing the zero-based [index]; negative indices clamp to the first page. */
+internal fun pageForIndex(index: Int, pageSize: Int): Int {
+    if (index <= 0 || pageSize <= 0) return 0
+    return index / pageSize
+}
+
+/**
+ * A partial candidate covers only a prefix of the current composition. A
+ * consumed length of 0 is the legacy "whole composition" encoding, so only
+ * lengths in `1 until composingLength` are partial.
+ */
+internal fun isPartialCandidate(candidate: Candidate, composingLength: Int): Boolean =
+    composingLength > 0 && candidate.consumedInputLength in 1 until composingLength
+
+internal fun firstPartialCandidateIndex(candidates: List<Candidate>, composingLength: Int): Int =
+    candidates.indexOfFirst { isPartialCandidate(it, composingLength) }
+
+/** Badge under a candidate word; correction and partial markers can combine. */
+internal fun candidateBadgeLabel(isCorrection: Boolean, isPartial: Boolean): String? = when {
+    isPartial && isCorrection -> "纠错·分段"
+    isPartial -> "分段"
+    isCorrection -> "纠错"
+    else -> null
+}
+
+/**
+ * Accessibility description for one candidate chip. A partial selection keeps
+ * the unconsumed pinyin suffix editable, so its description must announce that.
+ */
+internal fun candidateChipContentDescription(candidate: Candidate, composingLength: Int): String {
+    val partial = isPartialCandidate(candidate, composingLength)
+    return when {
+        partial && candidate.isCorrection -> "纠错·分段候选 " + candidate.word + "，选择后其余拼音保留"
+        partial -> "分段候选 " + candidate.word + "，选择后其余拼音保留"
+        candidate.isCorrection -> "纠错候选 " + candidate.word
+        else -> "候选词 " + candidate.word
+    }
+}
 
 /**
  * User-visible semantics of the ✦ AI entry. It is a local AI lexicon candidate
@@ -274,7 +338,8 @@ private fun CandidateBar(
 ) {
     val palette = LocalBitapPalette.current
     val candidateScrollState = rememberScrollState()
-    val expandedPageSize = if (compact) 3 else 6
+    val expandedPageSize = candidatePanelPageSize(compact)
+    val composingLength = state.composing.length
     val candidateVersion = state.candidates.firstOrNull()?.word
     // R11: a new composition/result set starts at the first candidate instead of
     // leaving the previous scroll position at the end of the old result list.
@@ -367,13 +432,10 @@ private fun CandidateBar(
                     state.candidates.forEachIndexed { index, candidate ->
                         CandidateChip(
                             label = candidate.word,
-                            description = if (candidate.isCorrection) {
-                                "纠错候选 " + candidate.word
-                            } else {
-                                "候选词 " + candidate.word
-                            },
+                            description = candidateChipContentDescription(candidate, composingLength),
                             accent = index == 0,
                             isCorrection = candidate.isCorrection,
+                            isPartial = isPartialCandidate(candidate, composingLength),
                             onClick = {
                                 haptic()
                                 onAction(KeyboardAction.CandidateTapped(index))
@@ -483,6 +545,7 @@ private fun CandidateBar(
             ) {
                 CandidateExpandedPanel(
                     candidates = state.candidates,
+                    composingLength = composingLength,
                     page = candidatePage,
                     pageSize = expandedPageSize,
                     compact = compact,
@@ -516,6 +579,7 @@ private fun CandidateBar(
 @Composable
 private fun CandidateExpandedPanel(
     candidates: List<Candidate>,
+    composingLength: Int,
     page: Int,
     pageSize: Int,
     compact: Boolean = false,
@@ -526,10 +590,18 @@ private fun CandidateExpandedPanel(
     onDismiss: (() -> Unit)? = null,
 ) {
     val palette = LocalBitapPalette.current
-    val pageCount = ((candidates.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+    val pageCount = candidatePanelPageCount(candidates.size, pageSize)
     val currentPage = page.coerceIn(0, pageCount - 1)
     val pageStart = currentPage * pageSize
     val pageItems = candidates.drop(pageStart).take(pageSize)
+    val firstPartialIndex = firstPartialCandidateIndex(candidates, composingLength)
+    val firstPartialPage = if (firstPartialIndex >= 0) pageForIndex(firstPartialIndex, pageSize) else -1
+    val itemScrollState = rememberScrollState()
+    // Page changes must start at the first row of the new page instead of keeping
+    // the previous page's internal scroll offset.
+    LaunchedEffect(currentPage) {
+        itemScrollState.scrollTo(0)
+    }
 
     Column(
         modifier = modifier
@@ -541,50 +613,65 @@ private fun CandidateExpandedPanel(
             // In compact mode this panel floats over the keys; consume blank-area
             // taps so they cannot leak to the key row underneath.
             .then(if (compact) Modifier.clickable { } else Modifier)
-            .padding(8.dp)
+            // The budget includes the 8 dp inner padding, so all page rows plus the
+            // fixed 48 dp footer fit without scrolling at the default font scale.
             .heightIn(max = candidatePanelMaxHeightDp(compact).dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(8.dp),
     ) {
-        pageItems.forEachIndexed { itemIndex, candidate ->
-            val globalIndex = pageStart + itemIndex
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 2.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                CandidateChip(
-                    modifier = Modifier.fillMaxWidth(),
-                    label = candidate.word,
-                    description = if (candidate.isCorrection) {
-                        "纠错候选 " + candidate.word
-                    } else {
-                        "候选词 " + candidate.word
-                    },
-                    accent = globalIndex == 0,
-                    maxLines = 3,
-                    isCorrection = candidate.isCorrection,
-                    onClick = {
-                        haptic()
-                        onCandidateClick(globalIndex)
-                    },
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(itemScrollState),
+        ) {
+            pageItems.forEachIndexed { itemIndex, candidate ->
+                val globalIndex = pageStart + itemIndex
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 2.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    CandidateChip(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = candidate.word,
+                        description = candidateChipContentDescription(candidate, composingLength),
+                        accent = globalIndex == 0,
+                        maxLines = 3,
+                        isCorrection = candidate.isCorrection,
+                        isPartial = isPartialCandidate(candidate, composingLength),
+                        onClick = {
+                            haptic()
+                            onCandidateClick(globalIndex)
+                        },
+                    )
+                }
             }
         }
+        // The footer is outside the item scroller so the page controls stay visible
+        // even when a large accessibility font forces the item list to scroll.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = if (candidates.size > pageSize) {
-                    "第 " + (currentPage + 1) + " / " + pageCount + " 页"
+                    "第 " + (currentPage + 1) + " / " + pageCount + " 页 · 共 " + candidates.size + " 项"
                 } else {
-                    "更多候选占位 · 本地词库已全部展示"
+                    "共 " + candidates.size + " 项"
                 },
                 color = palette.textSecondary,
                 fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            if (firstPartialPage >= 0 && currentPage != firstPartialPage) {
+                PanelTextButton(text = "看分段", onClick = {
+                    haptic()
+                    onPageChange(firstPartialPage)
+                })
+            }
             if (currentPage > 0) {
                 PanelTextButton(text = "上一页", onClick = {
                     haptic()
@@ -631,8 +718,9 @@ private fun CandidatePanelOverlay(
     ) {
         CandidateExpandedPanel(
             candidates = state.candidates,
+            composingLength = state.composing.length,
             page = page,
-            pageSize = 3,
+            pageSize = candidatePanelPageSize(compact = true),
             compact = true,
             onPageChange = onPageChange,
             onCandidateClick = onCandidateClick,
@@ -753,9 +841,11 @@ private fun CandidateChip(
     accent: Boolean,
     maxLines: Int = 1,
     isCorrection: Boolean = false,
+    isPartial: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
+    val badge = candidateBadgeLabel(isCorrection = isCorrection, isPartial = isPartial)
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
@@ -774,9 +864,9 @@ private fun CandidateChip(
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (isCorrection) {
+            if (badge != null) {
                 Text(
-                    text = "纠错",
+                    text = badge,
                     color = palette.textSecondary,
                     fontSize = 9.sp,
                     maxLines = 1,

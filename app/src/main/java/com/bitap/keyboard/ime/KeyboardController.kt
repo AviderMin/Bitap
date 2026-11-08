@@ -17,6 +17,7 @@ import com.bitap.keyboard.core.Reduction
 import com.bitap.keyboard.core.engine.InputEngine
 import com.bitap.keyboard.core.engine.PinyinInputEngine
 import com.bitap.keyboard.core.engine.QueryContext
+import com.bitap.keyboard.core.engine.QueryInputMode
 import com.bitap.keyboard.core.engine.QueryRequest
 import com.bitap.keyboard.core.engine.SelectionEvent
 import com.bitap.keyboard.core.engine.toKeyboardCandidate
@@ -49,6 +50,8 @@ class KeyboardController(
     private val inputEngine: InputEngine,
     private val aiService: AiRewriteService,
     private val queryDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** Long-input prefix policy; production stays [QueryInputMode.FIXED] until a batch selects otherwise. */
+    private val queryInputMode: QueryInputMode = QueryInputMode.FIXED,
 ) {
     /**
      * Compatibility constructor for the pre-D03 caller and tests: the bundled
@@ -342,11 +345,28 @@ class KeyboardController(
         scheduleUserLexiconPersist()
     }
 
+    /**
+     * Schedules one debounced pinyin query.
+     *
+     * P0 long-input consumption rule: [composing] is always the FULL visible
+     * composition and stays that way in [KeyboardUiState.composing], so
+     * backspace, commit-raw and editor state remain reliable at any length.
+     * Only the query input is bounded: [InputEngine.queryInputFor] returns at
+     * most [InputEngine.maxQueryInputLength] leading characters. Candidate
+     * [com.bitap.keyboard.core.Candidate.consumedInputLength] offsets therefore
+     * refer to that queried prefix, not to the full composing string. When a
+     * candidate consumes the prefix, the reducer drops exactly those characters;
+     * the unconsumed tail stays composing and the state change schedules the
+     * next query for the remaining text (again bounded and re-segmented).
+     */
     private fun schedulePinyinQuery(composing: String, version: Long = _state.value.compositionVersion) {
         pinyinJob?.cancel()
         if (composing.isEmpty()) return
         val token = ++pinyinQueryToken
         val sessionId = inputSessionId
+        // Pure budget computation; the engine still receives a versioned
+        // QueryRequest and the full composition remains in UI state.
+        val queryInput = inputEngine.queryInputFor(composing, queryInputMode)
         pinyinJob = scope.launch {
             delay(PINYIN_DEBOUNCE_MS)
             if (token != pinyinQueryToken) return@launch
@@ -359,7 +379,7 @@ class KeyboardController(
                     QueryRequest(
                         sessionId = sessionId,
                         compositionVersion = version,
-                        rawInput = composing,
+                        rawInput = queryInput,
                         limit = InputEngine.DEFAULT_LIMIT,
                         context = QueryContext.None,
                         shouldContinue = { isActive },
@@ -368,11 +388,27 @@ class KeyboardController(
             }
             if (!isActive || token != pinyinQueryToken) return@launch
             if (result.sessionId != sessionId || result.compositionVersion != version) return@launch
-            val candidates = result.candidates.map {
-                it.toKeyboardCandidate(result.compositionVersion, result.sessionId)
+            val candidates = result.candidates.map { candidate ->
+                // 0 is the legacy "whole composition" convention. A budgeted
+                // engine only saw [queryInput], so a zero consumption can only
+                // mean that queried prefix; map it explicitly before the
+                // reducer (without a budget queryInput is the whole composing,
+                // so legacy engines keep their exact behavior).
+                val requestedConsumed = candidate.consumedInputLength
+                val consumed = if (requestedConsumed <= 0) {
+                    queryInput.length
+                } else {
+                    // A budgeted engine cannot have inspected beyond queryInput;
+                    // clamp a bad/legacy over-claim instead of consuming unseen text.
+                    requestedConsumed.coerceAtMost(queryInput.length)
+                }
+                candidate.copy(consumedInputLength = consumed)
+                    .toKeyboardCandidate(result.compositionVersion, result.sessionId)
             }
             // Dispatch through the same path as user actions so a queued
             // confirmation executes its CommitText when the fresh result lands.
+            // The FULL composing string is reported so stale/session guards keep
+            // comparing against the visible composition.
             dispatch(KeyboardAction.ComposingUpdated(composing, candidates, version, result.sessionId))
         }
     }

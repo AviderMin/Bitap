@@ -8,6 +8,7 @@ import com.bitap.keyboard.ai.AiRuntimeState
 import com.bitap.keyboard.ai.RewriteTone
 import com.bitap.keyboard.ime.KeyboardController
 import com.bitap.keyboard.ime.candidatePanelMaxHeightDp
+import com.bitap.keyboard.ime.candidatePanelPageSize
 import com.bitap.keyboard.ime.usesCandidatePanelOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -161,8 +162,12 @@ class KeyboardP0InputFixTest {
     fun compactCandidatePanelUsesFixedHeightOverlayPolicy() {
         assertTrue(usesCandidatePanelOverlay(compact = true))
         assertFalse(usesCandidatePanelOverlay(compact = false))
-        assertEquals(120, candidatePanelMaxHeightDp(compact = true))
-        assertEquals(220, candidatePanelMaxHeightDp(compact = false))
+        // P0 geometry: page size equals fully visible rows (4 portrait / 2 compact)
+        // and the height budget fits those rows plus the fixed 48 dp footer.
+        assertEquals(2, candidatePanelPageSize(compact = true))
+        assertEquals(4, candidatePanelPageSize(compact = false))
+        assertEquals(164, candidatePanelMaxHeightDp(compact = true))
+        assertEquals(264, candidatePanelMaxHeightDp(compact = false))
     }
 }
 

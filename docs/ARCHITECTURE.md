@@ -44,10 +44,13 @@ Reducer 应保持可测试的状态转换；引擎不得访问 InputConnection�
 
 当前关键参数：
 
-- 查询原始输入上限64字符；超出返回空搜索结果，UX 分段策略仍需开发。
+- 查询原始输入上限64字符：`PinyinEngine.search`仍直接拒绝>64；生产路径由`KeyboardController`保持完整`composing`，只向`InputEngine`查询最多64字符前缀；候选消费该前缀后，未消费拼音继续编辑并重新查询。
 - lattice beam=64、每key最多8项，返回候选上限64。
 - 轻量 typo 查询长度上限12；有正常强候选时可能不触发。
 - 长输入≥24时保留一个 early partial，当前放在5个 full 后；partial quota=16。
+- 长输入边界实验（生产默认仍为FIXED）：`InputEngine.QueryInputMode`提供FIXED/SYLLABLE/WORD；`PinyinEngine.queryPrefixForBoundary`按至多64字符回退到音节或多字词边界。D05 dev 33条超预算句诊断见[进度](PROGRESS.md)第8节：64附近回退未优于固定64，短词边界24/40候选召回提高但操作成本上升，暂不切换。
+- Partial排序实验（生产默认`SCORE`）：`EngineTuning.partialRankingMode`支持SCORE/LONGEST_FIRST/SHORTEST_FIRST；先冻结入选候选，所有模式的候选文本/消费集合一致、Top64命中不变，仅重排既定partial槽位。D05 natural Top1/Top5保持不变；SHORTEST_FIRST仅小幅提高Top8且命中样本平均消费长度16.26（SCORE17.70），整句完成仍1/33，未采用。详见[进度](PROGRESS.md)第9节。
+- 展开候选面板按可见行分页：竖屏4行、紧凑2行；行高50dp、固定页脚48dp、内边距16dp（最大高度264/164dp）。页切换重置列表滚动，partial候选显示“分段”并提供“看分段”入口，引擎候选顺序不变。
 - `WORD_NGRAM_WEIGHT=0.50`，此前0.35；`DICTIONARY_WORD_NGRAM_WEIGHT=0.4`。
 - `SENTENCE_CORPUS_WEIGHT=0.0`、`SENTENCE_DICTIONARY_WEIGHT=0.0`；当前启用的是路径上下文/词内等统计信号，不能称为已启用整句后重排。
 - 用户条目容量当前200；次数提升有界，并有衰减和清除 generation。

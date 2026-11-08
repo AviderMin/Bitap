@@ -7,6 +7,12 @@ import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.min
 
+/** Experimental long-input split policies for the 64-character query budget. */
+internal enum class LongInputBoundaryMode { FIXED, SYLLABLE, WORD }
+
+/** Experimental ordering of the partial prefix candidates within their own pool. */
+internal enum class PartialRankingMode { SCORE, LONGEST_FIRST, SHORTEST_FIRST }
+
 /**
  * Offline pinyin dictionary loaded from assets/pinyin_dict.tsv.
  *
@@ -60,6 +66,8 @@ class PinyinEngine private constructor(
         val partialEarlySlotCount: Int = PARTIAL_EARLY_SLOT_COUNT,
         /** Number of full candidates shown before an early partial slot. */
         val partialEarlySlotAfterFull: Int = PARTIAL_EARLY_SLOT_AFTER_FULL,
+        /** Ordering of partial prefix candidates; pool/quota/position stay fixed. */
+        val partialRankingMode: PartialRankingMode = PartialRankingMode.SCORE,
         /** Keep only the best path per last word before applying the beam. */
         val dedupeBeamByLastWord: Boolean = false,
         /** Queries at least this long use the long-input rerank terms below. */
@@ -117,7 +125,9 @@ class PinyinEngine private constructor(
         if (cappedLimit <= 0) return emptyList()
         syncClearGeneration()
         // Hard input budget: overlong/invalid composing must stay cheap and
-        // deletable rather than occupying the decoder.
+        // deletable rather than occupying the decoder. The IME controller keeps
+        // the full composition in UI state and queries bounded prefixes; this
+        // guard remains the engine-side backstop for any direct caller.
         if (input.length > MAX_SEARCH_INPUT_LENGTH) return emptyList()
         if (!shouldContinue()) return emptyList()
         val parsed = parseQuery(input)
@@ -146,6 +156,7 @@ class PinyinEngine private constructor(
             tuning.partialEarlySlotCount,
             tuning.longInputThreshold,
             tuning.partialEarlySlotAfterFull,
+            tuning.partialRankingMode,
         )
     }
 
@@ -241,6 +252,7 @@ class PinyinEngine private constructor(
                 tuning.partialEarlySlotCount,
                 tuning.longInputThreshold,
                 tuning.partialEarlySlotAfterFull,
+                tuning.partialRankingMode,
             ),
             collected = collector.snapshot().map {
                 DebugCandidate(it.word, it.score, it.consumed, it.isCorrection, it.isPrefix)
@@ -257,6 +269,83 @@ class PinyinEngine private constructor(
 
     /** Frequency of a dictionary word, or null when absent (diagnostics only). */
     internal fun debugWordFrequency(word: String): Long? = index?.wordFrequency?.get(word)
+
+    /**
+     * Diagnostic/evaluation helper for the next long-input batch: returns at
+     * most [maxLength] leading characters of [rawInput], optionally backed off
+     * to the last syllable or dictionary-word boundary that fits the budget.
+     *
+     * This does not change [search] or the production controller default; the
+     * boundary experiment compares the policies before one is promoted.
+     */
+    internal fun queryPrefixForBoundary(
+        rawInput: String,
+        maxLength: Int,
+        mode: LongInputBoundaryMode,
+    ): String {
+        if (maxLength <= 0) return ""
+        if (rawInput.length <= maxLength) return rawInput
+        val limit = maxLength.coerceAtMost(rawInput.length)
+        if (mode == LongInputBoundaryMode.FIXED) return rawInput.substring(0, limit)
+        val current = index ?: return rawInput.substring(0, limit)
+        val normalized = rawInput.lowercase()
+        val end = when (mode) {
+            LongInputBoundaryMode.SYLLABLE ->
+                lastSyllableBoundary(normalized, current.syllables, limit)
+            LongInputBoundaryMode.WORD ->
+                lastWordBoundary(normalized, current, limit)
+            LongInputBoundaryMode.FIXED -> limit
+        }.coerceIn(1, limit)
+        return rawInput.substring(0, end)
+    }
+
+    /** Last position <= limit reachable by a sequence of dictionary syllables. */
+    private fun lastSyllableBoundary(query: String, syllables: Set<String>, limit: Int): Int {
+        val reachable = BooleanArray(limit + 1)
+        reachable[0] = true
+        for (position in 0 until limit) {
+            if (!reachable[position]) continue
+            if (query[position] !in 'a'..'z') {
+                reachable[position + 1] = true
+                continue
+            }
+            val maxLength = min(MAX_SYLLABLE_LENGTH, limit - position)
+            for (length in 1..maxLength) {
+                if (query.substring(position, position + length) in syllables) {
+                    reachable[position + length] = true
+                }
+            }
+        }
+        return (limit downTo 1).firstOrNull { reachable[it] } ?: limit
+    }
+
+    /**
+     * Last position <= limit reachable by exact dictionary words and ending on a
+     * multi-character word (single-character dictionary entries would make every
+     * syllable boundary a "word" boundary and erase the distinction).
+     */
+    private fun lastWordBoundary(query: String, index: Index, limit: Int): Int {
+        val reachable = BooleanArray(limit + 1)
+        val lastWordLength = IntArray(limit + 1)
+        reachable[0] = true
+        for (position in 0 until limit) {
+            if (!reachable[position]) continue
+            if (query[position] !in 'a'..'z') {
+                reachable[position + 1] = true
+                lastWordLength[position + 1] = maxOf(lastWordLength[position], 1)
+                continue
+            }
+            val maxLength = min(index.maxKeyLength, limit - position)
+            for (length in 1..maxLength) {
+                if (index.entriesByPinyin.containsKey(query.substring(position, position + length))) {
+                    reachable[position + length] = true
+                    lastWordLength[position + length] = maxOf(lastWordLength[position + length], length)
+                }
+            }
+        }
+        return (limit downTo 1).firstOrNull { reachable[it] && lastWordLength[it] >= 2 }
+            ?: lastSyllableBoundary(query, index.syllables, limit)
+    }
 
     /** Returns a view over the same immutable index with different tuning (diagnostics only). */
     internal fun withTuning(tuning: EngineTuning): PinyinEngine =
@@ -342,6 +431,7 @@ class PinyinEngine private constructor(
             partialEarlySlotCount: Int = 0,
             longInputThreshold: Int = LONG_INPUT_THRESHOLD,
             partialEarlySlotAfterFull: Int = PARTIAL_EARLY_SLOT_AFTER_FULL,
+            partialRankingMode: PartialRankingMode = PartialRankingMode.SCORE,
         ): List<Candidate> {
             if (byWord.isEmpty()) return emptyList()
             // Learning only re-orders full-coverage candidates; partial prefix
@@ -364,9 +454,12 @@ class PinyinEngine private constructor(
                     .thenByDescending { it.score + boost(it) }
                     .thenBy { it.order },
             )
-            partial.sortWith(
-                compareByDescending<Ranked> { it.score + boost(it) }.thenBy { it.order },
-            )
+            // Selection order is always the production score order: the
+            // partial-ranking experiment must not change WHICH candidates enter
+            // the reserve. Only the display order of the already-selected partial
+            // slots is allowed to vary below.
+            val selectionComparator = compareByDescending<Ranked> { it.score + boost(it) }.thenBy { it.order }
+            partial.sortWith(selectionComparator)
 
             val out = ArrayList<Candidate>(min(limit, all.size))
             if (partial.isEmpty()) {
@@ -377,26 +470,42 @@ class PinyinEngine private constructor(
             // candidate page can never hide "我"/"我爱" style partial picks.
             val partialReserve = min(partialQuota, maxOf(1, limit / 4))
             val fullBudget = maxOf(1, limit - partialReserve)
+            // Freeze the selected partial membership first, then apply the
+            // experimental display ordering only to those same slots.
+            val selectedPartial = partial.take(partialReserve)
+            val displayPartial = when (partialRankingMode) {
+                PartialRankingMode.SCORE -> selectedPartial
+                PartialRankingMode.LONGEST_FIRST -> selectedPartial.sortedWith(
+                    compareByDescending<Ranked> { it.consumed }
+                        .thenByDescending { it.score + boost(it) }
+                        .thenBy { it.order },
+                )
+                PartialRankingMode.SHORTEST_FIRST -> selectedPartial.sortedWith(
+                    compareBy<Ranked> { it.consumed }
+                        .thenByDescending { it.score + boost(it) }
+                        .thenBy { it.order },
+                )
+            }
             val earlyPartial = if (
                 partialEarlySlotCount > 0 &&
                 totalConsumed >= longInputThreshold &&
-                full.isNotEmpty() && partial.isNotEmpty()
+                full.isNotEmpty() && displayPartial.isNotEmpty()
             ) {
-                min(partialEarlySlotCount, partial.size)
+                min(partialEarlySlotCount, displayPartial.size)
             } else {
                 0
             }
             if (earlyPartial > 0) {
                 val earlyFull = min(partialEarlySlotAfterFull.coerceAtLeast(0), fullBudget)
                 full.take(earlyFull).forEach { out += it.toCandidate() }
-                partial.take(earlyPartial).forEach { out += it.toCandidate() }
+                displayPartial.take(earlyPartial).forEach { out += it.toCandidate() }
                 full.drop(earlyFull).take(fullBudget - earlyFull)
                     .forEach { out += it.toCandidate() }
-                partial.drop(earlyPartial).take(partialReserve - earlyPartial)
+                displayPartial.drop(earlyPartial).take(partialReserve - earlyPartial)
                     .forEach { out += it.toCandidate() }
             } else {
                 full.take(fullBudget).forEach { out += it.toCandidate() }
-                partial.take(partialReserve).forEach { out += it.toCandidate() }
+                displayPartial.forEach { out += it.toCandidate() }
             }
             if (out.size < limit) {
                 full.drop(fullBudget).forEach { ranked -> if (out.size < limit) out += ranked.toCandidate() }
@@ -1583,7 +1692,15 @@ class PinyinEngine private constructor(
         const val DEFAULT_LIMIT = MAX_CANDIDATES
 
         private const val SCORE_EPSILON = 1e-9
-        private const val MAX_SEARCH_INPUT_LENGTH = 64
+
+        /**
+         * Hard per-query input budget of the legacy decoder (UTF-16 chars).
+         *
+         * The value is unchanged; it stays the engine-side backstop while the
+         * controller keeps longer compositions whole in UI state and queries
+         * them in segments of at most this many characters.
+         */
+        const val MAX_SEARCH_INPUT_LENGTH = 64
         private const val MAX_EXACT_ENTRIES = 96
         private const val MAX_PREFIX_ENTRIES = 96
         private const val MAX_PREFIX_KEYS = 512
