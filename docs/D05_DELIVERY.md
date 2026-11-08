@@ -77,9 +77,9 @@ python eval/d05/dev/check_d05_dev.py
 
 ## 6. 验证与限制
 
-- 全量：`:app:testDebugUnitTest` **360 tests / 0 failures / 0 errors / 4 skipped**；`:app:lintDebug` **0 errors / 26 warnings / 1 hint**。
+- 全量：`:app:testDebugUnitTest` **362 tests / 0 failures / 0 errors / 4 skipped**；`:app:lintDebug` **0 errors / 26 warnings / 1 hint**。
 - D05 是 dev，不是验收；本批未运行 v3，避免用验收聚合反复选优。
-- natural_long 仅 11 条，长句结论不充分；来源为台湾社群文本转简体，存在地区用词/口语碎片。
+- §1–§6 的 natural_long 是旧 950 条 dev 的 11 条；最终 1,050 条 dev 已补到 123 条（见 §7），长句来源为中文维基百科 CC BY-SA 4.0 + CC0，仍有地区用词/语体差异。
 - JVM 延迟不是 Android 端到端；本批未做设备/Android/JNI 工作。
 - 下一批建议：按 D05 诊断继续做排序/召回/候选组织，每次只改一个机制；候选冻结后才安排 v3/新验收集验收。
 
@@ -111,8 +111,9 @@ python eval/d05/dev/check_d05_dev.py
 
 **解释边界**：正确完整候选略微更容易进入 Top5（+3/667，+0.4pp），oracle +2；但 Top1 -1 条，不能宣称 Top1 或真实输入操作改善。关闭机制后指标明显下降，说明该特征不是无效；该结果仍是 dev 证据，不是验收或设备证据。
 
-### 7.3 仍需设备验证
+### 7.3 真机验证（2026-11-08，见 `docs/D05_DEVICE_CHECK.md`）
 
-- partial 从 rank4 移到 rank6 后，是否增加滚动/展开/修正操作——需真机检查；「前 8 项返回」不等于屏幕直接可见。
-- 排序改进是否减少真实输入操作——需真机任务对比；当前只有 JVM 分类指标。
+- **partial rank4→rank6**：折叠候选行实际只有 2 个 chip（1 完整+1 截断）；展开面板首屏只有 4 个完整行。rank4 的 partial 展开后直接可见（展开+点选=2 次），rank6 需要 **1 次面板上滑或 1 次折叠行横滑**（展开+滚动+点选=3 次）；不增加展开次数、翻页、退格或修正，partial 前缀与剩余 composing 均正确。
+- **排序 0.35→0.50**：在两个 JVM old rank>5→new rank≤5 的 dev 案例上，真机候选浏览操作分别从 6 次降到 3 次、从 5 次降到 3 次（减少 2–3 次）；样本仅 2 条，不能外推总体。
+- 结论：**「前 8 项返回」不等于屏幕首屏可见**；rank6 有 1 次真实滚动成本；排序改进在少量 dev 案例上显示操作减少，但尚不足以宣称整体输入效率改善或验收通过。
 

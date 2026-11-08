@@ -109,6 +109,7 @@ after 与 baseline 相比 Top1 不变、Top5 各 +2，oracle/fullCoverage 不变
 - D05 dev 是跨来源诊断集，不是验收集；没有运行 v3；没有按 D05/v3 单句加规则，也没有改词库、AI、主题。
 - 权重 0.50 对 special shorthand Top5 有 1 条边界回退（98→97），已如实记录；如果发布前要求 special 每个类别 Top5 严格不降，应改选 0.45（natural Top5 不提升）或做输入长度分层的后续实验，不要隐藏本结果。
 - JVM p50/p95 为单次样本，受 JIT/负载影响；不是 Android 端到端。
+- **真机补充（2026-11-08，见 `docs/D05_DEVICE_CHECK.md`）**：在 2 个 JVM old rank>5→new rank≤5 的 dev 案例上，ranking-old（0.35）到 final（0.50）的候选浏览操作分别减少 3 次和 2 次；仅 2 条 dev 案例，不能外推总体或验收。
 
 ## 5. 复现
 

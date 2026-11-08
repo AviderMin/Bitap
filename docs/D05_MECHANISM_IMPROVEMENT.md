@@ -51,8 +51,8 @@ D05 的 Top5 未命中中 rankedLow + displayLoss 占 127/276（46.0%），说�
 `reportEarlyPartialPlacement` 对 D05 natural_medium/natural_long 中有效输入 ≥24 字符的 289 条案例统计（文件：`build/d05/early-partial-placement.txt`）：
 
 - 289/289 案例前五名全部是 full 候选；
-- 289/289 案例第一个 partial 出现在 index=5（第 6 位，rank6），仍在 8 项可见区；
-- 因此 Top5 不被 partial 占位，partial 仍可发现。
+- 289/289 案例第一个 partial 出现在 index=5（第 6 位，rank6），在引擎返回的前 8 项列表内；
+- 因此 Top5 不被 partial 占位。**注意：前 8 项返回不等于屏幕首屏可见**；真机验证（`docs/D05_DEVICE_CHECK.md`）显示折叠行仅 2 chip、展开面板首屏 4 行，rank6 需要 1 次面板上滑或 1 次折叠行横滑，比 rank4 多 1 次滚动操作。
 
 ## 4. 选中后的 D05 指标（baseline vs after）
 
@@ -130,7 +130,7 @@ v1 dev/holdout 的 Top1/Top5/oracle/fullCoverage 完全不变；v1 holdout rankC
 - natural_long 只有 11 条（Top1 1/11、Top5 7/11），长句结论仍不充分；需要后续独立长句或 v3 长句只读分析，不能按单条波动定方向。
 - D05 是 dev 诊断集，所有数字不能写成验收通过或泛化达标；v3 未运行。
 - 延迟是 JVM 单次样本，受 JIT/负载影响；不是 Android 端到端反馈，不能宣称 50ms 目标。
-- partial 仍不在 Top5；用户需要看到第 6 位或展开候选。当前默认 menu page_size=8，因此仍在首屏可见；如果未来 page_size<6，需要重新评估 `partialEarlySlotAfterFull`。
+- partial 仍在第 6 位、不在 Top5；引擎返回前 8 项不代表屏幕首屏可见。真机实测折叠行仅 2 chip、展开面板首屏 4 行，rank6 比 rank4 多 1 次面板上滑/横滑（见 `docs/D05_DEVICE_CHECK.md`）。如果产品要求打开候选即见 partial，需要重新评估 `partialEarlySlotAfterFull` 或候选布局。
 - failureClass 是启发式（latticeFullTexts 4,000 路径上限、collected 消费覆盖近似），不是因果分解。
 - 本次未修改词库、v2/v3 数据、生产 AI/主题；未运行 v3 验收。
 

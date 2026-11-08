@@ -17,6 +17,11 @@ Start-Sleep -Milliseconds 400
 adb -s $Serial shell am start -n com.bitap.keyboard/.MainActivity | Out-Null
 Start-Sleep -Seconds 2
 $found = $null
+# Scroll to the top first: the activity may restore a previous scroll position.
+for ($t = 0; $t -lt 4; $t++) {
+  adb -s $Serial shell input swipe 540 700 540 2200 250 | Out-Null
+  Start-Sleep -Milliseconds 400
+}
 for ($i = 0; $i -lt 8; $i++) {
   $doc = Get-Ui (Join-Path $EvidenceDir "set-ai-settings-$i.xml")
   $nodes = @($doc.SelectNodes("//node"))
