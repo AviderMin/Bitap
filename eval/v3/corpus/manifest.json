@@ -1,0 +1,111 @@
+{
+  "schema_version": 3,
+  "generator": "eval/v3/corpus/build_v3_corpus.py",
+  "generator_version": "1.0.0",
+  "command": "python eval/v3/corpus/build_v3_corpus.py",
+  "purpose": "training-source-independent acceptance-only corpus; v2 remains regression/same-source exploration",
+  "source": {
+    "name": "irvin/cc0-sentences zh-TW daily chat files",
+    "repository": "https://github.com/irvin/cc0-sentences",
+    "license": "CC0-1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "archive": ".tmp/cc0/cc0-sentences.zip",
+    "archive_sha256": "e229d8e3bef48473d55b3ab1a123555080f855120206ee5a82b34bb9413d9fc5",
+    "files": [
+      {
+        "name": "setences.txt",
+        "sha256": "53db978baebacf126f11dfdd19a48a61a4c46bec77c64766e328b8911733e90d",
+        "bytes": 75729
+      },
+      {
+        "name": "chatlogs.txt",
+        "sha256": "b40e2adf456cfaee38683faf52df1e4f46e8fd0dbec4a76d9619f4a0d0a55a54",
+        "bytes": 8802
+      },
+      {
+        "name": "g0v_slack_rand0m.txt",
+        "sha256": "6bde40bb34ddc97b860876d03de1a04171787854bfb6aefaf596a0d2ded8086f",
+        "bytes": 217398
+      },
+      {
+        "name": "tg_common_voice.txt",
+        "sha256": "b0cd7d2f9b572b5a954a186fd782786e76befd99de4a09e3ad13dbaf0b0aa9d8",
+        "bytes": 2669
+      }
+    ],
+    "conversion": "zhconv 1.4.3 zh-TW -> zh-CN (simplified), UTF-8",
+    "excluded_files": [
+      "book.txt",
+      "gpt-4.txt",
+      "wikidata.txt",
+      "wikipedia.txt",
+      "places_and_address.txt",
+      "gov_press_release.txt",
+      "cofacts.txt",
+      "cvsprint_201902.txt",
+      "exam_text.txt",
+      "lms.txt",
+      "sayit.txt",
+      "web_slang.txt"
+    ]
+  },
+  "files": {
+    "validation": {
+      "path": "eval/v3/corpus/pinyin_cases_v3_validation.tsv",
+      "sha256": "355d1e7ee611eed492c6d937a7d6261b015c3b7ef8df22a083a5c97b8ab6c8f2",
+      "rows": 601
+    }
+  },
+  "category_counts": {
+    "natural_short": 320,
+    "natural_medium": 240,
+    "natural_long": 41
+  },
+  "filters": {
+    "script": "simplified Chinese (CJK Unified Ideographs encodable with GB2312) plus Chinese punctuation",
+    "length_chars": {
+      "natural_short": [
+        2,
+        8
+      ],
+      "natural_medium": [
+        9,
+        16
+      ],
+      "natural_long": [
+        17,
+        24
+      ]
+    },
+    "max_pinyin_length": 60,
+    "dedup": "exact normalized character sequence",
+    "excluded": {
+      "dictionary_whole_sentence": "normalized sentence equals a whole pinyin_dict.tsv word",
+      "v1_v2_overlap": "normalized sentence equals any expected text in eval/pinyin_cases_{dev,holdout,sealed}.tsv or eval/v2/corpus/*.tsv",
+      "reference_near_duplicate": "character 2-gram Jaccard >= 0.80 against v1/v2 expected text"
+    },
+    "rejected_counts": {
+      "source_lines": 12412,
+      "rejected_filter": 81,
+      "rejected_duplicate": 9,
+      "unique_texts": 12322,
+      "rejected_dictionary_leak": 89,
+      "rejected_pinyin_length": 3,
+      "rejected_v1_v2_overlap": 1,
+      "filtered_pool": 12229,
+      "bucket_below_target_long": 3,
+      "clusters": 12127,
+      "multi_member_clusters": 101
+    }
+  },
+  "split": {
+    "mode": "validation-only (no dev split)",
+    "near_duplicate": {
+      "features": "character 2-gram Jaccard",
+      "jaccard_threshold": 0.75,
+      "lsh": "MinHash 64 permutations, 16 bands x 4 rows",
+      "max_members_per_cluster": 2
+    }
+  },
+  "engine_independence": "no PinyinEngine call; pinyin generated with pypinyin 0.55.0"
+}

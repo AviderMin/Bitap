@@ -215,3 +215,4 @@ PinyinV2EvalTest.kt 从仓库根目录读取 v2 数据与 pinyin_dict.tsv，对�
 1. 阶段一评测器 `rankCost` 实现曾对命中第 6–8 名计 `rank+1`，与本协议“前五未命中记 9”不同。D04 已修正为仅 rank 0–4 计分，其余记 9；历史 Top1/Top5 不变，历史 rankCost 保留原记录并标注不可直接与修正值比较。
 2. `docs/LICENSE_CLEANUP.md` §2/§3 记录：生产字符 n-gram 使用全部 89,289 条 Tatoeba 句子，detailed 与普通导出 ID/文本一致。v2 自然句来自相同普通导出，因此当前 dev/validation 虽然互相近重复隔离、整句不在词典中，**仍与生产统计训练源重合**。校验器的“整句泄漏 0”不覆盖统计训练重合。
 3. v2 可用于同一来源分布的回归和探索性系统对比，不再将其表述为训练源独立的泛化验收。新泛化验收须采用未参与生产 n-gram 的来源，或在生成训练统计前按来源/句子簇隔离并冻结；不得仅在评测后删除难例。D04 不重写历史语料、资产和基线，也不据 validation 细项调参。
+4. 训练源独立的 v3 验收集已建立：见 `docs/EVALUATION_V3_PROTOCOL.md` 与 `docs/EVALUATION_V3_BASELINE.md`（CC0 来源，601 条，仅验收不调参）。v2 与 v3 不得混在同一分母只报一个总分。

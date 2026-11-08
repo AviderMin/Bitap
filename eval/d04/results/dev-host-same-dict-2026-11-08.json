@@ -1,0 +1,744 @@
+{
+  "experiment": "D04 same-dictionary host comparison",
+  "date": "2026-11-08",
+  "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+  "dictionary": {
+    "source": {
+      "path": "app/src/main/assets/pinyin_dict.tsv",
+      "sha256": "4c979d12d957f2e567f06844cfaa705e07dbf544b808ff055c86669d5a53f20d",
+      "entries": 65999,
+      "totalFrequency": 58378390
+    },
+    "rimeDictionary": {
+      "sharedDir": "build/d04/same-dictionary/shared",
+      "dictionary": "build/d04/same-dictionary/shared/pinyin_simp.dict.yaml",
+      "dictionarySha256": "18282fcaa33c6e21eb893aa2a248391229c070d405901b108c4c89018c3ee7ec",
+      "entries": 65999
+    },
+    "schema": {
+      "bitap_d04Sha256": "a14049a3c5f89167fc057eaa854eebd9422b429d589831c81d0c8ccff80fd973",
+      "defaultSha256": "b449df35896ccaa68380519c37c9158a7af7a77cd5ddeaa4a4e3ea38259c3b7f"
+    },
+    "pypinyin": {
+      "version": "0.55.0",
+      "api": "lazy_pinyin(word, style=Style.NORMAL)"
+    },
+    "conversion": {
+      "checked": 65999,
+      "flatPinyinMismatchCount": 0,
+      "flatPinyinMismatchSamples": [],
+      "syllableCountMismatchCount": 0,
+      "syllableCountMismatchSamples": [],
+      "invalidEntryCount": 0,
+      "invalidEntrySamples": [],
+      "canonicalization": {
+        "lve": "lue",
+        "nve": "nue"
+      },
+      "canonicalizedEntryCount": 68,
+      "canonicalizedSamples": [
+        {
+          "word": "战略",
+          "pinyin": "zhanlve",
+          "pypinyinSyllables": "zhan lve",
+          "rimeSyllables": "zhan lue"
+        },
+        {
+          "word": "略",
+          "pinyin": "lve",
+          "pypinyinSyllables": "lve",
+          "rimeSyllables": "lue"
+        },
+        {
+          "word": "侵略",
+          "pinyin": "qinlve",
+          "pypinyinSyllables": "qin lve",
+          "rimeSyllables": "qin lue"
+        },
+        {
+          "word": "策略",
+          "pinyin": "celve",
+          "pypinyinSyllables": "ce lve",
+          "rimeSyllables": "ce lue"
+        },
+        {
+          "word": "侵略者",
+          "pinyin": "qinlvezhe",
+          "pypinyinSyllables": "qin lve zhe",
+          "rimeSyllables": "qin lue zhe"
+        },
+        {
+          "word": "掠",
+          "pinyin": "lve",
+          "pypinyinSyllables": "lve",
+          "rimeSyllables": "lue"
+        },
+        {
+          "word": "忽略",
+          "pinyin": "hulve",
+          "pypinyinSyllables": "hu lve",
+          "rimeSyllables": "hu lue"
+        },
+        {
+          "word": "侵略军",
+          "pinyin": "qinlvejun",
+          "pypinyinSyllables": "qin lve jun",
+          "rimeSyllables": "qin lue jun"
+        },
+        {
+          "word": "掠夺",
+          "pinyin": "lveduo",
+          "pypinyinSyllables": "lve duo",
+          "rimeSyllables": "lue duo"
+        },
+        {
+          "word": "略有",
+          "pinyin": "lveyou",
+          "pypinyinSyllables": "lve you",
+          "rimeSyllables": "lue you"
+        }
+      ],
+      "distinctSyllables": 403,
+      "unknownSyllableCount": 0,
+      "unknownSyllableSamples": [],
+      "polyphonicEntryCount": 20772,
+      "polyphonicEntrySamples": [
+        "了",
+        "是",
+        "和",
+        "有",
+        "他",
+        "不",
+        "的",
+        "也",
+        "这",
+        "年",
+        "说",
+        "都",
+        "着",
+        "地",
+        "还",
+        "大",
+        "而",
+        "之",
+        "以",
+        "得"
+      ]
+    },
+    "rimeReference": {
+      "path": ".tmp/d04/bootstrap/pinyin-simp/pinyin_simp.dict.yaml",
+      "available": true,
+      "entries": 65125,
+      "uniqueWords": 64425,
+      "minWeight": 0,
+      "maxWeight": 4828294,
+      "overlapWithProjectWords": 35411,
+      "projectOnlyWords": 30588,
+      "rimeOnlyWords": 29014,
+      "duplicateWordEntries": 700,
+      "distinctSyllables": 415
+    }
+  },
+  "host": {
+    "librimeRelease": "1.17.0 / 33e7814 (official Windows MSVC x64)",
+    "dllSha256": "86b4c7357d4c6d293ce5589b234d8859ca2ac30923a03bedfa3926eeaf97fb0b",
+    "startupIncludingDeploymentNanos": 664785900
+  },
+  "baseline": {
+    "metadata": {
+      "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+      "dictionarySha256": "4c979d12d957f2e567f06844cfaa705e07dbf544b808ff055c86669d5a53f20d",
+      "engineId": "pinyin-baseline",
+      "learning": false,
+      "hostOnly": true
+    },
+    "engineScored": {
+      "n": 1384,
+      "top1": 714,
+      "top5": 1001,
+      "top1Pct": 51.59,
+      "top5Pct": 72.33,
+      "top1Ci95": [
+        48.96,
+        54.21
+      ],
+      "top5Ci95": [
+        69.91,
+        74.62
+      ],
+      "oracle64": 1169,
+      "fullCoverage64": 1383,
+      "rankCost": 3.5809,
+      "latency8Ms": {
+        "p50": 3.2668,
+        "p95": 7.5423,
+        "p99": 9.1524
+      }
+    },
+    "byCategory": {
+      "homophone": {
+        "n": 40,
+        "top1": 40,
+        "top5": 40,
+        "top1Pct": 100.0,
+        "top5Pct": 100.0,
+        "top1Ci95": [
+          91.24,
+          100.0
+        ],
+        "top5Ci95": [
+          91.24,
+          100.0
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.0,
+        "latency8Ms": {
+          "p50": 0.1625,
+          "p95": 0.68,
+          "p99": 1.202
+        }
+      },
+      "mixed_pinyin": {
+        "n": 40,
+        "top1": 20,
+        "top5": 38,
+        "top1Pct": 50.0,
+        "top5Pct": 95.0,
+        "top1Ci95": [
+          35.2,
+          64.8
+        ],
+        "top5Ci95": [
+          83.5,
+          98.62
+        ],
+        "oracle64": 39,
+        "fullCoverage64": 40,
+        "rankCost": 2.275,
+        "latency8Ms": {
+          "p50": 0.2914,
+          "p95": 0.537,
+          "p99": 0.602
+        }
+      },
+      "natural_long": {
+        "n": 300,
+        "top1": 111,
+        "top5": 155,
+        "top1Pct": 37.0,
+        "top5Pct": 51.67,
+        "top1Ci95": [
+          31.73,
+          42.6
+        ],
+        "top5Ci95": [
+          46.03,
+          57.26
+        ],
+        "oracle64": 209,
+        "fullCoverage64": 300,
+        "rankCost": 5.1767,
+        "latency8Ms": {
+          "p50": 6.2073,
+          "p95": 8.5527,
+          "p99": 9.854
+        }
+      },
+      "natural_medium": {
+        "n": 450,
+        "top1": 222,
+        "top5": 318,
+        "top1Pct": 49.33,
+        "top5Pct": 70.67,
+        "top1Ci95": [
+          44.74,
+          53.94
+        ],
+        "top5Ci95": [
+          66.3,
+          74.68
+        ],
+        "oracle64": 380,
+        "fullCoverage64": 449,
+        "rankCost": 3.7022,
+        "latency8Ms": {
+          "p50": 3.8604,
+          "p95": 6.5032,
+          "p99": 8.057
+        }
+      },
+      "natural_short": {
+        "n": 400,
+        "top1": 228,
+        "top5": 328,
+        "top1Pct": 57.0,
+        "top5Pct": 82.0,
+        "top1Ci95": [
+          52.1,
+          61.76
+        ],
+        "top5Ci95": [
+          77.94,
+          85.46
+        ],
+        "oracle64": 368,
+        "fullCoverage64": 400,
+        "rankCost": 2.8925,
+        "latency8Ms": {
+          "p50": 2.0354,
+          "p95": 4.7824,
+          "p99": 7.5156
+        }
+      },
+      "number_punct": {
+        "n": 34,
+        "top1": 19,
+        "top5": 30,
+        "top1Pct": 55.88,
+        "top5Pct": 88.24,
+        "top1Ci95": [
+          39.45,
+          71.12
+        ],
+        "top5Ci95": [
+          73.38,
+          95.33
+        ],
+        "oracle64": 33,
+        "fullCoverage64": 34,
+        "rankCost": 2.3824,
+        "latency8Ms": {
+          "p50": 1.7152,
+          "p95": 3.7783,
+          "p99": 6.5117
+        }
+      },
+      "proper_noun": {
+        "n": 40,
+        "top1": 28,
+        "top5": 33,
+        "top1Pct": 70.0,
+        "top5Pct": 82.5,
+        "top1Ci95": [
+          54.57,
+          81.93
+        ],
+        "top5Ci95": [
+          68.05,
+          91.25
+        ],
+        "oracle64": 37,
+        "fullCoverage64": 40,
+        "rankCost": 2.6,
+        "latency8Ms": {
+          "p50": 0.221,
+          "p95": 0.8475,
+          "p99": 0.9536
+        }
+      },
+      "shorthand": {
+        "n": 40,
+        "top1": 31,
+        "top5": 38,
+        "top1Pct": 77.5,
+        "top5Pct": 95.0,
+        "top1Ci95": [
+          62.5,
+          87.68
+        ],
+        "top5Ci95": [
+          83.5,
+          98.62
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.6,
+        "latency8Ms": {
+          "p50": 0.1728,
+          "p95": 0.2724,
+          "p99": 0.3045
+        }
+      },
+      "typo": {
+        "n": 40,
+        "top1": 15,
+        "top5": 21,
+        "top1Pct": 37.5,
+        "top5Pct": 52.5,
+        "top1Ci95": [
+          24.22,
+          52.97
+        ],
+        "top5Ci95": [
+          37.5,
+          67.06
+        ],
+        "oracle64": 23,
+        "fullCoverage64": 40,
+        "rankCost": 5.0,
+        "latency8Ms": {
+          "p50": 0.3498,
+          "p95": 0.6858,
+          "p99": 0.7634
+        }
+      }
+    },
+    "interactionExcluded": 46
+  },
+  "rime": {
+    "metadata": {
+      "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+      "dllSha256": "86b4c7357d4c6d293ce5589b234d8859ca2ac30923a03bedfa3926eeaf97fb0b",
+      "startupIncludingDeploymentNanos": 664785900,
+      "cases": 1430,
+      "schemaSha256": "a14049a3c5f89167fc057eaa854eebd9422b429d589831c81d0c8ccff80fd973",
+      "dictionarySha256": "18282fcaa33c6e21eb893aa2a248391229c070d405901b108c4c89018c3ee7ec",
+      "learning": false,
+      "hostOnly": true,
+      "coverage": "exact full commit verified by isolated selection; partial offsets not exported"
+    },
+    "engineScored": {
+      "n": 1384,
+      "top1": 445,
+      "top5": 466,
+      "top1Pct": 32.15,
+      "top5Pct": 33.67,
+      "top1Ci95": [
+        29.74,
+        34.66
+      ],
+      "top5Ci95": [
+        31.23,
+        36.2
+      ],
+      "oracle64": 468,
+      "fullCoverage64": 1374,
+      "rankCost": 6.3338,
+      "latency8Ms": {
+        "p50": 0.3788,
+        "p95": 0.9157,
+        "p99": 1.4064
+      }
+    },
+    "byCategory": {
+      "homophone": {
+        "n": 40,
+        "top1": 40,
+        "top5": 40,
+        "top1Pct": 100.0,
+        "top5Pct": 100.0,
+        "top1Ci95": [
+          91.24,
+          100.0
+        ],
+        "top5Ci95": [
+          91.24,
+          100.0
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.0,
+        "latency8Ms": {
+          "p50": 0.1433,
+          "p95": 0.2403,
+          "p99": 0.3176
+        }
+      },
+      "mixed_pinyin": {
+        "n": 40,
+        "top1": 21,
+        "top5": 38,
+        "top1Pct": 52.5,
+        "top5Pct": 95.0,
+        "top1Ci95": [
+          37.5,
+          67.06
+        ],
+        "top5Ci95": [
+          83.5,
+          98.62
+        ],
+        "oracle64": 39,
+        "fullCoverage64": 40,
+        "rankCost": 2.225,
+        "latency8Ms": {
+          "p50": 0.2066,
+          "p95": 0.5837,
+          "p99": 0.829
+        }
+      },
+      "natural_long": {
+        "n": 300,
+        "top1": 43,
+        "top5": 43,
+        "top1Pct": 14.33,
+        "top5Pct": 14.33,
+        "top1Ci95": [
+          10.82,
+          18.75
+        ],
+        "top5Ci95": [
+          10.82,
+          18.75
+        ],
+        "oracle64": 43,
+        "fullCoverage64": 300,
+        "rankCost": 7.8533,
+        "latency8Ms": {
+          "p50": 0.7528,
+          "p95": 1.2702,
+          "p99": 1.8097
+        }
+      },
+      "natural_medium": {
+        "n": 450,
+        "top1": 120,
+        "top5": 120,
+        "top1Pct": 26.67,
+        "top5Pct": 26.67,
+        "top1Ci95": [
+          22.79,
+          30.94
+        ],
+        "top5Ci95": [
+          22.79,
+          30.94
+        ],
+        "oracle64": 120,
+        "fullCoverage64": 449,
+        "rankCost": 6.8667,
+        "latency8Ms": {
+          "p50": 0.434,
+          "p95": 0.7051,
+          "p99": 0.8969
+        }
+      },
+      "natural_short": {
+        "n": 400,
+        "top1": 144,
+        "top5": 144,
+        "top1Pct": 36.0,
+        "top5Pct": 36.0,
+        "top1Ci95": [
+          31.45,
+          40.82
+        ],
+        "top5Ci95": [
+          31.45,
+          40.82
+        ],
+        "oracle64": 144,
+        "fullCoverage64": 400,
+        "rankCost": 6.12,
+        "latency8Ms": {
+          "p50": 0.2784,
+          "p95": 0.541,
+          "p99": 0.7014
+        }
+      },
+      "number_punct": {
+        "n": 34,
+        "top1": 10,
+        "top5": 10,
+        "top1Pct": 29.41,
+        "top5Pct": 29.41,
+        "top1Ci95": [
+          16.83,
+          46.17
+        ],
+        "top5Ci95": [
+          16.83,
+          46.17
+        ],
+        "oracle64": 10,
+        "fullCoverage64": 32,
+        "rankCost": 6.6471,
+        "latency8Ms": {
+          "p50": 0.2347,
+          "p95": 0.4336,
+          "p99": 0.5036
+        }
+      },
+      "proper_noun": {
+        "n": 40,
+        "top1": 29,
+        "top5": 31,
+        "top1Pct": 72.5,
+        "top5Pct": 77.5,
+        "top1Ci95": [
+          57.16,
+          83.89
+        ],
+        "top5Ci95": [
+          62.5,
+          87.68
+        ],
+        "oracle64": 31,
+        "fullCoverage64": 40,
+        "rankCost": 2.85,
+        "latency8Ms": {
+          "p50": 0.1365,
+          "p95": 0.223,
+          "p99": 0.3214
+        }
+      },
+      "shorthand": {
+        "n": 40,
+        "top1": 38,
+        "top5": 39,
+        "top1Pct": 95.0,
+        "top5Pct": 97.5,
+        "top1Ci95": [
+          83.5,
+          98.62
+        ],
+        "top5Ci95": [
+          87.12,
+          99.56
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.225,
+        "latency8Ms": {
+          "p50": 0.3111,
+          "p95": 0.5144,
+          "p99": 0.5269
+        }
+      },
+      "typo": {
+        "n": 40,
+        "top1": 0,
+        "top5": 1,
+        "top1Pct": 0.0,
+        "top5Pct": 2.5,
+        "top1Ci95": [
+          -0.0,
+          8.76
+        ],
+        "top5Ci95": [
+          0.44,
+          12.88
+        ],
+        "oracle64": 1,
+        "fullCoverage64": 33,
+        "rankCost": 8.85,
+        "latency8Ms": {
+          "p50": 0.1798,
+          "p95": 1.4422,
+          "p99": 2.0184
+        }
+      }
+    },
+    "interactionExcluded": 46
+  },
+  "paired": {
+    "bothTop1": 412,
+    "baselineOnlyTop1": 302,
+    "rimeOnlyTop1": 33,
+    "neitherTop1": 637
+  },
+  "candidateStructure": {
+    "available": true,
+    "naturalFullCandidateCounts": {
+      "natural_short": {
+        "zeroFull": 0,
+        "exactlyOneFull": 400,
+        "moreThanOneFull": 0
+      },
+      "natural_medium": {
+        "zeroFull": 1,
+        "exactlyOneFull": 449,
+        "moreThanOneFull": 0
+      },
+      "natural_long": {
+        "zeroFull": 0,
+        "exactlyOneFull": 300,
+        "moreThanOneFull": 0
+      }
+    },
+    "fullCoverageGap": {
+      "total": 9,
+      "byCategory": {
+        "typo": 7,
+        "number_punct": 2
+      },
+      "cases": [
+        {
+          "id": "v2d-typo-002",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-012",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-016",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-023",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-035",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-036",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-typo-037",
+          "category": "typo"
+        },
+        {
+          "id": "v2d-number_punct-020",
+          "category": "number_punct"
+        },
+        {
+          "id": "v2d-number_punct-034",
+          "category": "number_punct"
+        }
+      ],
+      "definition": "baseline has at least one full candidate but same-dictionary Rime has none in its 64-item pool"
+    },
+    "naturalTop1EqualsTop5": true
+  },
+  "referenceDifferentDictionary": {
+    "snapshot": "eval/d04/results/dev-host-2026-11-08.json",
+    "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+    "rimeEngineScored": {
+      "n": 1384,
+      "top1": 573,
+      "top5": 601,
+      "top1Pct": 41.4,
+      "top5Pct": 43.42,
+      "top1Ci95": [
+        38.83,
+        44.02
+      ],
+      "top5Ci95": [
+        40.84,
+        46.05
+      ],
+      "oracle64": 611,
+      "fullCoverage64": 1375,
+      "rankCost": 5.5535,
+      "latency8Ms": {
+        "p50": 0.2368,
+        "p95": 0.6432,
+        "p99": 0.7975
+      }
+    }
+  },
+  "limits": [
+    "host quality experiment on Windows x64; not Android latency/PSS/APK/IME evidence",
+    "same source dictionary: Rime uses pinyin_simp.dict.yaml generated from app/src/main/assets/pinyin_dict.tsv; remaining differences are host engine/scheme, candidate enumeration and tokenisation",
+    "Rime uses the controlled minimal bitap_d04 schema (no learning/completion/punctuation), not all Rime defaults",
+    "Rime script_translator emits at most one full-sentence candidate per natural input in this setup; natural Top1==Top5 and oracle64 is structurally not comparable to a multi-sentence generator",
+    "no learning, no context; native diagnostic selection excluded from latency",
+    "rankCost uses top5 cap; historical v2 implementation allowed ranks6-8",
+    "v2 dev natural sentences overlap the production n-gram training source; exploratory dev-only result, not independent generalization"
+  ]
+}

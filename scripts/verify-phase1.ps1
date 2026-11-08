@@ -9,7 +9,7 @@
       1. .\gradlew.bat :app:testDebugUnitTest --rerun-tasks (never cached)
       2. .\gradlew.bat :app:lintDebug
       3. .\gradlew.bat :app:assembleDebug
-      4. python eval/check_corpus.py + eval/check_no_leak.py + eval/v2/check_v2_corpus.py
+      4. python eval/check_corpus.py + eval/check_no_leak.py + eval/v2/check_v2_corpus.py + eval/v3/check_v3_corpus.py
       5. aapt permission check: no INTERNET / ACCESS_NETWORK_STATE
     Any failing step exits with code 1. The script writes no product data.
 
@@ -147,6 +147,8 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "check_no_leak.py failed" }
         python eval/v2/check_v2_corpus.py
         if ($LASTEXITCODE -ne 0) { throw "check_v2_corpus.py failed" }
+        python eval/v3/check_v3_corpus.py
+        if ($LASTEXITCODE -ne 0) { throw "check_v3_corpus.py failed" }
         $global:LASTEXITCODE = 0
     }
 

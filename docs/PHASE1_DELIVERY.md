@@ -47,8 +47,9 @@
 | v2 dev | 引擎可评分 | 1,384 | **51.6%** [49.0,54.2] | **72.3%** [69.9,74.6] | 3.50 | 99.9% | 84.5% |
 | v2 validation | 引擎可评分 | 685 | **52.4%** [48.7,56.1] | **72.7%** [69.2,75.9] | 3.49 | 99.9% | 84.8% |
 
-- v2 的 51–52% 接近旧 sealed 48.6%，属**诚实基线**，不是引擎回退（PinyinEngine 未改）；v1 dev/holdout 的 79.0%/66.4% 是旧小样本调参后的乐观数字。
-- 关键失败项：natural_long Top1 37%、typo Top1 37.5%、mixed_pinyin validation Top1 25%、mixed_en 前缀 Top1 0/40（交互项单列，不计引擎分母）。这些是 D05/D06/D07 输入。
+- v2 的 51–52% 接近旧 sealed 48.6%，属**同源探索基线**，不是引擎回退（PinyinEngine 未改）；v1 dev/holdout 的 79.0%/66.4% 是旧小样本调参后的乐观数字。
+- **D04 审查补充（重要）**：v2 自然句来自 Tatoeba，而生产 pinyin_dict.tsv 的字符 n-gram 统计正是对同一批 89,289 句生成，二者训练源重合；因此 v2 不能作为训练源独立的泛化验收。新建的 v3 CC0 独立验收集（601 条，CC0-1.0）首轮基线为 Top1 **38.8%** / Top5 **59.4%** / rankCost 4.61 / oracle 77.0%（见 [v3 首轮基线](docs/EVALUATION_V3_BASELINE.md)），明显低于 v2，说明 v2 被同源数据高估。v3 只作验收，不用于调参。
+- 关键失败项：natural_long Top1 37%（v2）、typo Top1 37.5%、mixed_pinyin validation Top1 25%、mixed_en 前缀 Top1 0/40（交互项单列，不计引擎分母）。这些是 D05/D06/D07 输入。
 
 ### 3.2 事件序列集
 
@@ -100,7 +101,7 @@
 
 | 项 | 结果 |
 |---|---|
-| `:app:testDebugUnitTest --rerun-tasks` | **354 tests / 0 failures / 0 errors / 2 skipped**（54 个测试类；跳过 = PinyinSealedEvalTest、PinyinV2EvalTest validation 用例） |
+| `:app:testDebugUnitTest --rerun-tasks` | **356 tests / 0 failures / 0 errors / 4 skipped**（56 个测试类；跳过 = PinyinSealedEvalTest、PinyinV2EvalTest validation、PinyinV3EvalTest 默认验收、D04BaselineExportTest 默认导出） |
 | `:app:lintDebug` | **0 errors / 26 warnings / 1 hint**（与基线一致） |
 | `:app:assembleDebug` | BUILD SUCCESSFUL；最终 debug APK 108,812,306 B，SHA-256 `841126E455B675A67FD0BD2D5E03BF6F6C4D82CADBD8D50ADD9A30A063EB4510` |
 | `python eval/check_corpus.py` | dev=132 holdout=132 total=264 errors=0 |
@@ -134,7 +135,7 @@
 
 ## 8. 风险与未完成（按优先级）
 
-1. **引擎质量仍远低于 0.2 门槛**：v2 dev Top1 51.6%、Top5 72.3%；阶段目标 Top1≥75%、Top5≥90%。natural_long、typo、mixed_pinyin、mixed_en 前缀是下一阶段首要项；D04 librime PoC 尚未开始。
+1. **引擎质量仍远低于 0.2 门槛**：v2 dev Top1 51.6%、Top5 72.3% 是同源探索；训练源独立的 v3 首轮 Top1 **38.8%**、Top5 **59.4%**，与阶段目标 Top1≥75%、Top5≥90% 差距更大。natural_long、typo、mixed_pinyin、mixed_en 前缀是下一阶段首要项；D04 宿主 PoC 已完成但 Android/JNI 与设备预算未验证。
 2. **AI 峰值内存约 1.9 GB**：native 引擎关闭后可卸载（1.34 GB→35–68 MB），但「10 秒内 PSS 回到基线+100 MiB」只在部分采样口径达标（8411 设置页口径超 23.7 MiB）；低内存设备仍可能被 LMK。D02 只解决「关闭释放」，未解决「生成期峰值」，该 PSS 门槛需 release/正式包固定场景复测。
 3. **取消生成设备端未验证**：UI 自动化无法稳定点击「取消 AI」；JVM 单测覆盖语义，真机需人工/无障碍复核。
 4. **评测数据固有噪声**：Tatoeba 翻译腔、少量共用繁体字（著）、pypinyin 多音字；按独立来源接受并在 v2 协议 §8 记录，不能按引擎输出改语料。
@@ -145,7 +146,7 @@
 
 ## 9. 下一步建议（阶段二）
 
-1. **D04**：librime PoC 与自研同口径对比（质量/延迟/内存/许可/集成成本），用 ADR 决定路线。
+1. **D04（已启动，宿主部分完成）**：librime 1.17.0 + pinyin-simp 宿主对照、同词典对照（Rime Top1 32.15% vs 自研 51.59%）与独立 v3 验收集（自研 Top1 38.8%）已完成；结论暂保留自研默认（[ADR 0002](docs/adr/0002-input-engine-d04.md)）。剩余 Android/JNI、同机时延/PSS/APK 增量、消费范围/取消契约与独立验收。
 2. **D05**：获选引擎的召回、语言模型、分段排序；以 v2 dev 调参、v2 validation 验收；重点 natural_long、typo、mixed_pinyin。
 3. **D06/D07**：错拼图与混排 tokenizer；D08 触控事件回放与双拇指试打。
 4. 每个类别报告 Top1/Top5/rankCost/oracle 与回退；任何类别下降 ≥3pp 或正确性回归必须解释并人工审阅。

@@ -1,0 +1,137 @@
+{
+  "source": {
+    "path": "app/src/main/assets/pinyin_dict.tsv",
+    "sha256": "4c979d12d957f2e567f06844cfaa705e07dbf544b808ff055c86669d5a53f20d",
+    "entries": 65999,
+    "totalFrequency": 58378390
+  },
+  "output": {
+    "sharedDir": "build/d04/same-dictionary/shared",
+    "dictionary": "build/d04/same-dictionary/shared/pinyin_simp.dict.yaml",
+    "dictionarySha256": "18282fcaa33c6e21eb893aa2a248391229c070d405901b108c4c89018c3ee7ec",
+    "entries": 65999
+  },
+  "schema": {
+    "bitap_d04Sha256": "a14049a3c5f89167fc057eaa854eebd9422b429d589831c81d0c8ccff80fd973",
+    "defaultSha256": "b449df35896ccaa68380519c37c9158a7af7a77cd5ddeaa4a4e3ea38259c3b7f"
+  },
+  "pypinyin": {
+    "version": "0.55.0",
+    "api": "lazy_pinyin(word, style=Style.NORMAL)"
+  },
+  "conversion": {
+    "checked": 65999,
+    "flatPinyinMismatchCount": 0,
+    "flatPinyinMismatchSamples": [],
+    "syllableCountMismatchCount": 0,
+    "syllableCountMismatchSamples": [],
+    "invalidEntryCount": 0,
+    "invalidEntrySamples": [],
+    "canonicalization": {
+      "lve": "lue",
+      "nve": "nue"
+    },
+    "canonicalizedEntryCount": 68,
+    "canonicalizedSamples": [
+      {
+        "word": "战略",
+        "pinyin": "zhanlve",
+        "pypinyinSyllables": "zhan lve",
+        "rimeSyllables": "zhan lue"
+      },
+      {
+        "word": "略",
+        "pinyin": "lve",
+        "pypinyinSyllables": "lve",
+        "rimeSyllables": "lue"
+      },
+      {
+        "word": "侵略",
+        "pinyin": "qinlve",
+        "pypinyinSyllables": "qin lve",
+        "rimeSyllables": "qin lue"
+      },
+      {
+        "word": "策略",
+        "pinyin": "celve",
+        "pypinyinSyllables": "ce lve",
+        "rimeSyllables": "ce lue"
+      },
+      {
+        "word": "侵略者",
+        "pinyin": "qinlvezhe",
+        "pypinyinSyllables": "qin lve zhe",
+        "rimeSyllables": "qin lue zhe"
+      },
+      {
+        "word": "掠",
+        "pinyin": "lve",
+        "pypinyinSyllables": "lve",
+        "rimeSyllables": "lue"
+      },
+      {
+        "word": "忽略",
+        "pinyin": "hulve",
+        "pypinyinSyllables": "hu lve",
+        "rimeSyllables": "hu lue"
+      },
+      {
+        "word": "侵略军",
+        "pinyin": "qinlvejun",
+        "pypinyinSyllables": "qin lve jun",
+        "rimeSyllables": "qin lue jun"
+      },
+      {
+        "word": "掠夺",
+        "pinyin": "lveduo",
+        "pypinyinSyllables": "lve duo",
+        "rimeSyllables": "lue duo"
+      },
+      {
+        "word": "略有",
+        "pinyin": "lveyou",
+        "pypinyinSyllables": "lve you",
+        "rimeSyllables": "lue you"
+      }
+    ],
+    "distinctSyllables": 403,
+    "unknownSyllableCount": 0,
+    "unknownSyllableSamples": [],
+    "polyphonicEntryCount": 20772,
+    "polyphonicEntrySamples": [
+      "了",
+      "是",
+      "和",
+      "有",
+      "他",
+      "不",
+      "的",
+      "也",
+      "这",
+      "年",
+      "说",
+      "都",
+      "着",
+      "地",
+      "还",
+      "大",
+      "而",
+      "之",
+      "以",
+      "得"
+    ]
+  },
+  "rimeReference": {
+    "path": ".tmp/d04/bootstrap/pinyin-simp/pinyin_simp.dict.yaml",
+    "available": true,
+    "entries": 65125,
+    "uniqueWords": 64425,
+    "minWeight": 0,
+    "maxWeight": 4828294,
+    "overlapWithProjectWords": 35411,
+    "projectOnlyWords": 30588,
+    "rimeOnlyWords": 29014,
+    "duplicateWordEntries": 700,
+    "distinctSyllables": 415
+  }
+}
