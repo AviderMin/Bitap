@@ -46,7 +46,7 @@ class PinyinV2EvalTest {
     ) {
         val top1: Boolean get() = rank == 0
         val top5: Boolean get() = rank in 0..4
-        val rankCost: Int get() = if (rank >= 0) rank + 1 else MISS_RANK_COST
+        val rankCost: Int get() = if (rank in 0..4) rank + 1 else MISS_RANK_COST
     }
 
     private val categoryOrder = listOf(

@@ -1,0 +1,503 @@
+{
+  "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+  "baseline": {
+    "metadata": {
+      "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+      "dictionarySha256": "4c979d12d957f2e567f06844cfaa705e07dbf544b808ff055c86669d5a53f20d",
+      "engineId": "pinyin-baseline",
+      "learning": false,
+      "hostOnly": true
+    },
+    "engineScored": {
+      "n": 1384,
+      "top1": 714,
+      "top5": 1001,
+      "top1Pct": 51.59,
+      "top5Pct": 72.33,
+      "top1Ci95": [
+        48.96,
+        54.21
+      ],
+      "top5Ci95": [
+        69.91,
+        74.62
+      ],
+      "oracle64": 1169,
+      "fullCoverage64": 1383,
+      "rankCost": 3.5809,
+      "latency8Ms": {
+        "p50": 3.2668,
+        "p95": 7.5423,
+        "p99": 9.1524
+      }
+    },
+    "byCategory": {
+      "homophone": {
+        "n": 40,
+        "top1": 40,
+        "top5": 40,
+        "top1Pct": 100.0,
+        "top5Pct": 100.0,
+        "top1Ci95": [
+          91.24,
+          100.0
+        ],
+        "top5Ci95": [
+          91.24,
+          100.0
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.0,
+        "latency8Ms": {
+          "p50": 0.1625,
+          "p95": 0.68,
+          "p99": 1.202
+        }
+      },
+      "mixed_pinyin": {
+        "n": 40,
+        "top1": 20,
+        "top5": 38,
+        "top1Pct": 50.0,
+        "top5Pct": 95.0,
+        "top1Ci95": [
+          35.2,
+          64.8
+        ],
+        "top5Ci95": [
+          83.5,
+          98.62
+        ],
+        "oracle64": 39,
+        "fullCoverage64": 40,
+        "rankCost": 2.275,
+        "latency8Ms": {
+          "p50": 0.2914,
+          "p95": 0.537,
+          "p99": 0.602
+        }
+      },
+      "natural_long": {
+        "n": 300,
+        "top1": 111,
+        "top5": 155,
+        "top1Pct": 37.0,
+        "top5Pct": 51.67,
+        "top1Ci95": [
+          31.73,
+          42.6
+        ],
+        "top5Ci95": [
+          46.03,
+          57.26
+        ],
+        "oracle64": 209,
+        "fullCoverage64": 300,
+        "rankCost": 5.1767,
+        "latency8Ms": {
+          "p50": 6.2073,
+          "p95": 8.5527,
+          "p99": 9.854
+        }
+      },
+      "natural_medium": {
+        "n": 450,
+        "top1": 222,
+        "top5": 318,
+        "top1Pct": 49.33,
+        "top5Pct": 70.67,
+        "top1Ci95": [
+          44.74,
+          53.94
+        ],
+        "top5Ci95": [
+          66.3,
+          74.68
+        ],
+        "oracle64": 380,
+        "fullCoverage64": 449,
+        "rankCost": 3.7022,
+        "latency8Ms": {
+          "p50": 3.8604,
+          "p95": 6.5032,
+          "p99": 8.057
+        }
+      },
+      "natural_short": {
+        "n": 400,
+        "top1": 228,
+        "top5": 328,
+        "top1Pct": 57.0,
+        "top5Pct": 82.0,
+        "top1Ci95": [
+          52.1,
+          61.76
+        ],
+        "top5Ci95": [
+          77.94,
+          85.46
+        ],
+        "oracle64": 368,
+        "fullCoverage64": 400,
+        "rankCost": 2.8925,
+        "latency8Ms": {
+          "p50": 2.0354,
+          "p95": 4.7824,
+          "p99": 7.5156
+        }
+      },
+      "number_punct": {
+        "n": 34,
+        "top1": 19,
+        "top5": 30,
+        "top1Pct": 55.88,
+        "top5Pct": 88.24,
+        "top1Ci95": [
+          39.45,
+          71.12
+        ],
+        "top5Ci95": [
+          73.38,
+          95.33
+        ],
+        "oracle64": 33,
+        "fullCoverage64": 34,
+        "rankCost": 2.3824,
+        "latency8Ms": {
+          "p50": 1.7152,
+          "p95": 3.7783,
+          "p99": 6.5117
+        }
+      },
+      "proper_noun": {
+        "n": 40,
+        "top1": 28,
+        "top5": 33,
+        "top1Pct": 70.0,
+        "top5Pct": 82.5,
+        "top1Ci95": [
+          54.57,
+          81.93
+        ],
+        "top5Ci95": [
+          68.05,
+          91.25
+        ],
+        "oracle64": 37,
+        "fullCoverage64": 40,
+        "rankCost": 2.6,
+        "latency8Ms": {
+          "p50": 0.221,
+          "p95": 0.8475,
+          "p99": 0.9536
+        }
+      },
+      "shorthand": {
+        "n": 40,
+        "top1": 31,
+        "top5": 38,
+        "top1Pct": 77.5,
+        "top5Pct": 95.0,
+        "top1Ci95": [
+          62.5,
+          87.68
+        ],
+        "top5Ci95": [
+          83.5,
+          98.62
+        ],
+        "oracle64": 40,
+        "fullCoverage64": 40,
+        "rankCost": 1.6,
+        "latency8Ms": {
+          "p50": 0.1728,
+          "p95": 0.2724,
+          "p99": 0.3045
+        }
+      },
+      "typo": {
+        "n": 40,
+        "top1": 15,
+        "top5": 21,
+        "top1Pct": 37.5,
+        "top5Pct": 52.5,
+        "top1Ci95": [
+          24.22,
+          52.97
+        ],
+        "top5Ci95": [
+          37.5,
+          67.06
+        ],
+        "oracle64": 23,
+        "fullCoverage64": 40,
+        "rankCost": 5.0,
+        "latency8Ms": {
+          "p50": 0.3498,
+          "p95": 0.6858,
+          "p99": 0.7634
+        }
+      }
+    },
+    "interactionExcluded": 46
+  },
+  "rime": {
+    "metadata": {
+      "corpusSha256": "3421ca0837d3b1726532c186810deab759a42fcdf622f4157c6f76216bbe53d6",
+      "dllSha256": "86b4c7357d4c6d293ce5589b234d8859ca2ac30923a03bedfa3926eeaf97fb0b",
+      "startupIncludingDeploymentNanos": 266354300,
+      "cases": 1430,
+      "schemaSha256": "a14049a3c5f89167fc057eaa854eebd9422b429d589831c81d0c8ccff80fd973",
+      "dictionarySha256": "e140ee947cdc73b4c3e40cbf704145f1af19b2293432273fae269a10e3c5d1e8",
+      "learning": false,
+      "hostOnly": true,
+      "coverage": "exact full commit verified by isolated selection; partial offsets not exported"
+    },
+    "engineScored": {
+      "n": 1384,
+      "top1": 573,
+      "top5": 601,
+      "top1Pct": 41.4,
+      "top5Pct": 43.42,
+      "top1Ci95": [
+        38.83,
+        44.02
+      ],
+      "top5Ci95": [
+        40.84,
+        46.05
+      ],
+      "oracle64": 611,
+      "fullCoverage64": 1375,
+      "rankCost": 5.5535,
+      "latency8Ms": {
+        "p50": 0.2368,
+        "p95": 0.6432,
+        "p99": 0.7975
+      }
+    },
+    "byCategory": {
+      "homophone": {
+        "n": 40,
+        "top1": 34,
+        "top5": 39,
+        "top1Pct": 85.0,
+        "top5Pct": 97.5,
+        "top1Ci95": [
+          70.93,
+          92.94
+        ],
+        "top5Ci95": [
+          87.12,
+          99.56
+        ],
+        "oracle64": 39,
+        "fullCoverage64": 40,
+        "rankCost": 1.35,
+        "latency8Ms": {
+          "p50": 0.0709,
+          "p95": 0.1448,
+          "p99": 0.1645
+        }
+      },
+      "mixed_pinyin": {
+        "n": 40,
+        "top1": 17,
+        "top5": 29,
+        "top1Pct": 42.5,
+        "top5Pct": 72.5,
+        "top1Ci95": [
+          28.51,
+          57.81
+        ],
+        "top5Ci95": [
+          57.16,
+          83.89
+        ],
+        "oracle64": 38,
+        "fullCoverage64": 40,
+        "rankCost": 3.625,
+        "latency8Ms": {
+          "p50": 0.1202,
+          "p95": 0.3085,
+          "p99": 0.3911
+        }
+      },
+      "natural_long": {
+        "n": 300,
+        "top1": 67,
+        "top5": 67,
+        "top1Pct": 22.33,
+        "top5Pct": 22.33,
+        "top1Ci95": [
+          17.99,
+          27.38
+        ],
+        "top5Ci95": [
+          17.99,
+          27.38
+        ],
+        "oracle64": 67,
+        "fullCoverage64": 300,
+        "rankCost": 7.2133,
+        "latency8Ms": {
+          "p50": 0.4461,
+          "p95": 0.7538,
+          "p99": 0.8397
+        }
+      },
+      "natural_medium": {
+        "n": 450,
+        "top1": 167,
+        "top5": 167,
+        "top1Pct": 37.11,
+        "top5Pct": 37.11,
+        "top1Ci95": [
+          32.77,
+          41.67
+        ],
+        "top5Ci95": [
+          32.77,
+          41.67
+        ],
+        "oracle64": 167,
+        "fullCoverage64": 450,
+        "rankCost": 6.0311,
+        "latency8Ms": {
+          "p50": 0.2713,
+          "p95": 0.4865,
+          "p99": 0.6655
+        }
+      },
+      "natural_short": {
+        "n": 400,
+        "top1": 217,
+        "top5": 217,
+        "top1Pct": 54.25,
+        "top5Pct": 54.25,
+        "top1Ci95": [
+          49.35,
+          59.07
+        ],
+        "top5Ci95": [
+          49.35,
+          59.07
+        ],
+        "oracle64": 217,
+        "fullCoverage64": 400,
+        "rankCost": 4.66,
+        "latency8Ms": {
+          "p50": 0.1622,
+          "p95": 0.3208,
+          "p99": 0.4238
+        }
+      },
+      "number_punct": {
+        "n": 34,
+        "top1": 13,
+        "top5": 13,
+        "top1Pct": 38.24,
+        "top5Pct": 38.24,
+        "top1Ci95": [
+          23.9,
+          54.96
+        ],
+        "top5Ci95": [
+          23.9,
+          54.96
+        ],
+        "oracle64": 13,
+        "fullCoverage64": 32,
+        "rankCost": 5.9412,
+        "latency8Ms": {
+          "p50": 0.1221,
+          "p95": 0.2725,
+          "p99": 0.3228
+        }
+      },
+      "proper_noun": {
+        "n": 40,
+        "top1": 33,
+        "top5": 37,
+        "top1Pct": 82.5,
+        "top5Pct": 92.5,
+        "top1Ci95": [
+          68.05,
+          91.25
+        ],
+        "top5Ci95": [
+          80.14,
+          97.42
+        ],
+        "oracle64": 37,
+        "fullCoverage64": 40,
+        "rankCost": 1.75,
+        "latency8Ms": {
+          "p50": 0.0838,
+          "p95": 0.1579,
+          "p99": 0.1608
+        }
+      },
+      "shorthand": {
+        "n": 40,
+        "top1": 25,
+        "top5": 31,
+        "top1Pct": 62.5,
+        "top5Pct": 77.5,
+        "top1Ci95": [
+          47.03,
+          75.78
+        ],
+        "top5Ci95": [
+          62.5,
+          87.68
+        ],
+        "oracle64": 32,
+        "fullCoverage64": 40,
+        "rankCost": 3.0,
+        "latency8Ms": {
+          "p50": 0.1558,
+          "p95": 0.6392,
+          "p99": 0.6442
+        }
+      },
+      "typo": {
+        "n": 40,
+        "top1": 0,
+        "top5": 1,
+        "top1Pct": 0.0,
+        "top5Pct": 2.5,
+        "top1Ci95": [
+          -0.0,
+          8.76
+        ],
+        "top5Ci95": [
+          0.44,
+          12.88
+        ],
+        "oracle64": 1,
+        "fullCoverage64": 33,
+        "rankCost": 8.825,
+        "latency8Ms": {
+          "p50": 0.0902,
+          "p95": 0.5241,
+          "p99": 0.9962
+        }
+      }
+    },
+    "interactionExcluded": 46
+  },
+  "paired": {
+    "bothTop1": 477,
+    "baselineOnlyTop1": 237,
+    "rimeOnlyTop1": 96,
+    "neitherTop1": 574
+  },
+  "limits": [
+    "host quality experiment, not Android latency/PSS/APK evidence",
+    "different dictionaries: system comparison, not engine-only ablation",
+    "no learning, no context, native diagnostic selection excluded from latency",
+    "rankCost uses top5 cap; historical v2 implementation allowed ranks6-8"
+  ]
+}

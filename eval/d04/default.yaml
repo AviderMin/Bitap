@@ -1,0 +1,6 @@
+# Minimal original host-only config; no rime-prelude files are redistributed.
+config_version: '1'
+schema_list:
+  - schema: bitap_d04
+menu:
+  page_size: 8
