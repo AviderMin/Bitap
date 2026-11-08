@@ -1,11 +1,11 @@
 {
   "schema_version": "d05-dev-v1",
   "generator": "eval/d05/dev/build_d05_dev.py",
-  "generator_version": "1.0.0",
+  "generator_version": "1.2.0",
   "command": "python eval/d05/dev/build_d05_dev.py",
   "purpose": "D05 cross-source diagnostic development set; per-case diagnosis allowed, never acceptance",
   "source": {
-    "name": "irvin/cc0-sentences zh-TW remaining lines after v3 exclusion",
+    "name": "irvin/cc0-sentences zh-TW remaining lines + Chinese Wikipedia CC BY-SA 4.0 long-sentence snapshot",
     "repository": "https://github.com/irvin/cc0-sentences",
     "license": "CC0-1.0",
     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -85,6 +85,18 @@
       "chatlogs.txt"
     ]
   },
+  "wikipedia_source": {
+    "file": "eval/d05/dev/wikipedia_long_source.tsv",
+    "sha256": "1537697b78979b05893c03125f18614505e3aa927d6a4b66d5894166324c9cf3",
+    "rows": 219,
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attribution": "Chinese Wikipedia (https://zh.wikipedia.org/); pageid, oldid and stable URL recorded per row in wikipedia_long_source.tsv",
+    "api_endpoint": "https://zh.wikipedia.org/w/api.php",
+    "fetch_script": "eval/d05/dev/fetch_wikipedia_long.py",
+    "retrieved_at": "2026-11-08",
+    "retrieval_note": "snapshot fetched via MediaWiki API (random zh Wikipedia articles, intro extracts), converted to simplified Chinese; not live at build time"
+  },
   "reference_files": {
     "eval/pinyin_cases_dev.tsv": "9a5193da6f2869d513ce0fb7d5bc3fbadc5da9398ff658e9ee12c587d651c5a3",
     "eval/pinyin_cases_holdout.tsv": "4caf2b4f75aa8d425534b0eb726c167d044994822a40d66e8429c89e479304ce",
@@ -96,14 +108,14 @@
   "files": {
     "dev": {
       "path": "eval/d05/dev/dev.tsv",
-      "sha256": "1d628eb46783ffe337dcbe5887b4126f58ba66b638f7d58159b58d235d74b9b4",
-      "rows": 950
+      "sha256": "63983c5f9a490040592d6740e2e747e2b5a574d0a068accb44f25179153110ad",
+      "rows": 1050
     }
   },
   "category_counts": {
     "natural_short": 300,
-    "natural_medium": 289,
-    "natural_long": 11,
+    "natural_medium": 277,
+    "natural_long": 123,
     "typo": 100,
     "shorthand": 100,
     "mixed_pinyin": 100,
@@ -115,16 +127,19 @@
       "setences.txt": 79
     },
     "natural_medium": {
-      "g0v_slack_rand0m.txt": 220,
-      "setences.txt": 69
+      "g0v_slack_rand0m.txt": 210,
+      "setences.txt": 67
     },
     "natural_long": {
-      "web_slang.txt": 6,
+      "g0v_slack_rand0m.txt": 3,
+      "web_slang.txt": 7,
       "exam_text.txt": 4,
-      "cvsprint_201902.txt": 1
+      "cvsprint_201902.txt": 1,
+      "wikipedia": 108
     }
   },
-  "long_shortfall_note": "natural_long target >=30 could not be met: v3 selected 601 includes the long chat lines; after v3 exact/near exclusion only 11 long sentences remain (all from supplement files exam_text/web_slang/cvsprint_201902), reported honestly without rewriting.",
+  "long_pinyin_over_64": 33,
+  "long_shortfall_note": "natural_long user target >=100 met: actual=123 (selector target 150). Long sentences are supplied by the Chinese Wikipedia CC BY-SA 4.0 snapshot (17-30 CJK complete sentences, pageid/oldid/URL recorded); no production engine output or acceptance sentence is used.",
   "filters": {
     "natural_script": "simplified Chinese (CJK Unified Ideographs encodable with GB2312) plus Chinese punctuation",
     "natural_length_chars": {
@@ -138,10 +153,10 @@
       ],
       "natural_long": [
         17,
-        24
+        30
       ]
     },
-    "max_pinyin_length": 60,
+    "max_pinyin_length": 70,
     "dedup": "exact normalized character sequence",
     "excluded": {
       "dictionary_whole_sentence": "normalized natural sentence equals a whole pinyin_dict.tsv word",
@@ -153,15 +168,16 @@
       "rejected_filter": 752,
       "rejected_duplicate": 14,
       "unique_texts": 16000,
+      "wikipedia_snapshot_rows": 214,
       "rejected_v1_v2_v3_exact": 602,
       "rejected_dictionary_leak": 118,
-      "rejected_pinyin_length": 4,
-      "natural_pool": 15276,
-      "selected_long": 11,
+      "rejected_pinyin_length": 106,
+      "natural_pool": 15388,
+      "selected_long": 123,
       "rejected_reference_near_duplicate": 2,
-      "selected_medium": 289,
+      "selected_medium": 277,
       "selected_short": 300,
-      "clusters": 15160,
+      "clusters": 15272,
       "multi_member_clusters": 115
     }
   },

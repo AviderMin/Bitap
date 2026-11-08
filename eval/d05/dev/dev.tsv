@@ -310,294 +310,394 @@ d05-natural_medium-009	natural_medium	buluncongshenmejiaoduchufa	不论从什么
 d05-natural_medium-010	natural_medium	faxianyijingpaileyixieren	发现已经排了一些人	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1834
 d05-natural_medium-011	natural_medium	zhegeniantoulianguidouyaobeizhaile	这个年头连鬼都要背债了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:178
 d05-natural_medium-012	natural_medium	rangwomenzhidaohaiyounalikeyigenghao	让我们知道还有哪里可以更好	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6794
-d05-natural_medium-013	natural_medium	tazaishaowanfanhouhuidaofangjian	她在烧完饭后回到房间	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:317
-d05-natural_medium-014	natural_medium	xinjialuochengqinqidoulaile	新家落成亲戚都来了	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:657
-d05-natural_medium-015	natural_medium	chengweibeichaoxiandedananfang	成为北朝鲜的大南方	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5423
-d05-natural_medium-016	natural_medium	dajianengchongfenliyongshijian	大家能充分利用时间	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:897
-d05-natural_medium-017	natural_medium	jianguoshangyeliliangjinzhuqianhoudeduibi	见过商业力量进驻前后的对比	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5862
-d05-natural_medium-018	natural_medium	suiranshangtianjuanguderenbushao	虽然上天眷顾的人不少	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2215
-d05-natural_medium-019	natural_medium	haishixiwangnengzhuzaixiangxia	还是希望能住在乡下	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:744
-d05-natural_medium-020	natural_medium	taishuibushizibenzhuyiluoji	台水不是资本主义逻辑	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1455
-d05-natural_medium-021	natural_medium	mouxiecaizhihaihuiyingxiangxianying	某些材质还会影响显影	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4908
-d05-natural_medium-022	natural_medium	zouderenduoleyebianchenglelu	走的人多了，也便成了路	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1519
-d05-natural_medium-023	natural_medium	kuaisuwanchengrenwujiejuewenti	快速完成任务、解决问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:839
-d05-natural_medium-024	natural_medium	zheshizaibuxucaominlaibuchong	这实在不需草民来补充	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7430
-d05-natural_medium-025	natural_medium	wopengyouxianzaizaizuoyigexiaozhuanti	我朋友现在在做一个小专题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6313
-d05-natural_medium-026	natural_medium	tamenhaihuijuedehenewan	他们还会觉得很扼腕	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2978
-d05-natural_medium-027	natural_medium	maidiaocongfuqinnalijichengdesanfendi	卖掉从父亲那里继承的三分地	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:627
-d05-natural_medium-028	natural_medium	danhenshaorenhuishuozijishiyuzhouren	但很少人会说自己是宇宙人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3469
-d05-natural_medium-029	natural_medium	haishihuiyouxuyaodaizhezoudezhuangkuang	还是会有需要带着走的状况	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8400
-d05-natural_medium-030	natural_medium	henkuaijiuyoushubaiweihuobanjiaruxiezuo	很快就有数百位伙伴加入协作	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:802
-d05-natural_medium-031	natural_medium	douyaoyidaotidaidedalou	都要移到替代的大楼	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3311
-d05-natural_medium-032	natural_medium	sinianhoudoushisuijiwenti	四年后都是随机问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7894
-d05-natural_medium-033	natural_medium	faxiannvxingrengshouchuantongguannianyingxiang	发现女性仍受传统观念影响	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1833
-d05-natural_medium-034	natural_medium	xinzhuguanxidezaidituanti	新竹关西的在地团体	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8329
-d05-natural_medium-035	natural_medium	dimiancengpingjundanjiayueweimeipingsishiwanyuan	地面层平均单价约为每坪四十万元	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2968
-d05-natural_medium-036	natural_medium	suirantayelaiguotaiwanle	虽然她也来过台湾了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1339
-d05-natural_medium-037	natural_medium	wulunshijietuzhongdejiaocai	无论是截图中的教材	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1594
-d05-natural_medium-038	natural_medium	haipadapozhejiabandexingfu	害怕打破这假扮的幸福	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2153
-d05-natural_medium-039	natural_medium	conglaidoubushitingzhilianxidejiekou	从来都不是停止练习的借口	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:5
-d05-natural_medium-040	natural_medium	fuwushengyizidouyongshuaide	服务生椅子都用摔的	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1520
-d05-natural_medium-041	natural_medium	ruoshejizhongdagongzhongliyi	若涉及重大公众利益	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:951
-d05-natural_medium-042	natural_medium	weilaijiangjiehezhengfuxianyouziyuan	未来将结合政府现有资源	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1372
-d05-natural_medium-043	natural_medium	weilizhajiangmianzuihaochidefangfa	维力炸酱面最好吃的方法	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:750
-d05-natural_medium-044	natural_medium	duboderendoushifengaoxing	赌博的人都十分高兴	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:603
-d05-natural_medium-045	natural_medium	xiaohaiqishijiujubeiletanpandemoshi	小孩其实就具备了谈判的模式	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2155
-d05-natural_medium-046	natural_medium	yijingyouguihudaoshoujitiaoma	已经有归户到手机条码	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2789
-d05-natural_medium-047	natural_medium	xindianhaoxiangmanduodifangtingdianle	新店好像蛮多地方停电了	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:879
-d05-natural_medium-048	natural_medium	tuidongzaiqudefuyuanchongjian	推动灾区的复原重建	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1720
-d05-natural_medium-049	natural_medium	taibeidongqutemaihuishangquan	台北东区特卖会商圈	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5
-d05-natural_medium-050	natural_medium	jiaoshoushitaiwanzhimingdewudaojia	教授是台湾知名的舞蹈家	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8720
-d05-natural_medium-051	natural_medium	jieguoxitongsuandeshishijian	结果系统算的是时间	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8767
-d05-natural_medium-052	natural_medium	zaibanzheshisichangdeguochengzhong	在办这十四场的过程中	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:965
-d05-natural_medium-053	natural_medium	rengniannianbuwangnideshenying	仍念念不忘你的身影	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2194
-d05-natural_medium-054	natural_medium	yuanjujiaoxueweizuiremendeguanjianzi	远距教学为最热门的关键字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5624
-d05-natural_medium-055	natural_medium	ruguoyaoanzhuangzhetaoruanjian	如果要安装这套软件	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7738
-d05-natural_medium-056	natural_medium	youlegengduoyuandeduihuafangshi	有了更多元的对话方式	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2327
-d05-natural_medium-057	natural_medium	ranhoukanshiyishamingyijiaqilai	然后看是以啥名义架起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5250
-d05-natural_medium-058	natural_medium	niyounafangzaichoutilideqianma	你有拿放在抽屉里的钱吗？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:409
-d05-natural_medium-059	natural_medium	jintiancaifaxianleshiyeyouliangzhong	今天才发现乐事也有两种	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3927
-d05-natural_medium-060	natural_medium	youbanfazaihuirudetongshi	有办法在汇入的同时	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5684
-d05-natural_medium-061	natural_medium	cengzaiyijiujiusannianlaitaikaiyanchanghui	曾在一九九三年来台开演唱会	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3698
-d05-natural_medium-062	natural_medium	yaoqiushiyongzhefangqiyinsi	要求使用者放弃隐私	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:923
-d05-natural_medium-063	natural_medium	bufenquliweixuanjugongbaozhong	不分区立委选举公报中	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4657
-d05-natural_medium-064	natural_medium	woganggangwaidaileliangwanxiaomizhou	我刚刚外带了两碗小米粥	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:660
-d05-natural_medium-065	natural_medium	zenmewomenjiademinamenanchi	怎么我们家的米那么难吃	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:510
-d05-natural_medium-066	natural_medium	yanzhongdezaiqingyijirenmingdeshangwang	严重的灾情以及人命的伤亡	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2075
-d05-natural_medium-067	natural_medium	pangbianderenzaishuomaimaihenhaozhuan	旁边的人在说买卖很好赚	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:439
-d05-natural_medium-068	natural_medium	yinshouwugaoerbeisongshangduantoutai	因受诬告而被送上断头台	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:65
-d05-natural_medium-069	natural_medium	gaobuhaoduifangdoubinihaiyouzhi	搞不好对方都比你还幼稚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2215
-d05-natural_medium-070	natural_medium	zhanhoutaiwanshehuiyundongtezhan	战后台湾社会运动特展	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1833
-d05-natural_medium-071	natural_medium	ranhouqingdajiazhuyiyixia	然后请大家注意一下	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:716
-d05-natural_medium-072	natural_medium	womenmeiyounongdaoquanyingmu	我们没有弄到全萤幕	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5408
-d05-natural_medium-073	natural_medium	tabutingduinverchongfuzhejuhua	她不停对女儿重复这句话	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:284
-d05-natural_medium-074	natural_medium	womenyaoquzhaoyiqiandepengyou	我们要去找以前的朋友	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2830
-d05-natural_medium-075	natural_medium	bixuduozaizaihuodedifang	必须躲在载货的地方	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1190
-d05-natural_medium-076	natural_medium	zhoumorechaodiandebianjuke	周末热炒店的编剧课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3529
-d05-natural_medium-077	natural_medium	zhutikeyizijihechengzhuanchanghuogongzuofang	主题可以自己合成专场或工作坊	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7857
-d05-natural_medium-078	natural_medium	weishenmezhemejizhedidazhongdian	为什么这么急着抵达终点？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:51
-d05-natural_medium-079	natural_medium	ershiyishijidexinxingtaigongminxieliyuduihua	二十一世纪的新型态公民协力与对话	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:812
-d05-natural_medium-080	natural_medium	daihuiyoumeiyoutaiyubaogao	待会有没有台语报告	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6423
-d05-natural_medium-081	natural_medium	youxingcanyudaonagefanyi	有幸参与到那个翻译	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6254
-d05-natural_medium-082	natural_medium	keyiyongxinwenchaichailezuo	可以用新闻拆拆乐做	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3812
-d05-natural_medium-083	natural_medium	yinweiwoyoushifawenyeshizhemingcheng	因为我有时发文也是这名称	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2523
-d05-natural_medium-084	natural_medium	yuanlaizhegequanquanshizhegemingzi	原来这个圈圈是这个名字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1872
-d05-natural_medium-085	natural_medium	bingbushizhandoulipobiaodeshenshou	并不是战斗力破表的神兽	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:224
-d05-natural_medium-086	natural_medium	woshenshangyechuanyiyangdeyifu	我身上也穿一样的衣服	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8014
-d05-natural_medium-087	natural_medium	wozaiwanshangkandaowanshangyoudongxi	我在晚上看到碗上有东西	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:130
-d05-natural_medium-088	natural_medium	zheyouyisibuzhidaoshishenmeweidao	这有意思，不知道是什么味道	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1288
-d05-natural_medium-089	natural_medium	caomeiouleihehongchaoulei	草莓欧蕾和红茶欧蕾	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:982
-d05-natural_medium-090	natural_medium	danweidaoyiwaidihenqingshuang	但味道意外地很清爽	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2016
-d05-natural_medium-091	natural_medium	henhenshuailetalianggeerguang	狠狠甩了她两个耳光	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1601
-d05-natural_medium-092	natural_medium	yaoqingzishenjiuyezishangshi	邀请资深就业咨商师	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2036
-d05-natural_medium-093	natural_medium	yigebiaozhundemeitizongbu	一个标准的媒体总部	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6020
-d05-natural_medium-094	natural_medium	keyiyaoqingnijinruhuiyishi	可以邀请你进入会议室	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6157
-d05-natural_medium-095	natural_medium	henshaokandaotaiwanbendiren	很少看到台湾本地人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:605
-d05-natural_medium-096	natural_medium	wojuedeyekeyishishikanzhezhongfangan	我觉得也可以试试看这种方案	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1486
-d05-natural_medium-097	natural_medium	wangzhidexiefagenmeiguodizhiyiyang	网址的写法跟美国地址一样	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4378
-d05-natural_medium-098	natural_medium	tajuedingxiangzijimamanaxieqian	她决定向自己妈妈拿些钱	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1267
-d05-natural_medium-099	natural_medium	pangbianyouhaochidedongxima	旁边有好吃的东西吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8173
-d05-natural_medium-100	natural_medium	yexiangyaoyoudingqidexiaoju	也想要有定期的小聚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3526
-d05-natural_medium-101	natural_medium	nizhidaowomenzenmehuozhedema	你知道我们怎么活着的吗？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2602
-d05-natural_medium-102	natural_medium	lingrenchuhuyiliaodecihui	令人出乎意料的词汇	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3634
-d05-natural_medium-103	natural_medium	shuoganhuashizhengchangnengliangshifang	说干话是正常能量释放	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:449
-d05-natural_medium-104	natural_medium	benanmuqianzhengzaishenlizhong	本案目前正在审理中	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3005
-d05-natural_medium-105	natural_medium	shenshangdeshangchuanlaizhenzhenjutong	身上的伤传来阵阵剧痛	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:422
-d05-natural_medium-106	natural_medium	xianzaidexiaoxueshenghuanxuyaobeikewenma	现在的小学生还需要背课文吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:283
-d05-natural_medium-107	natural_medium	qitagonghuizhinengzaianweiziji	其他工会只能再安慰自己	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1002
-d05-natural_medium-108	natural_medium	keyimashangkandaobeichidiaodeyangzi	可以马上看到被吃掉的样子	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6152
-d05-natural_medium-109	natural_medium	yejingyouzhongyanyuanshiyusuodengdanweixielicaiji	也经由中研院史语所等单位协力采集	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1759
-d05-natural_medium-110	natural_medium	shenzhizhijiezaidangdishengchanbaozhuang	甚至直接在当地生产、包装	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2140
-d05-natural_medium-111	natural_medium	kanlaigaibangaihaogaimanjiudui	看来盖板盖好盖满就对	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6460
-d05-natural_medium-112	natural_medium	yeyizhiyourenshuokendingdajie	也一直有人说垦丁大街	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3859
-d05-natural_medium-113	natural_medium	jiarunaweipengyouzhendelaizhebianfabiaoxinde	假如那位朋友真的来这边发表心得	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2623
-d05-natural_medium-114	natural_medium	zheyangnayigepindaoshihe	这样哪一个频道适合	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2716
-d05-natural_medium-115	natural_medium	laolehaixiangyaoyoupengyouyiqibicixiangban	老了还想要有朋友一起彼此相伴	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:145
-d05-natural_medium-116	natural_medium	tesilazhendeshitaibeijule	特斯拉真的是太悲剧了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2764
-d05-natural_medium-117	natural_medium	xiangbanfaqujiejuenidewenti	想办法去解决你的问题	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2796
-d05-natural_medium-118	natural_medium	dengdaochuanpushangtaixiaoguojiuhenhao	等到川普上台效果就很好	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:168
-d05-natural_medium-119	natural_medium	zhidaomingchengcainengjinlaiba	知道名称才能进来吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2501
-d05-natural_medium-120	natural_medium	quwanzhengerzhedelunshulianjiewai	去完整二者的论述连结外	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6133
-d05-natural_medium-121	natural_medium	ruguoniyeyoukanguozhezeyaoyan	如果你也有看过这则谣言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1718
-d05-natural_medium-122	natural_medium	feijiqianjindeliliangtaida	飞机前进的力量太大	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2286
-d05-natural_medium-123	natural_medium	nicengshuoguohaipahuidaodangchu	你曾说过害怕回到当初	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2270
-d05-natural_medium-124	natural_medium	dajiatongchangyicidiejipianchi	大家通常一次叠几片吃？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3884
-d05-natural_medium-125	natural_medium	houxuquanbudouzidonghuale	后续全部都自动化了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8662
-d05-natural_medium-126	natural_medium	caihuiyouxiaozhangkongshijizhuangkuang	才会有效掌控实际状况	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7236
-d05-natural_medium-127	natural_medium	weitaiwanlingyiduandexiaopengyoumenyuanjushangke	为台湾另一端的小朋友们远距上课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1094
-d05-natural_medium-128	natural_medium	yipianwenzhangsuijiqusanju	一篇文章随机取三句	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2303
-d05-natural_medium-129	natural_medium	jinnianjijiangjubandierjie	今年即将举办第二届	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:695
-d05-natural_medium-130	natural_medium	geizhizuotuanduibianjumenshangke	给制作团队编剧们上课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6624
-d05-natural_medium-131	natural_medium	xianqumaiyiguanweilizhajiang	先去买一罐维力炸酱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:886
-d05-natural_medium-132	natural_medium	congshanposhangqingqingdehuaxialaile	从山坡上轻轻的滑下来了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:128
-d05-natural_medium-133	natural_medium	xianyoudeshoujiyuyinzhuli	现有的手机语音助理	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1205
-d05-natural_medium-134	natural_medium	wozijigongsibanletingye	我自己公司办了停业	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8012
-d05-natural_medium-135	natural_medium	rangshijieduolejixuxiaorong	让世界多了几许笑容	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:207
-d05-natural_medium-136	natural_medium	jihuaneijiazhuyixiawenzi	计划内加注以下文字	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2911
-d05-natural_medium-137	natural_medium	juedingwoyaodengdaobanyeliangdian	决定我要等到半夜两点	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5216
-d05-natural_medium-138	natural_medium	beizhukeyifangdajiubaibeishengyindeyiqi	背著可以放大九百倍声音的仪器	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1504
-d05-natural_medium-139	natural_medium	yipianluanqibazaodewaizhuan	一篇乱七八糟的外传	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2148
-d05-natural_medium-140	natural_medium	gongxianyugongminkejishequn	贡献于公民科技社群	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1013
-d05-natural_medium-141	natural_medium	meibanfadangnidehaonver	没办法当你的好女儿	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2551
-d05-natural_medium-142	natural_medium	xiaokedeganlancaitebiedekeai	小颗的甘蓝菜特别的可爱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2895
-d05-natural_medium-143	natural_medium	doushikanguozhihoucaixiechulaideganxiang	都是看过之后才写出来的感想	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1990
-d05-natural_medium-144	natural_medium	benxijintianyaoshifangeishizhangkan	本席今天要示范给市长看	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:455
-d05-natural_medium-145	natural_medium	womuqianyudaodewentishi	我目前遇到的问题是	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6307
-d05-natural_medium-146	natural_medium	jiangzaixuduominjiantuantidexiezhuxia	将在许多民间团体的协助下	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1601
-d05-natural_medium-147	natural_medium	youshenmedashujufenxidezhuanan	有什么大数据分析的专案？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6244
-d05-natural_medium-148	natural_medium	wodiyicizhidaolingmuyilang	我第一次知道铃木一朗	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1947
-d05-natural_medium-149	natural_medium	weilaitaiwandemeizhongyuyan	未来台湾的每种语言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1115
-d05-natural_medium-150	natural_medium	shizhongwuqingdezhizhenzhengzaizhuiganzhewo	时钟无情的指针正在追赶着我	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2335
-d05-natural_medium-151	natural_medium	youshihouxuyaomaixiewenjudengyongpin	有时候需要买些文具等用品	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:382
-d05-natural_medium-152	natural_medium	wohaiyiweiziyouxihuimeiweizi	我还以为自由席会没位子	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1009
-d05-natural_medium-153	natural_medium	zhuanzhichengweiruanjianshejishi	转职成为软件设计师	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5563
-d05-natural_medium-154	natural_medium	yourencanjiajinniandeyantaohuima	有人参加今年的研讨会吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7160
-d05-natural_medium-155	natural_medium	zhonghuaminguoshengxiadelingtu	中华民国剩下的领土	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4240
-d05-natural_medium-156	natural_medium	nixianggenzhonggongqianxieyima	你想跟中共签协议吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4200
-d05-natural_medium-157	natural_medium	xingzhengjiguanbixuyizhaozuihoupanjuejieguobanli	行政机关必须依照最后判决结果办理	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3010
-d05-natural_medium-158	natural_medium	yehenyoukenengbingfeitongyitao	也很有可能并非同一套	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7655
-d05-natural_medium-159	natural_medium	fanerhuirangtahenshengqiba	反而会让他很生气吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3356
-d05-natural_medium-160	natural_medium	baodaoguosanyibagongminyundong	报导过三一八公民运动	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1805
-d05-natural_medium-161	natural_medium	zhedianqishishidawenhaode	这点其实是打问号的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7653
-d05-natural_medium-162	natural_medium	kanbudongwodiyijuhuaderen	看不懂我第一句话的人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3033
-d05-natural_medium-163	natural_medium	kanlaichongxianlezhipiaodedanyixing	看来重现了纸票的单一性	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3759
-d05-natural_medium-164	natural_medium	biqiguantoumaidiaoliushijiuge	比起罐头卖掉六十九个	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6116
-d05-natural_medium-165	natural_medium	shifangzhiyejiederenzhengzhibiao	是纺织业界的认证指标	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1064
-d05-natural_medium-166	natural_medium	jiugendengshandeshihouyiyang	就跟登山的时候一样	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6599
-d05-natural_medium-167	natural_medium	jiubuhuiyouyizhiyaojizhangdewenti	就不会有一直要记账的问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5278
-d05-natural_medium-168	natural_medium	jizhechaocuoshuzihedanwei	记者抄错数字和单位	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4065
-d05-natural_medium-169	natural_medium	faxianwolingyitaizhujikeyi	发现我另一台主机可以	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5594
-d05-natural_medium-170	natural_medium	gerenjuedewentimanduode	个人觉得问题蛮多的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8695
-d05-natural_medium-171	natural_medium	ruguoyourenquxianchangjuankuan	如果有人去现场捐款	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5620
-d05-natural_medium-172	natural_medium	yingwencihuijinliangzhuanweizhongwen	英文词汇尽量转为中文	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:141
-d05-natural_medium-173	natural_medium	jiangfanweituozhanzhigaozhongzhibiyesheng	将范围拓展至高中职毕业生	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1704
-d05-natural_medium-174	natural_medium	weishenmewomenyaorongrenmeiguijudesiji	为什么我们要容忍没规矩的司机	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2040
-d05-natural_medium-175	natural_medium	yeyoushangyongdejiejuefangan	也有商用的解决方案	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1131
-d05-natural_medium-176	natural_medium	xiannaijiafengmiyouzhongchuncuidexingfugan	鲜奶加蜂蜜有种纯粹的幸福感	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1945
-d05-natural_medium-177	natural_medium	tahaishizaitaibeiguodehenhao	她还是在台北过的很好	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:758
-d05-natural_medium-178	natural_medium	yuanlaiheidongdezhaopianzhemenanpaiqilai	原来黑洞的照片这么难拍起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2297
-d05-natural_medium-179	natural_medium	caiyonglefengxianjiaogaodezuofa	采用了风险较高的做法	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1717
-d05-natural_medium-180	natural_medium	womenjiaxiguankandisitai	我们家习惯看第四台	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:715
-d05-natural_medium-181	natural_medium	zhengyinweishitawocaiyuanyi	正因为是他我才愿意	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2329
-d05-natural_medium-182	natural_medium	yaoyancunhuosanbailiushiwutian	谣言存活三百六十五天	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:371
-d05-natural_medium-183	natural_medium	woyexiangyaomianduitaipingyang	我也想要面对太平洋	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7996
-d05-natural_medium-184	natural_medium	tayoushizudenenglikongzhishuzi	它有十足的能力控制数字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6177
-d05-natural_medium-185	natural_medium	zhejianshiqingqishihaoxiangmanyouqude	这件事情其实好像满有趣的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:753
-d05-natural_medium-186	natural_medium	nannvliangrenzaiyiqishenghuo	男女两人在一起生活	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1274
-d05-natural_medium-187	natural_medium	zaishichangyongyoulongduanyingyongdeqiyehuozuzhi	在市场拥有垄断应用的企业或组织	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:881
-d05-natural_medium-188	natural_medium	gongkaizhanlanjieshudenayitianzhiqian	公开展览结束的那一天之前	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2986
-d05-natural_medium-189	natural_medium	keyiliaojiemuqianzhengtifangxiang	可以了解目前整体方向	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5870
-d05-natural_medium-190	natural_medium	haishizaitaibeiguodehenhao	还是在台北过的很好	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2047
-d05-natural_medium-191	natural_medium	zuihouhaishuoxiexiedajiadepeihe	最后还说谢谢大家的配合	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1027
-d05-natural_medium-192	natural_medium	nihuikandaoyiqunrenqianpuhoujidiwangqian	你会看到一群人前仆后继地往前	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2377
-d05-natural_medium-193	natural_medium	juedemeiyouzhuandaohenduoqian	觉得没有赚到很多钱	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:437
-d05-natural_medium-194	natural_medium	kenengwomendexuduochanye	可能我们的许多产业	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2285
-d05-natural_medium-195	natural_medium	yidiandoumeiyoudaibiaoduifangyoubiniduohao	一点都没有代表对方有比你多好	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2048
-d05-natural_medium-196	natural_medium	shuangxinglianzheyukuaxingbiezuqun	双性恋者与跨性别族群	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1630
-d05-natural_medium-197	natural_medium	yaoquzijigaiqudedifang	要去自己该去的地方	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2637
-d05-natural_medium-198	natural_medium	jiageshisiqianjiubaijiushiyuan	价格是四千九百九十元	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:494
-d05-natural_medium-199	natural_medium	zhaofujindefanmaijitoureyin	找附近的贩卖机投热饮	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1420
-d05-natural_medium-200	natural_medium	yinweizaoyoutonghaoxielehenduo	因为早有同好写了很多	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:285
-d05-natural_medium-201	natural_medium	huimeimiaozhonglianhouduanfuwuqi	会每秒钟连后端服务器	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8332
-d05-natural_medium-202	natural_medium	xianyujingfeiwufaquanmiangenghuan	限于经费无法全面更换	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1132
-d05-natural_medium-203	natural_medium	dengzhihoutuishaodaobazheshi	等之后退烧到八折时	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7024
-d05-natural_medium-204	natural_medium	qinggongshuishangpiaoquyunaguodao	轻功水上漂去与那国岛	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2828
-d05-natural_medium-205	natural_medium	tingshuogebizhuangnagerenzhuanlebushaoa	听说隔壁庄那个人赚了不少啊	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:441
-d05-natural_medium-206	natural_medium	tamendouchoudaoxihuandejiangpin	他们都抽到喜欢的奖品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3623
-d05-natural_medium-207	natural_medium	yijingzhuanhuanchengweiliaotianweizhu	已经转换成为聊天为主	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6058
-d05-natural_medium-208	natural_medium	youyubiaobanglinghuaxuetianjia	由于标榜零化学添加	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2062
-d05-natural_medium-209	natural_medium	meigerendouyougudingedudedianshu	每个人都有固定额度的点数	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:908
-d05-natural_medium-210	natural_medium	xuyaoyixiereliangdebujipin	需要一些热量的补给品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6716
-d05-natural_medium-211	natural_medium	zhiyejuandaigairuhetiaoshi	职业倦怠该如何调适	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:519
-d05-natural_medium-212	natural_medium	jiubiedaibunengdaidedongxi	就别带不能带的东西！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3857
-d05-natural_medium-213	natural_medium	rengongzhinengchengshixiechulaidewenzhang	人工智能程式写出来的文章	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:650
-d05-natural_medium-214	natural_medium	keyirangjiqibangmangfayinma	可以让机器帮忙发音吗	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7883
-d05-natural_medium-215	natural_medium	guaiguaideshijiedajiayiqilai	乖乖的世界大家一起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8058
-d05-natural_medium-216	natural_medium	jiuzhishihuibuhuikandaoeryiba	就只是会不会看到而已吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3025
-d05-natural_medium-217	natural_medium	haoxianghuiouerbeitichuqu	好像会偶尔被踢出去	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6975
-d05-natural_medium-218	natural_medium	congshujukujiangouguanlianshibiaoqian	从数据库建构关联式标签	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8717
-d05-natural_medium-219	natural_medium	dajiadoubeiyasuodaozhijiemiandui	大家都被压缩到直接面对	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1786
-d05-natural_medium-220	natural_medium	zaibuzhibujuejianbeirenyuwudeguanxisuoqudai	在不知不觉间被人与物的关系所取代	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:425
-d05-natural_medium-221	natural_medium	qishidajiadouzaifangmahoupao	其实大家都在放马后炮！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3959
-d05-natural_medium-222	natural_medium	baoluchudelishiyulianjie	暴露出的历史与连结	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3248
-d05-natural_medium-223	natural_medium	rangziliaohuidaoshiyongzheshoushang	让资料回到使用者手上	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:786
-d05-natural_medium-224	natural_medium	meiguorenzaijizhehuihouxianrukonghuang	美国人在记者会后陷入恐慌	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5304
-d05-natural_medium-225	natural_medium	taibeichezhanxiangguandetaolun	台北车站相关的讨论	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5262
-d05-natural_medium-226	natural_medium	zheduanshijiandetaiwanshehui	这段时间的台湾社会	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1762
-d05-natural_medium-227	natural_medium	baozhangyinsigongzhengyijishanyishiyong	保障隐私、公正以及善意使用	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1037
-d05-natural_medium-228	natural_medium	yinxiangzhongyiqianduhuidasancheng	印象中以前都会大三成	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7920
-d05-natural_medium-229	natural_medium	kaifangrangminzhongyiqitaolun	开放让民众一起讨论	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2056
-d05-natural_medium-230	natural_medium	youyizhongmaidaoxianliangshangpin	有一种买到限量商品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2586
-d05-natural_medium-231	natural_medium	yeyougeieguoyixiewuqi	也有给俄国一些武器	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5171
-d05-natural_medium-232	natural_medium	jianlikeyianshenlimingdeshenghuokongjian	建立可以安身立命的生活空间	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1561
-d05-natural_medium-233	natural_medium	shiyinweitaifengyaolailema	是因为台风要来了吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3724
-d05-natural_medium-234	natural_medium	benshendazhishangshimianqiangkeyi	本身大致上是勉强可以	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5897
-d05-natural_medium-235	natural_medium	kejidaleitaidexinzhuti	科技大擂台的新主题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8683
-d05-natural_medium-236	natural_medium	jintianxianggengeweifenxiangyizelaishangmianliuchuan	今天想跟各位分享一则赖上面流传	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1761
-d05-natural_medium-237	natural_medium	kandiaokeyiyanmiezhengjuma	砍掉可以烟灭证据吗	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5420
-d05-natural_medium-238	natural_medium	shouwoquanlicailidedouzhuangsi	手握权力、财力的都装死	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:905
-d05-natural_medium-239	natural_medium	qinglianluokefurenyuanjiejue	请联络客服人员解决	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5912
-d05-natural_medium-240	natural_medium	wufenzhiyiderenhuifayan	五分之一的人会发言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3371
-d05-natural_medium-241	natural_medium	qingqingwenshangdeshenqimofa	轻轻吻上的神奇魔法	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2251
-d05-natural_medium-242	natural_medium	tongshiceshifanyidexiaoguo	同时测试翻译的效果	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7924
-d05-natural_medium-243	natural_medium	xianzaiwoyizhiyouyigeyiwen	现在我一直有一个疑问	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5847
-d05-natural_medium-244	natural_medium	zhengfuyouxinjiejuewentishihaoshi	政府有心解决问题是好事	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6432
-d05-natural_medium-245	natural_medium	minguoyibailingjiuniansanyuewuri	民国一百零九年三月五日	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5619
-d05-natural_medium-246	natural_medium	wushierwanqiqianduoziquanbuxiezaizhujianshang	五十二万七千多字全部写在竹简上	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2445
-d05-natural_medium-247	natural_medium	cainengshizhifahuigongminkejideyingxiangli	才能实质发挥公民科技的影响力	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:757
-d05-natural_medium-248	natural_medium	keshizijimeiyoukongderen	可是自己没有空的人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:855
-d05-natural_medium-249	natural_medium	burandehuajiuhuixiandehenyouzhi	不然的话就会显得很幼稚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2141
-d05-natural_medium-250	natural_medium	renherenduicanyuzheyourenhexingshidesaorao	任何人对参与者有任何形式的骚扰	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7913
-d05-natural_medium-251	natural_medium	kandaoleyigeyuanyuandepanzi	看到了，一个圆圆的盘子	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:89
-d05-natural_medium-252	natural_medium	zuihoutameijinxiaoxuenianshu	最后她没进小学念书	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1794
-d05-natural_medium-253	natural_medium	xiangzuodaohaocaigeizijichi	想做道好菜给自己吃	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1302
-d05-natural_medium-254	natural_medium	zaitaibeijiuhenburongyile	在台北就很不容易了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5196
-d05-natural_medium-255	natural_medium	ershishenglizhijianfuzadejiaohuzuoyong	而是生理之间复杂的交互作用	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1801
-d05-natural_medium-256	natural_medium	zhedaodishibushigexiaohua	这到底是不是个笑话	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:905
-d05-natural_medium-257	natural_medium	jiuyaoliyongtamendepingtaichaxun	就要利用它们的平台查询	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2741
-d05-natural_medium-258	natural_medium	haikeyibaiyidianqiaokelifangjiali	还可以摆一点巧克力放家里	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6754
-d05-natural_medium-259	natural_medium	yibianshihouchulituihuoshiyi	以便事后处理退货事宜	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6127
-d05-natural_medium-260	natural_medium	yaozuozaiyoucecaikeyikanhai	要坐在右侧才可以看海	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:531
-d05-natural_medium-261	natural_medium	xianggongzhongshouyugaizuoshouquan	向公众授予改作授权	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7391
-d05-natural_medium-262	natural_medium	huayiduirengenhuayiduiquanquan	画一堆人跟画一堆圈圈	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:408
-d05-natural_medium-263	natural_medium	haishiyaoxianshizaijutiaomageidianyuan	还是要显示载具条码给店员	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2706
-d05-natural_medium-264	natural_medium	lingtayayideshitahaihuozhe	令他讶异的是她还活着	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:157
-d05-natural_medium-265	natural_medium	jiqingdebizhongdaguochengnuoyuqinmitaiduo	激情的比重大过承诺与亲密太多	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1694
-d05-natural_medium-266	natural_medium	taizhongshengxiayibaisishisiwanzhang	台中剩下一百四十四万张	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8516
-d05-natural_medium-267	natural_medium	cheweidanjiayueyibaiqishiliuwanyuan	车位单价约一百七十六万元	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3043
-d05-natural_medium-268	natural_medium	tashuodehuarangwojiyishenke	他说的话让我记忆深刻	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6918
-d05-natural_medium-269	natural_medium	tadejiaozhaozhengtiandouzaihuadao	它的脚爪整天都在滑倒	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:24
-d05-natural_medium-270	natural_medium	tashicunlidiyigexinniang	她是村里第一个新娘	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1271
-d05-natural_medium-271	natural_medium	jieguofaxianwoyouzhonglexianjing	结果发现我又中了陷阱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3007
-d05-natural_medium-272	natural_medium	louzhushizuoshenmegongzuodea	楼主是做什么工作的啊？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4092
-d05-natural_medium-273	natural_medium	jianadaxibanyadanmaixinjiapogedi	加拿大、西班牙、丹麦、新加坡各地	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2088
-d05-natural_medium-274	natural_medium	gezishuangbianxieshangdeshidai	各自双边协商的时代	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6989
-d05-natural_medium-275	natural_medium	wodeshurufahaoyoulingxing	我的输入法好有灵性	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3481
-d05-natural_medium-276	natural_medium	fayinhangailvhaishipiandi	发音涵盖率还是偏低	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8762
-d05-natural_medium-277	natural_medium	zuofeijiyudaoluanliushichangyoudeshi	坐飞机遇到乱流是常有的事	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2288
-d05-natural_medium-278	natural_medium	daodiyoushenmeshijianzuozhemeduoshi	到底有什么时间做这么多事	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8067
-d05-natural_medium-279	natural_medium	keshangtaibeijiuyedabutiechaxun	可上台北就业大补帖查询	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1164
-d05-natural_medium-280	natural_medium	yudiyicitongyangdejuqing	与第一次同样的剧情	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3507
-d05-natural_medium-281	natural_medium	xiaopengyoufenxiangxuexiaoshenghuo	小朋友分享学校生活	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1491
-d05-natural_medium-282	natural_medium	dagongsiguoranyanguangdoubuyiyanga	大公司果然眼光都不一样啊！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:808
-d05-natural_medium-283	natural_medium	yehennanjishifaxianxindeloushuidian	也很难即时发现新的漏水点	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1254
-d05-natural_medium-284	natural_medium	genmeijulimiaoshudeneirongchabuduo	跟美剧里描述的内容差不多	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6686
-d05-natural_medium-285	natural_medium	juedeershirenjiukakale	觉得二十人就卡卡了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6977
-d05-natural_medium-286	natural_medium	huizaochenggengduodechenmoba	会造成更多的沉默吧？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4447
-d05-natural_medium-287	natural_medium	shetuanfarenfaqihuotouzishehuichuangxinxinggongsi	社团法人发起或投资社会创新型公司	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1495
-d05-natural_medium-288	natural_medium	shixieshuotamenmuqianhaizaipingguzhong	是写说他们目前还在评估中	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3051
-d05-natural_medium-289	natural_medium	shimouweimanhuajiatongmingsigemanhua	是某位漫画家同名四格漫画	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8123
-d05-natural_long-001	natural_long	yuanhangduiguoneijingjifazhanyuyiminhuodongdeyingxiang	远航对国内经济发展与移民活动的影响	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:914
-d05-natural_long-002	natural_long	renshengjiushiqiqiluoluobingqieqidaojizhangbuyaochuchacuo	人生就是起起落落，并且祈祷机长不要出差错	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:77
-d05-natural_long-003	natural_long	nulibuyidinghuichenggongkeshibunuliyidinghenqingsong	努力不一定会成功，可是不努力一定很轻松	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:183
-d05-natural_long-004	natural_long	renshenghuibeipannidanshuxuebuhuibuhuijiushibuhui	人生会背叛你，但数学不会，不会就是不会	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:80
-d05-natural_long-005	natural_long	xuegangqindehaizibuhuibianhuaixuehuaidehaizihuibiangangqin	学钢琴的孩子不会变坏，学坏的孩子会变钢琴	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:223
-d05-natural_long-006	natural_long	zhongshiyouguanjingjifazhanyucaizhengshourufangmiandegaige	重视有关经济发展与财政收入方面的改革	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:1081
-d05-natural_long-007	natural_long	bairiyishanjinhongshaoshizitouyutouximilujiangsidachangtou	白日依山尽，红烧狮子头，芋头西米露，姜丝大肠头	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:253
-d05-natural_long-008	natural_long	youxietongrendetoufayijingkaishiyouyinguangchuxianle	有些同仁的头发已经开始有银光出现了	CC0 跨来源诊断句（cvsprint_201902.txt，zh-TW→简体）	cc0:cvsprint_201902.txt:390
-d05-natural_long-009	natural_long	weiyuouyabankuaiyutaipingyangbankuaizhijiandedaoyu	位于欧亚板块与太平洋板块之间的岛屿	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:499
-d05-natural_long-010	natural_long	tuweirentishoubigugejidezuoyongfangshishiyitu	图为人体手臂骨骼肌的作用方式示意图	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:553
-d05-natural_long-011	natural_long	tianyahechuwufangcaoyiduoxianhuachazainiufenshangmachou	天涯何处无芳草，一朵鲜花插在牛粪上嘛臭	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:53
+d05-natural_medium-013	natural_medium	xinjialuochengqinqidoulaile	新家落成亲戚都来了	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:657
+d05-natural_medium-014	natural_medium	chengweibeichaoxiandedananfang	成为北朝鲜的大南方	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5423
+d05-natural_medium-015	natural_medium	dajianengchongfenliyongshijian	大家能充分利用时间	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:897
+d05-natural_medium-016	natural_medium	jianguoshangyeliliangjinzhuqianhoudeduibi	见过商业力量进驻前后的对比	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5862
+d05-natural_medium-017	natural_medium	suiranshangtianjuanguderenbushao	虽然上天眷顾的人不少	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2215
+d05-natural_medium-018	natural_medium	haishixiwangnengzhuzaixiangxia	还是希望能住在乡下	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:744
+d05-natural_medium-019	natural_medium	taishuibushizibenzhuyiluoji	台水不是资本主义逻辑	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1455
+d05-natural_medium-020	natural_medium	mouxiecaizhihaihuiyingxiangxianying	某些材质还会影响显影	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4908
+d05-natural_medium-021	natural_medium	zouderenduoleyebianchenglelu	走的人多了，也便成了路	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1519
+d05-natural_medium-022	natural_medium	kuaisuwanchengrenwujiejuewenti	快速完成任务、解决问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:839
+d05-natural_medium-023	natural_medium	zheshizaibuxucaominlaibuchong	这实在不需草民来补充	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7430
+d05-natural_medium-024	natural_medium	wopengyouxianzaizaizuoyigexiaozhuanti	我朋友现在在做一个小专题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6313
+d05-natural_medium-025	natural_medium	tamenhaihuijuedehenewan	他们还会觉得很扼腕	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2978
+d05-natural_medium-026	natural_medium	maidiaocongfuqinnalijichengdesanfendi	卖掉从父亲那里继承的三分地	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:627
+d05-natural_medium-027	natural_medium	danhenshaorenhuishuozijishiyuzhouren	但很少人会说自己是宇宙人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3469
+d05-natural_medium-028	natural_medium	haishihuiyouxuyaodaizhezoudezhuangkuang	还是会有需要带着走的状况	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8400
+d05-natural_medium-029	natural_medium	henkuaijiuyoushubaiweihuobanjiaruxiezuo	很快就有数百位伙伴加入协作	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:802
+d05-natural_medium-030	natural_medium	douyaoyidaotidaidedalou	都要移到替代的大楼	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3311
+d05-natural_medium-031	natural_medium	sinianhoudoushisuijiwenti	四年后都是随机问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7894
+d05-natural_medium-032	natural_medium	faxiannvxingrengshouchuantongguannianyingxiang	发现女性仍受传统观念影响	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1833
+d05-natural_medium-033	natural_medium	xinzhuguanxidezaidituanti	新竹关西的在地团体	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8329
+d05-natural_medium-034	natural_medium	dimiancengpingjundanjiayueweimeipingsishiwanyuan	地面层平均单价约为每坪四十万元	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2968
+d05-natural_medium-035	natural_medium	suirantayelaiguotaiwanle	虽然她也来过台湾了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1339
+d05-natural_medium-036	natural_medium	wulunshijietuzhongdejiaocai	无论是截图中的教材	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1594
+d05-natural_medium-037	natural_medium	haipadapozhejiabandexingfu	害怕打破这假扮的幸福	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2153
+d05-natural_medium-038	natural_medium	conglaidoubushitingzhilianxidejiekou	从来都不是停止练习的借口	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:5
+d05-natural_medium-039	natural_medium	fuwushengyizidouyongshuaide	服务生椅子都用摔的	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1520
+d05-natural_medium-040	natural_medium	ruoshejizhongdagongzhongliyi	若涉及重大公众利益	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:951
+d05-natural_medium-041	natural_medium	weilaijiangjiehezhengfuxianyouziyuan	未来将结合政府现有资源	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1372
+d05-natural_medium-042	natural_medium	weilizhajiangmianzuihaochidefangfa	维力炸酱面最好吃的方法	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:750
+d05-natural_medium-043	natural_medium	duboderendoushifengaoxing	赌博的人都十分高兴	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:603
+d05-natural_medium-044	natural_medium	xiaohaiqishijiujubeiletanpandemoshi	小孩其实就具备了谈判的模式	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2155
+d05-natural_medium-045	natural_medium	yijingyouguihudaoshoujitiaoma	已经有归户到手机条码	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2789
+d05-natural_medium-046	natural_medium	xindianhaoxiangmanduodifangtingdianle	新店好像蛮多地方停电了	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:879
+d05-natural_medium-047	natural_medium	tuidongzaiqudefuyuanchongjian	推动灾区的复原重建	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1720
+d05-natural_medium-048	natural_medium	taibeidongqutemaihuishangquan	台北东区特卖会商圈	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5
+d05-natural_medium-049	natural_medium	jiaoshoushitaiwanzhimingdewudaojia	教授是台湾知名的舞蹈家	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8720
+d05-natural_medium-050	natural_medium	jieguoxitongsuandeshishijian	结果系统算的是时间	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8767
+d05-natural_medium-051	natural_medium	zaibanzheshisichangdeguochengzhong	在办这十四场的过程中	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:965
+d05-natural_medium-052	natural_medium	rengniannianbuwangnideshenying	仍念念不忘你的身影	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2194
+d05-natural_medium-053	natural_medium	yuanjujiaoxueweizuiremendeguanjianzi	远距教学为最热门的关键字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5624
+d05-natural_medium-054	natural_medium	ruguoyaoanzhuangzhetaoruanjian	如果要安装这套软件	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7738
+d05-natural_medium-055	natural_medium	youlegengduoyuandeduihuafangshi	有了更多元的对话方式	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2327
+d05-natural_medium-056	natural_medium	ranhoukanshiyishamingyijiaqilai	然后看是以啥名义架起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5250
+d05-natural_medium-057	natural_medium	niyounafangzaichoutilideqianma	你有拿放在抽屉里的钱吗？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:409
+d05-natural_medium-058	natural_medium	jintiancaifaxianleshiyeyouliangzhong	今天才发现乐事也有两种	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3927
+d05-natural_medium-059	natural_medium	youbanfazaihuirudetongshi	有办法在汇入的同时	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5684
+d05-natural_medium-060	natural_medium	cengzaiyijiujiusannianlaitaikaiyanchanghui	曾在一九九三年来台开演唱会	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3698
+d05-natural_medium-061	natural_medium	yaoqiushiyongzhefangqiyinsi	要求使用者放弃隐私	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:923
+d05-natural_medium-062	natural_medium	bufenquliweixuanjugongbaozhong	不分区立委选举公报中	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4657
+d05-natural_medium-063	natural_medium	woganggangwaidaileliangwanxiaomizhou	我刚刚外带了两碗小米粥	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:660
+d05-natural_medium-064	natural_medium	zenmewomenjiademinamenanchi	怎么我们家的米那么难吃	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:510
+d05-natural_medium-065	natural_medium	yanzhongdezaiqingyijirenmingdeshangwang	严重的灾情以及人命的伤亡	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2075
+d05-natural_medium-066	natural_medium	pangbianderenzaishuomaimaihenhaozhuan	旁边的人在说买卖很好赚	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:439
+d05-natural_medium-067	natural_medium	yinshouwugaoerbeisongshangduantoutai	因受诬告而被送上断头台	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:65
+d05-natural_medium-068	natural_medium	gaobuhaoduifangdoubinihaiyouzhi	搞不好对方都比你还幼稚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2215
+d05-natural_medium-069	natural_medium	zhanhoutaiwanshehuiyundongtezhan	战后台湾社会运动特展	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1833
+d05-natural_medium-070	natural_medium	ranhouqingdajiazhuyiyixia	然后请大家注意一下	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:716
+d05-natural_medium-071	natural_medium	womenmeiyounongdaoquanyingmu	我们没有弄到全萤幕	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5408
+d05-natural_medium-072	natural_medium	tabutingduinverchongfuzhejuhua	她不停对女儿重复这句话	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:284
+d05-natural_medium-073	natural_medium	womenyaoquzhaoyiqiandepengyou	我们要去找以前的朋友	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2830
+d05-natural_medium-074	natural_medium	bixuduozaizaihuodedifang	必须躲在载货的地方	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1190
+d05-natural_medium-075	natural_medium	zhoumorechaodiandebianjuke	周末热炒店的编剧课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3529
+d05-natural_medium-076	natural_medium	zhutikeyizijihechengzhuanchanghuogongzuofang	主题可以自己合成专场或工作坊	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7857
+d05-natural_medium-077	natural_medium	weishenmezhemejizhedidazhongdian	为什么这么急着抵达终点？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:51
+d05-natural_medium-078	natural_medium	ershiyishijidexinxingtaigongminxieliyuduihua	二十一世纪的新型态公民协力与对话	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:812
+d05-natural_medium-079	natural_medium	daihuiyoumeiyoutaiyubaogao	待会有没有台语报告	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6423
+d05-natural_medium-080	natural_medium	youxingcanyudaonagefanyi	有幸参与到那个翻译	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6254
+d05-natural_medium-081	natural_medium	keyiyongxinwenchaichailezuo	可以用新闻拆拆乐做	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3812
+d05-natural_medium-082	natural_medium	yinweiwoyoushifawenyeshizhemingcheng	因为我有时发文也是这名称	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2523
+d05-natural_medium-083	natural_medium	yuanlaizhegequanquanshizhegemingzi	原来这个圈圈是这个名字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1872
+d05-natural_medium-084	natural_medium	bingbushizhandoulipobiaodeshenshou	并不是战斗力破表的神兽	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:224
+d05-natural_medium-085	natural_medium	woshenshangyechuanyiyangdeyifu	我身上也穿一样的衣服	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8014
+d05-natural_medium-086	natural_medium	wozaiwanshangkandaowanshangyoudongxi	我在晚上看到碗上有东西	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:130
+d05-natural_medium-087	natural_medium	zheyouyisibuzhidaoshishenmeweidao	这有意思，不知道是什么味道	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1288
+d05-natural_medium-088	natural_medium	caomeiouleihehongchaoulei	草莓欧蕾和红茶欧蕾	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:982
+d05-natural_medium-089	natural_medium	danweidaoyiwaidihenqingshuang	但味道意外地很清爽	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2016
+d05-natural_medium-090	natural_medium	henhenshuailetalianggeerguang	狠狠甩了她两个耳光	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1601
+d05-natural_medium-091	natural_medium	yaoqingzishenjiuyezishangshi	邀请资深就业咨商师	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2036
+d05-natural_medium-092	natural_medium	yigebiaozhundemeitizongbu	一个标准的媒体总部	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6020
+d05-natural_medium-093	natural_medium	keyiyaoqingnijinruhuiyishi	可以邀请你进入会议室	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6157
+d05-natural_medium-094	natural_medium	henshaokandaotaiwanbendiren	很少看到台湾本地人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:605
+d05-natural_medium-095	natural_medium	wojuedeyekeyishishikanzhezhongfangan	我觉得也可以试试看这种方案	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1486
+d05-natural_medium-096	natural_medium	wangzhidexiefagenmeiguodizhiyiyang	网址的写法跟美国地址一样	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4378
+d05-natural_medium-097	natural_medium	tajuedingxiangzijimamanaxieqian	她决定向自己妈妈拿些钱	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1267
+d05-natural_medium-098	natural_medium	yexiangyaoyoudingqidexiaoju	也想要有定期的小聚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3526
+d05-natural_medium-099	natural_medium	nizhidaowomenzenmehuozhedema	你知道我们怎么活着的吗？	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2602
+d05-natural_medium-100	natural_medium	lingrenchuhuyiliaodecihui	令人出乎意料的词汇	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3634
+d05-natural_medium-101	natural_medium	shuoganhuashizhengchangnengliangshifang	说干话是正常能量释放	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:449
+d05-natural_medium-102	natural_medium	benanmuqianzhengzaishenlizhong	本案目前正在审理中	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3005
+d05-natural_medium-103	natural_medium	shenshangdeshangchuanlaizhenzhenjutong	身上的伤传来阵阵剧痛	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:422
+d05-natural_medium-104	natural_medium	xianzaidexiaoxueshenghuanxuyaobeikewenma	现在的小学生还需要背课文吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:283
+d05-natural_medium-105	natural_medium	qitagonghuizhinengzaianweiziji	其他工会只能再安慰自己	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1002
+d05-natural_medium-106	natural_medium	keyimashangkandaobeichidiaodeyangzi	可以马上看到被吃掉的样子	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6152
+d05-natural_medium-107	natural_medium	yejingyouzhongyanyuanshiyusuodengdanweixielicaiji	也经由中研院史语所等单位协力采集	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1759
+d05-natural_medium-108	natural_medium	shenzhizhijiezaidangdishengchanbaozhuang	甚至直接在当地生产、包装	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2140
+d05-natural_medium-109	natural_medium	kanlaigaibangaihaogaimanjiudui	看来盖板盖好盖满就对	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6460
+d05-natural_medium-110	natural_medium	yeyizhiyourenshuokendingdajie	也一直有人说垦丁大街	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3859
+d05-natural_medium-111	natural_medium	jiarunaweipengyouzhendelaizhebianfabiaoxinde	假如那位朋友真的来这边发表心得	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2623
+d05-natural_medium-112	natural_medium	zheyangnayigepindaoshihe	这样哪一个频道适合	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2716
+d05-natural_medium-113	natural_medium	laolehaixiangyaoyoupengyouyiqibicixiangban	老了还想要有朋友一起彼此相伴	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:145
+d05-natural_medium-114	natural_medium	tesilazhendeshitaibeijule	特斯拉真的是太悲剧了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2764
+d05-natural_medium-115	natural_medium	xiangbanfaqujiejuenidewenti	想办法去解决你的问题	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2796
+d05-natural_medium-116	natural_medium	dengdaochuanpushangtaixiaoguojiuhenhao	等到川普上台效果就很好	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:168
+d05-natural_medium-117	natural_medium	zhidaomingchengcainengjinlaiba	知道名称才能进来吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2501
+d05-natural_medium-118	natural_medium	quwanzhengerzhedelunshulianjiewai	去完整二者的论述连结外	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6133
+d05-natural_medium-119	natural_medium	ruguoniyeyoukanguozhezeyaoyan	如果你也有看过这则谣言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1718
+d05-natural_medium-120	natural_medium	feijiqianjindeliliangtaida	飞机前进的力量太大	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2286
+d05-natural_medium-121	natural_medium	nicengshuoguohaipahuidaodangchu	你曾说过害怕回到当初	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2270
+d05-natural_medium-122	natural_medium	dajiatongchangyicidiejipianchi	大家通常一次叠几片吃？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3884
+d05-natural_medium-123	natural_medium	houxuquanbudouzidonghuale	后续全部都自动化了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8662
+d05-natural_medium-124	natural_medium	caihuiyouxiaozhangkongshijizhuangkuang	才会有效掌控实际状况	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7236
+d05-natural_medium-125	natural_medium	weitaiwanlingyiduandexiaopengyoumenyuanjushangke	为台湾另一端的小朋友们远距上课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1094
+d05-natural_medium-126	natural_medium	yipianwenzhangsuijiqusanju	一篇文章随机取三句	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2303
+d05-natural_medium-127	natural_medium	jinnianjijiangjubandierjie	今年即将举办第二届	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:695
+d05-natural_medium-128	natural_medium	geizhizuotuanduibianjumenshangke	给制作团队编剧们上课	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6624
+d05-natural_medium-129	natural_medium	xianqumaiyiguanweilizhajiang	先去买一罐维力炸酱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:886
+d05-natural_medium-130	natural_medium	congshanposhangqingqingdehuaxialaile	从山坡上轻轻的滑下来了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:128
+d05-natural_medium-131	natural_medium	xianyoudeshoujiyuyinzhuli	现有的手机语音助理	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1205
+d05-natural_medium-132	natural_medium	wozijigongsibanletingye	我自己公司办了停业	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8012
+d05-natural_medium-133	natural_medium	rangshijieduolejixuxiaorong	让世界多了几许笑容	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:207
+d05-natural_medium-134	natural_medium	jihuaneijiazhuyixiawenzi	计划内加注以下文字	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2911
+d05-natural_medium-135	natural_medium	juedingwoyaodengdaobanyeliangdian	决定我要等到半夜两点	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5216
+d05-natural_medium-136	natural_medium	beizhukeyifangdajiubaibeishengyindeyiqi	背著可以放大九百倍声音的仪器	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1504
+d05-natural_medium-137	natural_medium	yipianluanqibazaodewaizhuan	一篇乱七八糟的外传	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2148
+d05-natural_medium-138	natural_medium	gongxianyugongminkejishequn	贡献于公民科技社群	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1013
+d05-natural_medium-139	natural_medium	meibanfadangnidehaonver	没办法当你的好女儿	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2551
+d05-natural_medium-140	natural_medium	xiaokedeganlancaitebiedekeai	小颗的甘蓝菜特别的可爱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2895
+d05-natural_medium-141	natural_medium	doushikanguozhihoucaixiechulaideganxiang	都是看过之后才写出来的感想	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1990
+d05-natural_medium-142	natural_medium	benxijintianyaoshifangeishizhangkan	本席今天要示范给市长看	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:455
+d05-natural_medium-143	natural_medium	womuqianyudaodewentishi	我目前遇到的问题是	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6307
+d05-natural_medium-144	natural_medium	jiangzaixuduominjiantuantidexiezhuxia	将在许多民间团体的协助下	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1601
+d05-natural_medium-145	natural_medium	wodiyicizhidaolingmuyilang	我第一次知道铃木一朗	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1947
+d05-natural_medium-146	natural_medium	weilaitaiwandemeizhongyuyan	未来台湾的每种语言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1115
+d05-natural_medium-147	natural_medium	shizhongwuqingdezhizhenzhengzaizhuiganzhewo	时钟无情的指针正在追赶着我	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2335
+d05-natural_medium-148	natural_medium	youshihouxuyaomaixiewenjudengyongpin	有时候需要买些文具等用品	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:382
+d05-natural_medium-149	natural_medium	zhuanzhichengweiruanjianshejishi	转职成为软件设计师	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5563
+d05-natural_medium-150	natural_medium	yourencanjiajinniandeyantaohuima	有人参加今年的研讨会吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7160
+d05-natural_medium-151	natural_medium	zhonghuaminguoshengxiadelingtu	中华民国剩下的领土	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4240
+d05-natural_medium-152	natural_medium	nixianggenzhonggongqianxieyima	你想跟中共签协议吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4200
+d05-natural_medium-153	natural_medium	xingzhengjiguanbixuyizhaozuihoupanjuejieguobanli	行政机关必须依照最后判决结果办理	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3010
+d05-natural_medium-154	natural_medium	yehenyoukenengbingfeitongyitao	也很有可能并非同一套	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7655
+d05-natural_medium-155	natural_medium	fanerhuirangtahenshengqiba	反而会让他很生气吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3356
+d05-natural_medium-156	natural_medium	baodaoguosanyibagongminyundong	报导过三一八公民运动	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1805
+d05-natural_medium-157	natural_medium	zhedianqishishidawenhaode	这点其实是打问号的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7653
+d05-natural_medium-158	natural_medium	kanbudongwodiyijuhuaderen	看不懂我第一句话的人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3033
+d05-natural_medium-159	natural_medium	kanlaichongxianlezhipiaodedanyixing	看来重现了纸票的单一性	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3759
+d05-natural_medium-160	natural_medium	biqiguantoumaidiaoliushijiuge	比起罐头卖掉六十九个	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6116
+d05-natural_medium-161	natural_medium	shifangzhiyejiederenzhengzhibiao	是纺织业界的认证指标	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1064
+d05-natural_medium-162	natural_medium	jiugendengshandeshihouyiyang	就跟登山的时候一样	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6599
+d05-natural_medium-163	natural_medium	jiubuhuiyouyizhiyaojizhangdewenti	就不会有一直要记账的问题	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5278
+d05-natural_medium-164	natural_medium	jizhechaocuoshuzihedanwei	记者抄错数字和单位	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4065
+d05-natural_medium-165	natural_medium	faxianwolingyitaizhujikeyi	发现我另一台主机可以	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5594
+d05-natural_medium-166	natural_medium	gerenjuedewentimanduode	个人觉得问题蛮多的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8695
+d05-natural_medium-167	natural_medium	ruguoyourenquxianchangjuankuan	如果有人去现场捐款	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5620
+d05-natural_medium-168	natural_medium	yingwencihuijinliangzhuanweizhongwen	英文词汇尽量转为中文	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:141
+d05-natural_medium-169	natural_medium	jiangfanweituozhanzhigaozhongzhibiyesheng	将范围拓展至高中职毕业生	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1704
+d05-natural_medium-170	natural_medium	weishenmewomenyaorongrenmeiguijudesiji	为什么我们要容忍没规矩的司机	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2040
+d05-natural_medium-171	natural_medium	yeyoushangyongdejiejuefangan	也有商用的解决方案	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1131
+d05-natural_medium-172	natural_medium	xiannaijiafengmiyouzhongchuncuidexingfugan	鲜奶加蜂蜜有种纯粹的幸福感	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1945
+d05-natural_medium-173	natural_medium	tahaishizaitaibeiguodehenhao	她还是在台北过的很好	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:758
+d05-natural_medium-174	natural_medium	yuanlaiheidongdezhaopianzhemenanpaiqilai	原来黑洞的照片这么难拍起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2297
+d05-natural_medium-175	natural_medium	caiyonglefengxianjiaogaodezuofa	采用了风险较高的做法	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1717
+d05-natural_medium-176	natural_medium	womenjiaxiguankandisitai	我们家习惯看第四台	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:715
+d05-natural_medium-177	natural_medium	zhengyinweishitawocaiyuanyi	正因为是他我才愿意	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2329
+d05-natural_medium-178	natural_medium	yaoyancunhuosanbailiushiwutian	谣言存活三百六十五天	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:371
+d05-natural_medium-179	natural_medium	woyexiangyaomianduitaipingyang	我也想要面对太平洋	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7996
+d05-natural_medium-180	natural_medium	tayoushizudenenglikongzhishuzi	它有十足的能力控制数字	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6177
+d05-natural_medium-181	natural_medium	zhejianshiqingqishihaoxiangmanyouqude	这件事情其实好像满有趣的	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:753
+d05-natural_medium-182	natural_medium	nannvliangrenzaiyiqishenghuo	男女两人在一起生活	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1274
+d05-natural_medium-183	natural_medium	zaishichangyongyoulongduanyingyongdeqiyehuozuzhi	在市场拥有垄断应用的企业或组织	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:881
+d05-natural_medium-184	natural_medium	gongkaizhanlanjieshudenayitianzhiqian	公开展览结束的那一天之前	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2986
+d05-natural_medium-185	natural_medium	keyiliaojiemuqianzhengtifangxiang	可以了解目前整体方向	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5870
+d05-natural_medium-186	natural_medium	haishizaitaibeiguodehenhao	还是在台北过的很好	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2047
+d05-natural_medium-187	natural_medium	zuihouhaishuoxiexiedajiadepeihe	最后还说谢谢大家的配合	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1027
+d05-natural_medium-188	natural_medium	nihuikandaoyiqunrenqianpuhoujidiwangqian	你会看到一群人前仆后继地往前	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2377
+d05-natural_medium-189	natural_medium	juedemeiyouzhuandaohenduoqian	觉得没有赚到很多钱	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:437
+d05-natural_medium-190	natural_medium	kenengwomendexuduochanye	可能我们的许多产业	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2285
+d05-natural_medium-191	natural_medium	yidiandoumeiyoudaibiaoduifangyoubiniduohao	一点都没有代表对方有比你多好	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2048
+d05-natural_medium-192	natural_medium	shuangxinglianzheyukuaxingbiezuqun	双性恋者与跨性别族群	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1630
+d05-natural_medium-193	natural_medium	yaoquzijigaiqudedifang	要去自己该去的地方	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2637
+d05-natural_medium-194	natural_medium	jiageshisiqianjiubaijiushiyuan	价格是四千九百九十元	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:494
+d05-natural_medium-195	natural_medium	zhaofujindefanmaijitoureyin	找附近的贩卖机投热饮	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1420
+d05-natural_medium-196	natural_medium	huimeimiaozhonglianhouduanfuwuqi	会每秒钟连后端服务器	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8332
+d05-natural_medium-197	natural_medium	xianyujingfeiwufaquanmiangenghuan	限于经费无法全面更换	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1132
+d05-natural_medium-198	natural_medium	dengzhihoutuishaodaobazheshi	等之后退烧到八折时	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7024
+d05-natural_medium-199	natural_medium	qinggongshuishangpiaoquyunaguodao	轻功水上漂去与那国岛	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2828
+d05-natural_medium-200	natural_medium	tingshuogebizhuangnagerenzhuanlebushaoa	听说隔壁庄那个人赚了不少啊	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:441
+d05-natural_medium-201	natural_medium	tamendouchoudaoxihuandejiangpin	他们都抽到喜欢的奖品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3623
+d05-natural_medium-202	natural_medium	yijingzhuanhuanchengweiliaotianweizhu	已经转换成为聊天为主	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6058
+d05-natural_medium-203	natural_medium	youyubiaobanglinghuaxuetianjia	由于标榜零化学添加	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2062
+d05-natural_medium-204	natural_medium	meigerendouyougudingedudedianshu	每个人都有固定额度的点数	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:908
+d05-natural_medium-205	natural_medium	xuyaoyixiereliangdebujipin	需要一些热量的补给品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6716
+d05-natural_medium-206	natural_medium	zhiyejuandaigairuhetiaoshi	职业倦怠该如何调适	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:519
+d05-natural_medium-207	natural_medium	jiubiedaibunengdaidedongxi	就别带不能带的东西！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3857
+d05-natural_medium-208	natural_medium	rengongzhinengchengshixiechulaidewenzhang	人工智能程式写出来的文章	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:650
+d05-natural_medium-209	natural_medium	keyirangjiqibangmangfayinma	可以让机器帮忙发音吗	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7883
+d05-natural_medium-210	natural_medium	guaiguaideshijiedajiayiqilai	乖乖的世界大家一起来	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8058
+d05-natural_medium-211	natural_medium	jiuzhishihuibuhuikandaoeryiba	就只是会不会看到而已吧	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3025
+d05-natural_medium-212	natural_medium	haoxianghuiouerbeitichuqu	好像会偶尔被踢出去	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6975
+d05-natural_medium-213	natural_medium	congshujukujiangouguanlianshibiaoqian	从数据库建构关联式标签	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8717
+d05-natural_medium-214	natural_medium	dajiadoubeiyasuodaozhijiemiandui	大家都被压缩到直接面对	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1786
+d05-natural_medium-215	natural_medium	zaibuzhibujuejianbeirenyuwudeguanxisuoqudai	在不知不觉间被人与物的关系所取代	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:425
+d05-natural_medium-216	natural_medium	qishidajiadouzaifangmahoupao	其实大家都在放马后炮！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3959
+d05-natural_medium-217	natural_medium	baoluchudelishiyulianjie	暴露出的历史与连结	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3248
+d05-natural_medium-218	natural_medium	rangziliaohuidaoshiyongzheshoushang	让资料回到使用者手上	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:786
+d05-natural_medium-219	natural_medium	meiguorenzaijizhehuihouxianrukonghuang	美国人在记者会后陷入恐慌	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5304
+d05-natural_medium-220	natural_medium	taibeichezhanxiangguandetaolun	台北车站相关的讨论	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5262
+d05-natural_medium-221	natural_medium	zheduanshijiandetaiwanshehui	这段时间的台湾社会	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1762
+d05-natural_medium-222	natural_medium	baozhangyinsigongzhengyijishanyishiyong	保障隐私、公正以及善意使用	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1037
+d05-natural_medium-223	natural_medium	yinxiangzhongyiqianduhuidasancheng	印象中以前都会大三成	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7920
+d05-natural_medium-224	natural_medium	youyizhongmaidaoxianliangshangpin	有一种买到限量商品	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2586
+d05-natural_medium-225	natural_medium	jianlikeyianshenlimingdeshenghuokongjian	建立可以安身立命的生活空间	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1561
+d05-natural_medium-226	natural_medium	shiyinweitaifengyaolailema	是因为台风要来了吗？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3724
+d05-natural_medium-227	natural_medium	benshendazhishangshimianqiangkeyi	本身大致上是勉强可以	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5897
+d05-natural_medium-228	natural_medium	jintianxianggengeweifenxiangyizelaishangmianliuchuan	今天想跟各位分享一则赖上面流传	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1761
+d05-natural_medium-229	natural_medium	shouwoquanlicailidedouzhuangsi	手握权力、财力的都装死	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:905
+d05-natural_medium-230	natural_medium	qinglianluokefurenyuanjiejue	请联络客服人员解决	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5912
+d05-natural_medium-231	natural_medium	wufenzhiyiderenhuifayan	五分之一的人会发言	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3371
+d05-natural_medium-232	natural_medium	qingqingwenshangdeshenqimofa	轻轻吻上的神奇魔法	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2251
+d05-natural_medium-233	natural_medium	tongshiceshifanyidexiaoguo	同时测试翻译的效果	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7924
+d05-natural_medium-234	natural_medium	xianzaiwoyizhiyouyigeyiwen	现在我一直有一个疑问	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5847
+d05-natural_medium-235	natural_medium	zhengfuyouxinjiejuewentishihaoshi	政府有心解决问题是好事	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6432
+d05-natural_medium-236	natural_medium	minguoyibailingjiuniansanyuewuri	民国一百零九年三月五日	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5619
+d05-natural_medium-237	natural_medium	wushierwanqiqianduoziquanbuxiezaizhujianshang	五十二万七千多字全部写在竹简上	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2445
+d05-natural_medium-238	natural_medium	cainengshizhifahuigongminkejideyingxiangli	才能实质发挥公民科技的影响力	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:757
+d05-natural_medium-239	natural_medium	keshizijimeiyoukongderen	可是自己没有空的人	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:855
+d05-natural_medium-240	natural_medium	burandehuajiuhuixiandehenyouzhi	不然的话就会显得很幼稚	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2141
+d05-natural_medium-241	natural_medium	renherenduicanyuzheyourenhexingshidesaorao	任何人对参与者有任何形式的骚扰	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7913
+d05-natural_medium-242	natural_medium	zuihoutameijinxiaoxuenianshu	最后她没进小学念书	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1794
+d05-natural_medium-243	natural_medium	xiangzuodaohaocaigeizijichi	想做道好菜给自己吃	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1302
+d05-natural_medium-244	natural_medium	zaitaibeijiuhenburongyile	在台北就很不容易了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:5196
+d05-natural_medium-245	natural_medium	ershishenglizhijianfuzadejiaohuzuoyong	而是生理之间复杂的交互作用	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1801
+d05-natural_medium-246	natural_medium	zhedaodishibushigexiaohua	这到底是不是个笑话	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:905
+d05-natural_medium-247	natural_medium	haikeyibaiyidianqiaokelifangjiali	还可以摆一点巧克力放家里	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6754
+d05-natural_medium-248	natural_medium	yibianshihouchulituihuoshiyi	以便事后处理退货事宜	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6127
+d05-natural_medium-249	natural_medium	yaozuozaiyoucecaikeyikanhai	要坐在右侧才可以看海	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:531
+d05-natural_medium-250	natural_medium	xianggongzhongshouyugaizuoshouquan	向公众授予改作授权	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:7391
+d05-natural_medium-251	natural_medium	huayiduirengenhuayiduiquanquan	画一堆人跟画一堆圈圈	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:408
+d05-natural_medium-252	natural_medium	haishiyaoxianshizaijutiaomageidianyuan	还是要显示载具条码给店员	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2706
+d05-natural_medium-253	natural_medium	lingtayayideshitahaihuozhe	令他讶异的是她还活着	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:157
+d05-natural_medium-254	natural_medium	jiqingdebizhongdaguochengnuoyuqinmitaiduo	激情的比重大过承诺与亲密太多	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1694
+d05-natural_medium-255	natural_medium	taizhongshengxiayibaisishisiwanzhang	台中剩下一百四十四万张	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8516
+d05-natural_medium-256	natural_medium	cheweidanjiayueyibaiqishiliuwanyuan	车位单价约一百七十六万元	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3043
+d05-natural_medium-257	natural_medium	tashuodehuarangwojiyishenke	他说的话让我记忆深刻	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6918
+d05-natural_medium-258	natural_medium	tadejiaozhaozhengtiandouzaihuadao	它的脚爪整天都在滑倒	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:24
+d05-natural_medium-259	natural_medium	tashicunlidiyigexinniang	她是村里第一个新娘	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1271
+d05-natural_medium-260	natural_medium	jieguofaxianwoyouzhonglexianjing	结果发现我又中了陷阱	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3007
+d05-natural_medium-261	natural_medium	louzhushizuoshenmegongzuodea	楼主是做什么工作的啊？	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:4092
+d05-natural_medium-262	natural_medium	jianadaxibanyadanmaixinjiapogedi	加拿大、西班牙、丹麦、新加坡各地	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2088
+d05-natural_medium-263	natural_medium	gezishuangbianxieshangdeshidai	各自双边协商的时代	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6989
+d05-natural_medium-264	natural_medium	wodeshurufahaoyoulingxing	我的输入法好有灵性	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3481
+d05-natural_medium-265	natural_medium	fayinhangailvhaishipiandi	发音涵盖率还是偏低	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8762
+d05-natural_medium-266	natural_medium	zuofeijiyudaoluanliushichangyoudeshi	坐飞机遇到乱流是常有的事	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:2288
+d05-natural_medium-267	natural_medium	daodiyoushenmeshijianzuozhemeduoshi	到底有什么时间做这么多事	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8067
+d05-natural_medium-268	natural_medium	keshangtaibeijiuyedabutiechaxun	可上台北就业大补帖查询	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:1164
+d05-natural_medium-269	natural_medium	yudiyicitongyangdejuqing	与第一次同样的剧情	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:3507
+d05-natural_medium-270	natural_medium	xiaopengyoufenxiangxuexiaoshenghuo	小朋友分享学校生活	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1491
+d05-natural_medium-271	natural_medium	dagongsiguoranyanguangdoubuyiyanga	大公司果然眼光都不一样啊！	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:808
+d05-natural_medium-272	natural_medium	yehennanjishifaxianxindeloushuidian	也很难即时发现新的漏水点	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1254
+d05-natural_medium-273	natural_medium	genmeijulimiaoshudeneirongchabuduo	跟美剧里描述的内容差不多	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6686
+d05-natural_medium-274	natural_medium	juedeershirenjiukakale	觉得二十人就卡卡了	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:6977
+d05-natural_medium-275	natural_medium	shetuanfarenfaqihuotouzishehuichuangxinxinggongsi	社团法人发起或投资社会创新型公司	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1495
+d05-natural_medium-276	natural_medium	shixieshuotamenmuqianhaizaipingguzhong	是写说他们目前还在评估中	CC0 跨来源诊断句（setences.txt，zh-TW→简体）	cc0:setences.txt:3051
+d05-natural_medium-277	natural_medium	shimouweimanhuajiatongmingsigemanhua	是某位漫画家同名四格漫画	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:8123
+d05-natural_long-001	natural_long	jiedaobanshichuweiyuxinyushichengbeidiqudexianlaidadaonanhudebeibu	街道办事处位于新余市城北地区的仙来大道，南湖的北部。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1904037:72743380
+d05-natural_long-002	natural_long	yinciyoutaipuluowangsiyubeirenweiyishiyizhongsiyu	因此，犹太普罗旺斯语被认为已是一种死语。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8683175:94440422
+d05-natural_long-003	natural_long	poshanshixianshiguangzhoushilaochengquweiyicancundetianranyanshi	坡山是现时广州市老城区唯一残存的天然岩石。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:315967:92208758
+d05-natural_long-004	natural_long	tadexiongdixinanpaxiashietumandiguohaijundekapudanpaxia	他的兄弟希南帕夏是鄂图曼帝国海军的卡普丹帕夏。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:4102560:94328231
+d05-natural_long-005	natural_long	youkedecheliangyoujingchekaidaohuorenyuanshangchejiebei	游客的车辆有警车开导，或人员上车戒备。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:632401:87928004
+d05-natural_long-006	natural_long	tazaililizijinalizidianchideyingyongzhongyiyouyanjiu	它在锂离子及钠离子电池的应用中已有研究。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9311845:89715016
+d05-natural_long-007	natural_long	yuanhangduiguoneijingjifazhanyuyiminhuodongdeyingxiang	远航对国内经济发展与移民活动的影响	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:914
+d05-natural_long-008	natural_long	tamenbaokuosesuliruzaitiancaizhongfaxiandesesu	它们包括色素，例如在甜菜中发现的色素。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8381299:95244863
+d05-natural_long-009	natural_long	tayunxuqiyezaiyongyouduobizhongzijindeqingkuangxiayouxiaodiguanlizijin	它允许企业在拥有多币种资金的情况下有效地管理资金。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5030684:87912996
+d05-natural_long-010	natural_long	bencidiwujieluntancanjiarenyongpingbandiannaocanyuyanjiang	本次第五届论坛参加人用平板电脑参与演讲。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3826953:70198578
+d05-natural_long-011	natural_long	houlaidiankeerhezijidetonghuochanshengmaodunbingbeizijidetonghuoshasi	后来迪安·科尔和自己的同伙产生矛盾并被自己的同伙杀死。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9271790:94959313
+d05-natural_long-012	natural_long	mianyinhaoqiantingdemugangweihuashengdunzhoudejichapuhaijunjidi	缅因号潜艇的母港为华盛顿州的基察普海军基地。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1122843:91940618
+d05-natural_long-013	natural_long	suantangyuchangjianyumiaozudehunliyingermanyuejucanzhaodaiguikedeng	酸汤鱼常见于苗族的婚礼、婴儿满月、聚餐、招待贵客等。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8118314:94473131
+d05-natural_long-014	natural_long	shoubushijihuodeleheerxinjiribaowenxuejiangdetiming	首部诗集获得了赫尔辛基日报文学奖的提名。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7810072:89915930
+d05-natural_long-015	natural_long	eryincimaodunlvjiangzuyidechusuoyoudefenxipanduan	而因此矛盾律将足以得出所有的分析判断。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:403339:93854558
+d05-natural_long-016	natural_long	wudaohouzailiyangchuandaosanshinianzaoyuhuichangfananyinxiubinan	悟道后，在澧阳传道三十年，遭遇会昌法难，隐修避难。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1848567:91171158
+d05-natural_long-017	natural_long	guominyuanzebaohanyagaohuazhuangpinjishipindengwuzhi	过敏源则包含牙膏、化妆品及食品等物质。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1484359:94285815
+d05-natural_long-018	natural_long	gaiyuanyouenshizhouchangqingjiaoyufazhanyouxianzerengongsiquanzichiyou	该院由恩施州常青教育发展有限责任公司全资持有。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1771245:94966277
+d05-natural_long-019	natural_long	shiliuguoshiqixiqinkaiguojunwangyuanchuanwangqifuguorendi	十六国时期西秦开国君王，苑川王乞伏国仁弟。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:205132:95069914
+d05-natural_long-020	natural_long	gerenyicengduociduodequanguoziyouchegonglusaijizhengxiansaiguanjun	个人亦曾多次夺得全国自由车公路赛及争先赛冠军。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:6780843:92416615
+d05-natural_long-021	natural_long	xianrenjiaoquzhujiaoweisuositanneiayikuliwudijuwa	现任教区主教为索斯坦内·阿依库里·乌迪居瓦。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3493908:90092512
+d05-natural_long-022	natural_long	eryalishiduodezhuyizhejianghuizhengbianshuozheyangdepanduanshifenxide	而亚里士多德主义者将会争辩说这样的判断是分析的。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:403339:93854558
+d05-natural_long-023	natural_long	qiuliuyeshidedaibiaochezhanyeshidongjingxiarileyuanzuijiejindechezhan	秋留野市的代表车站，也是东京夏日乐园最接近的车站。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1824372:93710583
+d05-natural_long-024	natural_long	shizhezaifunengliangzhongxunqiuzhuanhuachengzhengnengliangdeqiji	试着在负能量中寻求转化成正能量的契机	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:2484
+d05-natural_long-025	natural_long	gaidangcengpaidaibiaochuxiouzhoufanzibenzhuyizuoyidehuiyi	该党曾派代表出席欧洲反资本主义左翼的会议。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:4953407:84539745
+d05-natural_long-026	natural_long	renshengjiushiqiqiluoluobingqieqidaojizhangbuyaochuchacuo	人生就是起起落落，并且祈祷机长不要出差错	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:77
+d05-natural_long-027	natural_long	nulibuyidinghuichenggongkeshibunuliyidinghenqingsong	努力不一定会成功，可是不努力一定很轻松	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:183
+d05-natural_long-028	natural_long	qizhuyaojiangouzheshibimulaaolamujianbeideka	其主要建构者是比姆拉奥·拉姆吉·安贝德卡。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5513462:95098598
+d05-natural_long-029	natural_long	kangnaierdaxueshiyisuoweiyuniuyuezhouyisakadesilichangchuntengmengxiao	康奈尔大学是一所位于纽约州伊萨卡的私立常春藤盟校。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9442075:91819361
+d05-natural_long-030	natural_long	gaiyanjiushejigongsidechuangxinjixiaoqiwangshuizhunhezuzhixingxuexi	该研究涉及公司的创新绩效、期望水准和组织性学习。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7893017:95296553
+d05-natural_long-031	natural_long	zhushouwuhandeguojundiwushibajunzhudongchelimeiyoudikang	驻守武汉的国军第五十八军主动撤离，没有抵抗。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9599853:94221937
+d05-natural_long-032	natural_long	renshenghuibeipannidanshuxuebuhuibuhuijiushibuhui	人生会背叛你，但数学不会，不会就是不会	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:80
+d05-natural_long-033	natural_long	youyufuheshangshusigeyaoqiusuoyouxuanzhuandejiheshiyigequn	由于符合上述四个要求，所有旋转的集合是一个群。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:709619:88070978
+d05-natural_long-034	natural_long	xuegangqindehaizibuhuibianhuaixuehuaidehaizihuibiangangqin	学钢琴的孩子不会变坏，学坏的孩子会变钢琴	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:223
+d05-natural_long-035	natural_long	tadeshigezhishaofanyizhiyingyuyidaliyuhexibolaiyu	他的诗歌至少翻译至英语、意大利语和希伯来语。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7810072:89915930
+d05-natural_long-036	natural_long	tangxiantongliunianyuanjixiangshoubashisisenglaliushiwu	唐咸通六年圆寂，享寿八十四，僧腊六十五。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1848567:91171158
+d05-natural_long-037	natural_long	zhongshiyouguanjingjifazhanyucaizhengshourufangmiandegaige	重视有关经济发展与财政收入方面的改革	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:1081
+d05-natural_long-038	natural_long	benliebiaoshiputianshichengxiangqudegejiwenwubaohudanwei	本列表是莆田市城厢区的各级文物保护单位。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7671514:86557196
+d05-natural_long-039	natural_long	wanjiaxuyaocaozuozhanglangpojieyixiliedemitiyichufayouxijuqing	玩家需要操作蟑螂破解一系列的谜题以触发游戏剧情。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5964476:94781345
+d05-natural_long-040	natural_long	yixiaweishanxishengbaojishichencangqugejiwenwubaohudanweiliebiao	以下为陕西省宝鸡市陈仓区各级文物保护单位列表。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7680705:84487460
+d05-natural_long-041	natural_long	ruguoanzhaozhegedingyibanlongleiyejiangbaohanxijiaoleikonglong	如果按照这个定义，板龙类也将包含蜥脚类恐龙。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:682736:88575843
+d05-natural_long-042	natural_long	dabufenxifangguojiadezhengfuhaiduijushibiaoshiguanqie	大部分西方国家的政府还对局势表示关切。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1512912:94775661
+d05-natural_long-043	natural_long	benbiaoweiqianlongwushijiunianjiayinenkezhejiangjurenmingdan	本表为乾隆五十九年甲寅恩科浙江举人名单。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9408951:91315544
+d05-natural_long-044	natural_long	yaoqiuzhongtiandianshitaizaiershitianneigengzhengcuowubaodaoneirong	要求中天电视台在二十天内更正错误报导内容	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1317
+d05-natural_long-045	natural_long	erribendezuqunzhishaobufenhuizaibenzhounanbuguodong	而日本的族群至少部分会在本州南部过冬。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1021520:89151848
+d05-natural_long-046	natural_long	shiyizuogeteshijiaotangjianzhuyilieweineimengguzizhiquwenwubaohudanwei	是一座哥特式教堂建筑，已列为内蒙古自治区文物保护单位。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8950720:85309526
+d05-natural_long-047	natural_long	zhegejihuatouguoqunzhongcanyulaigaishanxianyoudeyuyinbianshixitong	这个计划透过群众参与，来改善现有的语音辨识系统	CC0 跨来源诊断句（g0v_slack_rand0m.txt，zh-TW→简体）	cc0:g0v_slack_rand0m.txt:1266
+d05-natural_long-048	natural_long	kanuodianchishiyizhongjiangdiannengcunzaichurezhuangzhidechunengjishu	卡诺电池是一种将电能存在储热装置的储能技术。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7249783:67192887
+d05-natural_long-049	natural_long	yixiaweihunanshengyongzhoushilinglingqudegejiwenwubaohudanwei	以下为湖南省永州市零陵区的各级文物保护单位。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7671170:88913831
+d05-natural_long-050	natural_long	sishuwujingshisishuhewujingdehechengshizhongguorujiadejingdianshuji	四书五经是四书和五经的合称，是中国儒家的经典书籍。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:868:94686667
+d05-natural_long-051	natural_long	fenbuyugubeiquyijizhongguodaludehebeidengdiduojianyushanpocaocong	分布于古北区以及中国大陆的河北等地，多见于山坡草丛。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1147017:64521874
+d05-natural_long-052	natural_long	xinhuiyudianhuipiaohuixiangbifeiyongjiaodidanshijianjiaochi	信汇与电汇、票汇相比，费用较低，但时间较迟。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1462480:93338235
+d05-natural_long-053	natural_long	shuimibujinhaojitianyuwentaiyitashimingrumeiyoujiazuita	水米不进好几天，宇文泰以他是名儒，没有加罪他。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8087921:88026356
+d05-natural_long-054	natural_long	ouzhouhedongyaguojiayezaibujugoujianyouhaizaohuajianceyujingtixi	欧洲和东亚国家也在布局构建有害藻华监测预警体系。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:151581:94729068
+d05-natural_long-055	natural_long	zhuyaofenbuyuzhongguodalutaiwanchangqixizaidichaoxianxia	主要分布于中国大陆、台湾，常栖息在低潮线下。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1107367:61641550
+d05-natural_long-056	natural_long	zaikaifazhongguojiaquefatiezhijiweitamingshicizhengchangjiandezhaoyin	在开发中国家，缺乏铁质及维他命是此症常见的肇因。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1484359:94285815
+d05-natural_long-057	natural_long	yixiaweibeijingshidongchengqugejiwenwubaohudanweiliebiao	以下为北京市东城区各级文物保护单位列表。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7629195:95384309
+d05-natural_long-058	natural_long	daludezuqunzaidongnanyabeibuguodongcongyindudongbeibudaojianpuzhai	大陆的族群在东南亚北部过冬，从印度东北部到柬埔寨。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1021520:89151848
+d05-natural_long-059	natural_long	shetannaipingshanwenwujingqizhongyixianggujiyiyoushubainianlishi	社坛乃屏山文物径其中一项古迹，已有数百年历史。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:362792:84712004
+d05-natural_long-060	natural_long	chuantongzhongguocunluojieshezhishetanyiqiqiufuzebaoyouhecunpingan	传统中国村落皆设置社坛，以祈求福泽，保佑阖村平安。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:362792:84712004
+d05-natural_long-061	natural_long	bairiyishanjinhongshaoshizitouyutouximilujiangsidachangtou	白日依山尽，红烧狮子头，芋头西米露，姜丝大肠头	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:253
+d05-natural_long-062	natural_long	taiwandayedaxueweishousuoruzhugaizhongxindetaiwanxuexiao	台湾大叶大学为首所入驻该中心的台湾学校。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:6531761:94412642
+d05-natural_long-063	natural_long	hougaiweibaixingqianhusuoyanjingweijunminzhihuishisi	后改为柏兴千户所、盐井卫军民指挥使司。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3207503:93490189
+d05-natural_long-064	natural_long	xuanzhuandefuhebumanzujiaohuanlvyincisanweixuanzhuanqunshifeiabeierqun	旋转的复合不满足交换律，因此三维旋转群是非阿贝尔群。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:709619:88070978
+d05-natural_long-065	natural_long	huanyanzhitazhirenwuwanchengshijianyurenwukaishishijianzhicha	换言之，它指任务完成时间与任务开始时间之差。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9195661:92896607
+d05-natural_long-066	natural_long	xianxiaoliyuzhongguozuqiujiajiliansaiqiuduineimengguzhongyou	现效力于中国足球甲级联赛球队内蒙古中优。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:2755598:88572655
+d05-natural_long-067	natural_long	suantangyuyiqiyurouxinensuanxiangweixianershourenhuanying	酸汤鱼以其鱼肉细嫩，酸香味鲜而受人欢迎。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8118314:94473131
+d05-natural_long-068	natural_long	weijilaijiuduyuheerxinjixijuxueyuanbinghuodexijuxuexueshixuewei	维基莱就读于赫尔辛基戏剧学院，并获得戏剧学学士学位。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7810072:89915930
+d05-natural_long-069	natural_long	tabeizaigerentuantigongsiheguojiacengmianjinxingyanjiu	它被在个人、团体、公司和国家层面进行研究。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7893017:95296553
+d05-natural_long-070	natural_long	zhiyoulibiliyadangdidejigouhegerencaiyouzigezhuceyuming	只有利比里亚当地的机构和个人才有资格注册域名。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:290087:68617193
+d05-natural_long-071	natural_long	qianmeiguoguowuqingwolunkelisituofujiuchushenggaishi	前美国国务卿沃伦·克里斯托弗就出生该市。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:444746:94838808
+d05-natural_long-072	natural_long	yuanbubazouzaijuesaizhongzhanshenglekelisidinapiyeniqikewahuodeguanjun	园部八奏在决赛中战胜了克里斯蒂娜·皮耶尼奇科娃获得冠军。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9354987:93949876
+d05-natural_long-073	natural_long	yinweitashipingdishangdegaoposuoyiqumingweiposhan	因为它是平地上的高坡，所以取名为坡山。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:315967:92208758
+d05-natural_long-074	natural_long	yinggelanyichanbixiaopusiwoersemugongweiyuzheli	英格兰遗产毕晓普斯沃尔瑟姆宫位于这里。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5457411:94654868
+d05-natural_long-075	natural_long	koujueyankenengyinganranlajihuoshiguomineryinqi	口角炎可能因感染、剌激或是过敏而引起。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1484359:94285815
+d05-natural_long-076	natural_long	shaonianchujiaershishoujuzujiechuxianjiulvzonghouxichanfa	少年出家，二十受具足戒，初先究律宗，后习禅法。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1848567:91171158
+d05-natural_long-077	natural_long	youxietongrendetoufayijingkaishiyouyinguangchuxianle	有些同仁的头发已经开始有银光出现了	CC0 跨来源诊断句（cvsprint_201902.txt，zh-TW→简体）	cc0:cvsprint_201902.txt:390
+d05-natural_long-078	natural_long	tanpawanmoguiyudeqiaoxuhanmierdunweigainiandeshoulunxuanxiuzhuangyuan	坦帕湾魔鬼鱼的乔许·汉米尔顿为该年的首轮选秀状元。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8988060:93634387
+d05-natural_long-079	natural_long	youlunzherenweiweilechuangxinzuzhiyinggaifazhanqixishounengli	有论者认为，为了创新，组织应该发展其吸收能力。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7893017:95296553
+d05-natural_long-080	natural_long	weiyuouyabankuaiyutaipingyangbankuaizhijiandedaoyu	位于欧亚板块与太平洋板块之间的岛屿	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:499
+d05-natural_long-081	natural_long	taxianzaixiaoliyuyijiaqiuduipaermazuqiujulebu	他现在效力于意甲球队帕尔马足球俱乐部。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3323809:93638373
+d05-natural_long-082	natural_long	dahuxiangshizhongguofujianshengfuzhoushiminhouxianxiaxiadeyigexiang	大湖乡是中国福建省福州市闽侯县下辖的一个乡。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1114264:66759488
+d05-natural_long-083	natural_long	benxianjiniankeaweilahedekesasizhouzhouzhanglafeiergangsaleizi	本县纪念科阿韦拉和德克萨斯州州长拉斐尔·冈萨雷兹。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:549012:94740582
+d05-natural_long-084	natural_long	gutianlezhangzhilinzhengjiayingjidenglixinlingxianzhuyan	古天乐、张智霖、郑嘉颖及邓丽欣领衔主演。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:6230378:95443189
+d05-natural_long-085	natural_long	zhengfushixinglexiaojindanshijishangshiweizhebingbuzunshou	政府实行了宵禁，但实际上示威者并不遵守。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1512912:94775661
+d05-natural_long-086	natural_long	zaizhengbingzhiguojiazhongjunqutongchangyehuicanyuzhengzhaodeshiwu	在征兵制国家中军区通常也会参与征召的事务。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1239428:95014993
+d05-natural_long-087	natural_long	shengkelusidaoshimeiguojialifuniyazhoudeyigedaoyu	圣克鲁斯岛是美国加利福尼亚州的一个岛屿。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7279307:90543015
+d05-natural_long-088	natural_long	tahuodelechengnianzunvdanzigesaiwaikadanzaidierlunfuyukaluolemonei	她获得了成年组女单资格赛外卡，但在第二轮负于卡罗勒·莫内。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9354987:93949876
+d05-natural_long-089	natural_long	huliqushifujianshengxiamenshisuoxiadeyigeshixiaqu	湖里区是福建省厦门市所辖的一个市辖区。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:98518:94347532
+d05-natural_long-090	natural_long	dinglinsiyuanmingyongdesiyinsicedinglinquanerdeming	定林寺原名永德寺，因寺侧定林泉而得名。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1735659:95182914
+d05-natural_long-091	natural_long	shihanwudichongfeilifurendigegeershijiangjunliguanglidedidi	是汉武帝宠妃李夫人的哥哥，贰师将军李广利的弟弟。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:17144:90526182
+d05-natural_long-092	natural_long	gengduodixuanzhuanqunyongyouyigetianrandeliuxingjiegou	更多地，旋转群拥有一个天然的流形结构。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:709619:88070978
+d05-natural_long-093	natural_long	pubianxingyuanyuwulixuezhongdetongjilixueheliangzichanglun	普遍性源于物理学中的统计力学和量子场论。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:6905484:94716517
+d05-natural_long-094	natural_long	houquangaojichongxiandinaxiangsongtaizuwenzhishenyueshouhuangzhoucishi	后劝高继冲献地纳降，宋太祖闻之甚悦，授黄州刺史。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:728952:88673832
+d05-natural_long-095	natural_long	daxueqijiandaibiaomisulidaxuecanjiameiguoxiaojibisai	大学期间代表密苏里大学参加美国校际比赛。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7126612:84019843
+d05-natural_long-096	natural_long	songqiuzaiweixiaowudiyongxinianjianguanzhijianyidafu	宋球在魏孝武帝永熙年间官至谏议大夫。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8087921:88026356
+d05-natural_long-097	natural_long	yonglainiangzaohuiyanfutejiadexiaomaichanzifaguopikadi	用来酿造灰雁伏特加的小麦产自法国皮卡第。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8992111:92914754
+d05-natural_long-098	natural_long	xianrenjiaoquzhujiaoweihelaerduodehesusiluohasiluopeizi	现任教区主教为赫拉尔多·德赫苏斯·罗哈斯·洛佩兹。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3462707:90089504
+d05-natural_long-099	natural_long	gaodizizhongshijichengbaodedaolezhezuojianzhudeshejilinggan	高第自中世纪城堡得到了这座建筑的设计灵感。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5933604:94883891
+d05-natural_long-100	natural_long	shizhiyuxihanyuandishiqiqiweixiangdangyuchengxiangjuebizhuhou	始置于西汉元帝时期，其位相当于丞相，爵比诸侯。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:213888:88954040
+d05-natural_long-101	natural_long	shouyingzhoubianqudepiaofangheguanzhongmanyiduguanjunbaozuo	首映周便取得票房和观众满意度冠军宝座。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:932146:70967054
+d05-natural_long-102	natural_long	shitefeigelafushishangjieguanjundanyinshangweicansai	施特菲·葛拉芙是上届冠军，但因伤未参赛。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1261341:94940659
+d05-natural_long-103	natural_long	weijilaidemuqinmaliyataweijilaiyeshiyiweishiren	维基莱的母亲玛丽亚塔·维基莱也是一位诗人。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7810072:89915930
+d05-natural_long-104	natural_long	qianhengchunianjinguanlibulangzhongzhizhigaozhihouqushi	乾亨初年，晋官吏部郎中、知制诰，之后去世。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5722893:80632518
+d05-natural_long-105	natural_long	tazuichushibeiershiyanshihepulinsidundaxuelianhekaifade	它最初是贝尔实验室和普林斯顿大学联合开发的。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7660953:90852999
+d05-natural_long-106	natural_long	gaipindaocongyindudejiaoduchufabaodaoquanqiuxinwenheshishi	该频道从印度的角度出发，报道全球新闻和时事。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7959545:90904937
+d05-natural_long-107	natural_long	tangmindiyuhaisiyueshierxinsisonglingxunbeitongbanrizijingersi	唐闵帝遇害，四月十二辛巳，宋令询悲恸半日，自经而死。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:8959699:90742708
+d05-natural_long-108	natural_long	gaixiaoxingxingyimeiguotianwenxuejiazhanmusihuiteniyangmingming	该小行星以美国天文学家詹姆斯·惠特尼·扬命名。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3542755:94954019
+d05-natural_long-109	natural_long	benpianzaitaiwanyoumandichuanboqudedailifaxingquan	本片在台湾由曼迪传播取得代理发行权。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:513245:94882875
+d05-natural_long-110	natural_long	shunzhishisanniansanyuejietiguokedanrenqingchaogongbushangshuhoujie	顺治十三年三月，接替郭科，担任清朝工部尚书，后解。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:2953901:89558646
+d05-natural_long-111	natural_long	renkouyimalairenweizhutongshihaiyouyixiehuarenyindurenheyuanzhumin	人口以马来人为主，同时还有一些华人、印度人和原住民。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1633727:94462906
+d05-natural_long-112	natural_long	nashixizhiliweifuqiyugangzhilimuzhiliyamuzhilikedeqizhongyigezhong	纳氏细脂鲤，为辐鳍鱼纲脂鲤目脂鲤亚目脂鲤科的其中一个种。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:3690237:60946604
+d05-natural_long-113	natural_long	tineijuyouchongmananrongyedeqiangshikeyongyutiaojiefuli	体内具有充满氨溶液的腔室，可用于调节浮力。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:7962574:95283054
+d05-natural_long-114	natural_long	minzhongyincizifazuzhileduiwuyibaoweitamenzijidejiayuan	民众因此自发组织了队伍以保卫他们自己的家园。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1512912:94775661
+d05-natural_long-115	natural_long	tuweirentishoubigugejidezuoyongfangshishiyitu	图为人体手臂骨骼肌的作用方式示意图	CC0 跨来源诊断句（exam_text.txt，zh-TW→简体）	cc0:exam_text.txt:553
+d05-natural_long-116	natural_long	tadepifubiaocengshihuilvselianbuweihongselianjiazhangzhechangmao	它的皮肤表层是灰绿色，脸部为红色，脸颊长着长毛。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:389683:67059685
+d05-natural_long-117	natural_long	tianyahechuwufangcaoyiduoxianhuachazainiufenshangmachou	天涯何处无芳草，一朵鲜花插在牛粪上嘛臭	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:53
+d05-natural_long-118	natural_long	aiqingchengkeguishengmingjiagenggaoruoweijiankangguliangzhemeiripao	爱情诚可贵，生命价更高，若为健康故，两者每日抛	CC0 跨来源诊断句（web_slang.txt，zh-TW→简体）	cc0:web_slang.txt:160
+d05-natural_long-119	natural_long	zhihouzhuquanzhongdaitangzilijianlihouliangxiazhaotongzhiliuyin	之后朱全忠代唐自立，建立后梁，下诏通知刘隐。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:5722893:80632518
+d05-natural_long-120	natural_long	haijingjiafujiudianweihuancaiyongxiangjiangcanyuhuiyanjianzhuwuzhiyi	海景嘉福酒店为幻彩咏香江参与汇演建筑物之一。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:308786:93741281
+d05-natural_long-121	natural_long	zhexiegongsikongzhidebushitudiershishuzipingtaishujuhezaixianshichang	这些公司控制的不是土地，而是数字平台、数据和在线市场。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:9621834:94645022
+d05-natural_long-122	natural_long	dangshuizhonglinhuawuguogaohuiyouliyulanlvzaodeshengzhang	当水中磷化物过高，会有利于蓝绿藻的生长。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:151581:94729068
+d05-natural_long-123	natural_long	fenbuyuribenbaokuoguangdongdonghaidenghaiyushuyunuanshuixingzhonglei	分布于日本，包括广东、东海等海域，属于暖水性种类。	中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）	wikipedia:1134135:56154359
 d05-typo-001	typo	liagge	两个	漏字母：正确拼音 liangge	template:typo:两个
 d05-typo-002	typo	lindgao	领导	相邻交换：正确拼音 lingdao	template:typo:领导
 d05-typo-003	typo	jueidng	决定	相邻交换：正确拼音 jueding	template:typo:决定

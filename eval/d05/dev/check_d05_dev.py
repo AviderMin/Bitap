@@ -38,10 +38,11 @@ DEV_DIR = ROOT / "eval" / "d05" / "dev"
 DICTIONARY = ROOT / "app" / "src" / "main" / "assets" / "pinyin_dict.tsv"
 SOURCE_DIR = ROOT / ".tmp" / "cc0" / "extract" / "cc0-sentences-master" / "zh-TW"
 ARCHIVE = ROOT / ".tmp" / "cc0" / "cc0-sentences.zip"
+WIKIPEDIA_SOURCE = ROOT / "eval" / "d05" / "dev" / "wikipedia_long_source.tsv"
 NATURAL_CATEGORIES = ["natural_short", "natural_medium", "natural_long"]
 CATEGORY_ORDER = NATURAL_CATEGORIES + ["typo", "shorthand", "mixed_pinyin", "mixed_en"]
 SPECIAL_TARGETS = {"typo": 100, "shorthand": 100, "mixed_pinyin": 100, "mixed_en": 50}
-NATURAL_LENGTH_RANGES = {"natural_short": (2, 8), "natural_medium": (9, 16), "natural_long": (17, 24)}
+NATURAL_LENGTH_RANGES = {"natural_short": (2, 8), "natural_medium": (9, 16), "natural_long": (17, 30)}
 NEAR_DUP_JACCARD = 0.75
 
 
@@ -225,10 +226,14 @@ def check_manifest(rows: list[dict], manifest: dict, errors: list[str]) -> dict[
     actual_counts = {category: counts.get(category, 0) for category in CATEGORY_ORDER}
     if manifest.get("category_counts") != actual_counts:
         errors.append("manifest category_counts mismatch")
-    if sum(actual_counts[c] for c in NATURAL_CATEGORIES) < 600:
-        errors.append("natural rows below 600")
-    if len(rows) < 900:
-        errors.append("total rows below 900")
+    if sum(actual_counts[c] for c in NATURAL_CATEGORIES) < 700:
+        errors.append("natural rows below 700")
+    if len(rows) < 1050:
+        errors.append("total rows below 1050")
+    if len(rows) > 1200:
+        errors.append("total rows above 1200")
+    if actual_counts["natural_long"] < 80:
+        errors.append("natural_long below minimum 80")
     for category, target in SPECIAL_TARGETS.items():
         if actual_counts[category] != target:
             errors.append("special " + category + " count " + str(actual_counts[category]) + " != " + str(target))
@@ -361,6 +366,8 @@ def check_sources(rows: list[dict], manifest: dict, errors: list[str]) -> None:
         if row["category"] not in NATURAL_CATEGORIES:
             continue
         source = row["source"]
+        if source.startswith("wikipedia:"):
+            continue
         if not source.startswith("cc0:"):
             errors.append(row["id"] + ": natural source is not CC0")
             continue
@@ -379,11 +386,57 @@ def check_sources(rows: list[dict], manifest: dict, errors: list[str]) -> None:
             continue
         checked += 1
         converted = zhconv.convert(source_lines[filename][line_number - 1].strip(), "zh-cn")
-        if converted != row["expected"]:
+        if row["expected"] != converted and row["expected"] not in converted:
             mismatches += 1
             if mismatches <= 20:
                 errors.append(row["id"] + ": source text mismatch")
     print("source_traceability: checked=" + str(checked) + " mismatches=" + str(mismatches))
+
+
+def check_wikipedia_source(rows: list[dict], manifest: dict, errors: list[str]) -> None:
+    if not WIKIPEDIA_SOURCE.is_file():
+        if any(row["source"].startswith("wikipedia:") for row in rows):
+            errors.append("wikipedia snapshot missing but wikipedia rows exist")
+        else:
+            print("wikipedia_traceability: skipped (snapshot not found)")
+        return
+    expected_sha = manifest.get("wikipedia_source", {}).get("sha256", "")
+    actual_sha = sha256_file(WIKIPEDIA_SOURCE)
+    if actual_sha != expected_sha:
+        errors.append("wikipedia snapshot sha256 mismatch")
+    records: dict[tuple[str, str], set[str]] = {}
+    snapshot_rows = 0
+    with io.open(WIKIPEDIA_SOURCE, encoding="utf-8") as handle:
+        for line_number, raw in enumerate(handle, start=1):
+            line = raw.rstrip("\n").rstrip("\r")
+            if not line or line.startswith("pageid\t"):
+                continue
+            parts = line.split("\t")
+            if len(parts) != 5:
+                continue
+            snapshot_rows += 1
+            records.setdefault((parts[0].strip(), parts[1].strip()), set()).add(parts[4].strip())
+    if manifest.get("wikipedia_source", {}).get("rows") != snapshot_rows:
+        errors.append("wikipedia snapshot rows mismatch")
+    checked = 0
+    mismatches = 0
+    for row in rows:
+        if not row["source"].startswith("wikipedia:"):
+            continue
+        parts = row["source"].split(":")
+        if len(parts) != 3:
+            errors.append(row["id"] + ": bad wikipedia source")
+            continue
+        lookup = (parts[1], parts[2])
+        if lookup not in records:
+            errors.append(row["id"] + ": wikipedia pageid/oldid not in snapshot")
+            continue
+        checked += 1
+        if row["expected"] not in records[lookup]:
+            mismatches += 1
+            if mismatches <= 20:
+                errors.append(row["id"] + ": wikipedia sentence mismatch")
+    print("wikipedia_traceability: checked=" + str(checked) + " mismatches=" + str(mismatches))
 
 
 def main() -> int:
@@ -396,6 +449,7 @@ def main() -> int:
     check_reference_isolation(rows, load_reference_texts(), errors)
     check_special(rows, errors)
     check_sources(rows, manifest, errors)
+    check_wikipedia_source(rows, manifest, errors)
     print("rows: " + str(len(rows)))
     print("category_counts: " + json.dumps(counts, ensure_ascii=False))
     if errors:

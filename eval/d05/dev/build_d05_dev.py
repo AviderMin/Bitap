@@ -29,6 +29,7 @@ import argparse
 import hashlib
 import io
 import json
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -55,11 +56,11 @@ SUPPLEMENT_FILES = [
     "chatlogs.txt",
 ]
 SOURCE_FILES = PRIMARY_FILES + SUPPLEMENT_FILES
-NATURAL_TARGETS = {"short": 300, "medium": 250, "long": 50}
-NATURAL_BUCKETS = {"short": (2, 8), "medium": (9, 16), "long": (17, 24)}
+NATURAL_TARGETS = {"short": 300, "medium": 250, "long": 150}
+NATURAL_BUCKETS = {"short": (2, 8), "medium": (9, 16), "long": (17, 30)}
 SPECIAL_TARGETS = {"typo": 100, "shorthand": 100, "mixed_pinyin": 100, "mixed_en": 50}
 CATEGORY_ORDER = ["natural_short", "natural_medium", "natural_long", "typo", "shorthand", "mixed_pinyin", "mixed_en"]
-MAX_PINYIN_LENGTH = 60
+MAX_PINYIN_LENGTH = 70
 MAX_CLUSTER_TAKE = 2
 NEAR_DUP_JACCARD = 0.75
 REFERENCE_NEAR_DUP_JACCARD = 0.75
@@ -143,6 +144,34 @@ def clean_natural(text: str) -> str | None:
     if classify_bucket(len(normalized)) is None:
         return None
     return normalized
+
+
+SPLIT_PUNCT = re.compile(r"[，。！？；：]")
+
+
+def source_segments(text: str):
+    """Yield (candidate_text, was_split) for one converted source line.
+
+    Whole lines are preferred. Lines that are not valid as a whole (too long
+    or with internal sentence punctuation) are split at Chinese punctuation
+    and 17-30-character clauses are kept; the source line number is unchanged.
+    """
+    if clean_natural(text) is not None:
+        yield text, False
+        return
+    if len(norm_text(text)) <= 30 and not any(ch in "。！？" for ch in text[:-1]):
+        return
+    for part in SPLIT_PUNCT.split(text):
+        part = part.strip()
+        if not part or not allowed_char_all(part):
+            continue
+        normalized = norm_text(part)
+        if 17 <= len(normalized) <= 30 and clean_natural(part) is not None:
+            yield part, True
+
+
+def allowed_char_all(text: str) -> bool:
+    return all(allowed_char(ch) for ch in text)
 
 
 def char_bigrams(text: str) -> set[str]:
@@ -274,22 +303,28 @@ def load_natural_items(source_dir: Path):
         for line_number, raw in enumerate(read_text_lines(path), start=1):
             stats["source_lines"] += 1
             converted = convert_to_simplified(raw.strip())
-            normalized = clean_natural(converted)
-            if normalized is None:
+            segments = list(source_segments(converted))
+            if not segments:
                 stats["rejected_filter"] += 1
                 continue
-            if normalized in seen:
-                stats["rejected_duplicate"] += 1
-                continue
-            seen.add(normalized)
-            items.append({
-                "norm": normalized,
-                "text": converted,
-                "file": filename,
-                "line": line_number,
-                "bucket": classify_bucket(len(normalized)),
-                "priority": "primary" if filename in PRIMARY_FILES else "supplement",
-            })
+            for segment, was_split in segments:
+                normalized = clean_natural(segment)
+                if normalized is None:
+                    stats["rejected_filter"] += 1
+                    continue
+                if normalized in seen:
+                    stats["rejected_duplicate"] += 1
+                    continue
+                seen.add(normalized)
+                items.append({
+                    "norm": normalized,
+                    "text": segment,
+                    "file": filename,
+                    "line": line_number,
+                    "bucket": classify_bucket(len(normalized)),
+                    "priority": "primary" if filename in PRIMARY_FILES else "supplement",
+                    "split": was_split,
+                })
     stats["unique_texts"] = len(items)
     return items, file_info, stats
 
@@ -307,6 +342,42 @@ def near_reference(item: dict, reference_items: list[tuple[int, set[str]]], thre
     return False
 
 
+def load_wikipedia_items(path: Path) -> list[dict]:
+    """Load frozen Chinese Wikipedia long sentences (CC BY-SA 4.0 snapshot)."""
+    if not path.is_file():
+        return []
+    items: list[dict] = []
+    with io.open(path, encoding="utf-8") as handle:
+        for line_number, raw in enumerate(handle, start=1):
+            line = raw.rstrip("\n").rstrip("\r")
+            if not line or line.startswith("pageid\t"):
+                continue
+            parts = line.split("\t")
+            if len(parts) != 5:
+                continue
+            try:
+                pageid = int(parts[0])
+                oldid = int(parts[1])
+            except ValueError:
+                continue
+            converted = convert_to_simplified(parts[4].strip())
+            normalized = clean_natural(converted)
+            if normalized is None or classify_bucket(len(normalized)) != "long":
+                continue
+            items.append({
+                "norm": normalized,
+                "text": converted,
+                "file": "wikipedia",
+                "line": line_number,
+                "bucket": "long",
+                "priority": "wikipedia",
+                "pageid": pageid,
+                "oldid": oldid,
+                "url": parts[3].strip(),
+            })
+    return items
+
+
 def select_natural(items: list[dict], reference_items: list[tuple[int, set[str]]]):
     """Select natural dev sentences with primary CC0 chat files first.
 
@@ -319,7 +390,13 @@ def select_natural(items: list[dict], reference_items: list[tuple[int, set[str]]
     for cluster in clusters:
         bucket_counts = Counter(items[i]["bucket"] for i in cluster)
         bucket = bucket_counts.most_common(1)[0][0]
-        priority = "primary" if any(items[i]["priority"] == "primary" for i in cluster) else "supplement"
+        priorities = {items[i]["priority"] for i in cluster}
+        if "primary" in priorities:
+            priority = "primary"
+        elif "wikipedia" in priorities:
+            priority = "wikipedia"
+        else:
+            priority = "supplement"
         cluster_buckets[(bucket, priority)].append(cluster)
     chosen: dict[str, list[int]] = {bucket: [] for bucket in NATURAL_TARGETS}
     used: set[int] = set()
@@ -354,11 +431,14 @@ def select_natural(items: list[dict], reference_items: list[tuple[int, set[str]]
         take_bucket("primary", bucket, target)
         if len(chosen[bucket]) < target:
             take_bucket("supplement", bucket, target)
+        if bucket == "long" and len(chosen[bucket]) < target:
+            take_bucket("wikipedia", bucket, target)
         stats["selected_" + bucket] = len(chosen[bucket])
 
+    natural_total_target = sum(NATURAL_TARGETS.values())
     total = sum(len(v) for v in chosen.values())
-    # Fill the 600 natural total from remaining primary then supplement items.
-    if total < 600:
+    # Fill the configured natural total from remaining primary then supplement items.
+    if total < natural_total_target:
         # Fill the long-sentence shortfall with medium sentences first, then
         # short sentences, so the natural distribution stays near
         # short ~300 / medium ~250 rather than inflating short.
@@ -368,7 +448,7 @@ def select_natural(items: list[dict], reference_items: list[tuple[int, set[str]]
                 key=lambda i: (0 if items[i]["priority"] == "primary" else 1, stable_key(items[i]["norm"])),
             )
             for index in ordering:
-                if total >= 600:
+                if total >= natural_total_target:
                     break
                 if index in used:
                     continue
@@ -379,8 +459,8 @@ def select_natural(items: list[dict], reference_items: list[tuple[int, set[str]]
                 used.add(index)
                 total += 1
                 stats["selected_" + bucket] = len(chosen[bucket])
-    if total < 600:
-        raise SystemExit("natural candidates cannot reach 600: " + str(total))
+    if total < natural_total_target:
+        raise SystemExit("natural candidates cannot reach natural target: " + str(total))
     stats["clusters"] = len(clusters)
     stats["multi_member_clusters"] = sum(1 for cluster in clusters if len(cluster) > 1)
     selected: list[dict] = []
@@ -698,6 +778,16 @@ def attribution_text(source_archive_sha: str) -> str:
         "zhconv 1.4.3 to simplified Chinese before filtering. No Tatoeba text\n"
         "is used. The set excludes v3/v1/v2 exact and near-duplicate sentences.\n"
         "\n"
+        "## Chinese Wikipedia long sentences\n"
+        "\n"
+        "natural_long sentences also include text from Chinese Wikipedia\n"
+        "(https://zh.wikipedia.org/), licensed under Creative Commons\n"
+        "Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).\n"
+        "Source snapshot: wikipedia_long_source.tsv. Each row records pageid,\n"
+        "oldid, title, stable URL (oldid URL) and sentence; attribution is given\n"
+        "through those revision links. The Wikipedia text is evaluation-only and\n"
+        "is not copied into the production dictionary.\n"
+        "\n"
         "## Special categories\n"
         "\n"
         "typo/shorthand/mixed_pinyin word candidates come from the jieba\n"
@@ -715,6 +805,7 @@ def main() -> int:
     parser.add_argument("--jieba", default=".tmp/jieba.txt")
     parser.add_argument("--out-dir", default="eval/d05/dev")
     parser.add_argument("--zip", default=".tmp/cc0/cc0-sentences.zip")
+    parser.add_argument("--wikipedia", default="eval/d05/dev/wikipedia_long_source.tsv")
     args = parser.parse_args()
 
     source_dir = (ROOT / args.source_dir).resolve()
@@ -722,6 +813,7 @@ def main() -> int:
     jieba_path = (ROOT / args.jieba).resolve()
     out_dir = (ROOT / args.out_dir).resolve()
     zip_path = (ROOT / args.zip).resolve()
+    wikipedia_path = (ROOT / args.wikipedia).resolve()
     for path in (dictionary_path, jieba_path):
         if not path.is_file():
             raise SystemExit("missing input: " + str(path))
@@ -732,9 +824,16 @@ def main() -> int:
     reference_items = [(len(text), char_bigrams(text)) for text in reference_texts if text]
 
     natural_items, natural_file_info, load_stats = load_natural_items(source_dir)
+    wikipedia_items = load_wikipedia_items(wikipedia_path)
+    load_stats["wikipedia_snapshot_rows"] = len(wikipedia_items)
     natural_pool: list[dict] = []
     stats = Counter(load_stats)
-    for item in natural_items:
+    seen_norms: set[str] = set()
+    for item in natural_items + wikipedia_items:
+        if item["norm"] in seen_norms:
+            stats["rejected_duplicate"] += 1
+            continue
+        seen_norms.add(item["norm"])
         if item["norm"] in dict_words or item["text"] in dict_words:
             stats["rejected_dictionary_leak"] += 1
             continue
@@ -768,19 +867,30 @@ def main() -> int:
 
     rows: list[dict] = []
     for item in natural_selected:
-        rows.append({
-            "category": "natural_" + item["bucket"],
-            "input": item["pinyin"],
-            "expected": item["text"],
-            "note": "CC0 跨来源诊断句（" + item["file"] + "，zh-TW→简体）",
-            "source": "cc0:" + item["file"] + ":" + str(item["line"]),
-        })
+        if item.get("priority") == "wikipedia":
+            rows.append({
+                "category": "natural_" + item["bucket"],
+                "input": item["pinyin"],
+                "expected": item["text"],
+                "note": "中文维基百科（CC BY-SA 4.0，pageid/oldid/URL 见 wikipedia_long_source.tsv）",
+                "source": "wikipedia:" + str(item["pageid"]) + ":" + str(item["oldid"]),
+            })
+        else:
+            rows.append({
+                "category": "natural_" + item["bucket"],
+                "input": item["pinyin"],
+                "expected": item["text"],
+                "note": "CC0 跨来源诊断句（" + item["file"] + "，zh-TW→简体" + ("；分句" if item.get("split") else "") + "）",
+                "source": "cc0:" + item["file"] + ":" + str(item["line"]),
+            })
     for category, selected in special_selected.items():
         rows.extend(selected)
 
     content, row_count = render_rows(rows)
-    if row_count < 900:
-        raise SystemExit("D05 dev below 900 rows: " + str(row_count))
+    if row_count < 1050:
+        raise SystemExit("D05 dev below 1050 rows: " + str(row_count))
+    if row_count > 1200:
+        raise SystemExit("D05 dev above 1200 rows: " + str(row_count))
     dev_path = out_dir / "dev.tsv"
     write_text(dev_path, content)
     dev_sha = sha256_bytes(content.encode("utf-8"))
@@ -790,18 +900,18 @@ def main() -> int:
     for row in rows:
         if not row["category"].startswith("natural_"):
             continue
-        filename = row["source"].split(":")[1]
+        filename = "wikipedia" if row["source"].startswith("wikipedia:") else row["source"].split(":")[1]
         bucket_counts = natural_source_counts.setdefault(row["category"], {})
         bucket_counts[filename] = bucket_counts.get(filename, 0) + 1
     archive_sha = sha256_file(zip_path) if zip_path.is_file() else ""
     manifest = {
         "schema_version": "d05-dev-v1",
         "generator": "eval/d05/dev/build_d05_dev.py",
-        "generator_version": "1.0.0",
+        "generator_version": "1.2.0",
         "command": "python eval/d05/dev/build_d05_dev.py",
         "purpose": "D05 cross-source diagnostic development set; per-case diagnosis allowed, never acceptance",
         "source": {
-            "name": "irvin/cc0-sentences zh-TW remaining lines after v3 exclusion",
+            "name": "irvin/cc0-sentences zh-TW remaining lines + Chinese Wikipedia CC BY-SA 4.0 long-sentence snapshot",
             "repository": "https://github.com/irvin/cc0-sentences",
             "license": "CC0-1.0",
             "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -811,6 +921,18 @@ def main() -> int:
             "conversion": "zhconv 1.4.3 zh-TW -> zh-CN (simplified), UTF-8",
             "primary_files": PRIMARY_FILES,
             "supplement_files": SUPPLEMENT_FILES,
+        },
+        "wikipedia_source": {
+            "file": "eval/d05/dev/wikipedia_long_source.tsv",
+            "sha256": sha256_file(wikipedia_path) if wikipedia_path.is_file() else "",
+            "rows": 0 if not wikipedia_path.is_file() else max(0, sum(1 for _ in io.open(wikipedia_path, encoding="utf-8")) - 1),
+            "license": "CC BY-SA 4.0",
+            "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "attribution": "Chinese Wikipedia (https://zh.wikipedia.org/); pageid, oldid and stable URL recorded per row in wikipedia_long_source.tsv",
+            "api_endpoint": "https://zh.wikipedia.org/w/api.php",
+            "fetch_script": "eval/d05/dev/fetch_wikipedia_long.py",
+            "retrieved_at": "2026-11-08",
+            "retrieval_note": "snapshot fetched via MediaWiki API (random zh Wikipedia articles, intro extracts), converted to simplified Chinese; not live at build time",
         },
         "reference_files": reference_files,
         "files": {
@@ -822,10 +944,11 @@ def main() -> int:
         },
         "category_counts": ordered_counts,
         "natural_source_counts": natural_source_counts,
-        "long_shortfall_note": "natural_long target >=30 could not be met: v3 selected 601 includes the long chat lines; after v3 exact/near exclusion only 11 long sentences remain (all from supplement files exam_text/web_slang/cvsprint_201902), reported honestly without rewriting.",
+        "long_pinyin_over_64": sum(1 for row in rows if row["category"] == "natural_long" and len(row["input"]) > 64),
+        "long_shortfall_note": "natural_long user target >=100 met: actual=" + str(ordered_counts.get("natural_long", 0)) + " (selector target 150). Long sentences are supplied by the Chinese Wikipedia CC BY-SA 4.0 snapshot (17-30 CJK complete sentences, pageid/oldid/URL recorded); no production engine output or acceptance sentence is used.",
         "filters": {
             "natural_script": "simplified Chinese (CJK Unified Ideographs encodable with GB2312) plus Chinese punctuation",
-            "natural_length_chars": {"natural_short": [2, 8], "natural_medium": [9, 16], "natural_long": [17, 24]},
+            "natural_length_chars": {"natural_short": [2, 8], "natural_medium": [9, 16], "natural_long": [17, 30]},
             "max_pinyin_length": MAX_PINYIN_LENGTH,
             "dedup": "exact normalized character sequence",
             "excluded": {

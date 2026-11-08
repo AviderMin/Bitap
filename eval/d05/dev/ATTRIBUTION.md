@@ -19,6 +19,16 @@ The source is traditional Chinese (zh-TW); text was converted with
 zhconv 1.4.3 to simplified Chinese before filtering. No Tatoeba text
 is used. The set excludes v3/v1/v2 exact and near-duplicate sentences.
 
+## Chinese Wikipedia long sentences
+
+natural_long sentences also include text from Chinese Wikipedia
+(https://zh.wikipedia.org/), licensed under Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+Source snapshot: wikipedia_long_source.tsv. Each row records pageid,
+oldid, title, stable URL (oldid URL) and sentence; attribution is given
+through those revision links. The Wikipedia text is evaluation-only and
+is not copied into the production dictionary.
+
 ## Special categories
 
 typo/shorthand/mixed_pinyin word candidates come from the jieba
