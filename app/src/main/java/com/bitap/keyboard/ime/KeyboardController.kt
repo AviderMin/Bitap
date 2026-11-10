@@ -703,6 +703,9 @@ class KeyboardController(
             clearUndoState()
             return
         }
+        // Hosts may report deletion and insertion separately, even when both
+        // operations belong to one replacement. Expect the intermediate caret.
+        queueExpectedSelection(from = selection, to = record.start)
         runCatching { textSession.deleteBackward(record.text.length) }
         if (record.replacedText.isNotEmpty()) {
             // Restore the exact text this edit replaced (English prefix or a
@@ -737,6 +740,7 @@ class KeyboardController(
                 clearUndoState()
                 return
             }
+            queueExpectedSelection(from = selection, to = record.start)
             runCatching { textSession.deleteBackward(record.replacedText.length) }
         }
         runCatching { textSession.commitText(record.text) }
@@ -900,6 +904,7 @@ class KeyboardController(
             before
         }
         if (prefix.isNotEmpty()) {
+            queueExpectedSelection(from = selection, to = caret - prefix.length)
             runCatching { textSession.deleteBackward(prefix.length) }
         }
         val inserted = word + " "

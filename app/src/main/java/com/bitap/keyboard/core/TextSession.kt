@@ -8,11 +8,6 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
-import com.bitap.keyboard.BuildConfig
-
-private fun qaLog(message: String) {
-    if (BuildConfig.DEBUG) android.util.Log.d("BitapTextQa", message)
-}
 
 /**
  * Bounded Unicode grapheme-cluster boundary handling for editor deletion and
@@ -46,25 +41,6 @@ internal object UnicodeGrapheme {
             start--
         }
         return text.length - text.offsetByCodePoints(0, start)
-    }
-
-    /** Number of Unicode code points in the last user-visible cluster. */
-    fun lastGraphemeCodePointCount(text: String): Int {
-        val length = lastGraphemeLength(text)
-        if (length <= 0) return 0
-        val start = text.length - length
-        return Character.codePointCount(text, start, text.length)
-    }
-
-    /** True when [text] ends in a lone UTF-16 surrogate (invalid editor text). */
-    fun endsWithUnpairedSurrogate(text: String): Boolean {
-        if (text.isEmpty()) return false
-        val last = text[text.length - 1]
-        if (Character.isHighSurrogate(last)) return true
-        if (Character.isLowSurrogate(last)) {
-            return text.length < 2 || !Character.isHighSurrogate(text[text.length - 2])
-        }
-        return false
     }
 
     /** Returns [text] with its last user-visible character removed. */
@@ -356,10 +332,15 @@ interface TextSession {
 }
 
 /** [TextSession] backed by the live [InputConnection] of an InputMethodService. */
-class AndroidTextSession(private val service: InputMethodService) : TextSession {
+class AndroidTextSession internal constructor(
+    private val connectionProvider: () -> InputConnection?,
+    private val service: InputMethodService? = null,
+) : TextSession {
+
+    constructor(service: InputMethodService) : this({ service.currentInputConnection }, service)
 
     private val connection: InputConnection?
-        get() = service.currentInputConnection
+        get() = connectionProvider()
 
     /** Absolute selection last reported by the service's onUpdateSelection. */
     private var cachedSelection: EditorSelection? = null
@@ -393,7 +374,6 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     override fun deleteBackward() {
         val input = connection ?: return
         invalidateSelectionCache()
-        qaLog("delete input=" + input.javaClass.name + " before=" + input.getTextBeforeCursor(16, 0)?.toString())
         val selection = input.getSelectedText(0)
         if (!selection.isNullOrEmpty()) {
             input.commitText("", 1)
@@ -401,21 +381,17 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
         }
         // Read a bounded suffix only; grapheme segmentation below never scans
         // the whole editor. 64 UTF-16 units cover even long ZWJ/tag sequences.
-        val before = input.getTextBeforeCursor(64, 0)?.toString().orEmpty()
-        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before)
-        if (deleteCount <= 0) {
-            input.deleteSurroundingText(1, 0)
+        val before = input.getTextBeforeCursor(MAX_GRAPHEME_READ, 0)?.toString()
+        if (before == null) {
+            // Unavailable context is not an empty field. Let the host handle
+            // backspace rather than blindly deleting half of a surrogate pair.
+            input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
             return
         }
-        // WebView (and some other hosts) interpret deleteSurroundingText counts
-        // differently; use the code-point API first, then fall back to UTF-16.
-        // The code-point count is computed from the last visible grapheme.
-        val codePointCount = UnicodeGrapheme.lastGraphemeCodePointCount(before)
-        val deleted = runCatching {
-            input.deleteSurroundingTextInCodePoints(codePointCount, 0)
-        }.getOrDefault(false)
-        if (!deleted) input.deleteSurroundingText(deleteCount, 0)
-        qaLog("delete after=" + input.getTextBeforeCursor(16, 0)?.toString() + " selected=" + input.getSelectedText(0))
+        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before)
+        if (deleteCount == 0) return
+        input.deleteSurroundingText(deleteCount, 0)
     }
 
     override fun deleteBackward(count: Int) {
@@ -428,41 +404,36 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     override fun moveCursorBy(delta: Int): Boolean {
         if (delta == 0) return false
         val input = connection ?: return false
-        val selection = getSelection() ?: run {
-            qaLog("move delta=" + delta + " no selection")
-            return false
-        }
-        qaLog("move delta=" + delta + " from=" + selection.start + "-" + selection.end)
+        val selection = getSelection() ?: return false
         // A selection collapses in the requested direction before the move:
         // right goes to the selection end, left to its start.
-        var caret = if (delta > 0) {
+        val caret = if (delta > 0) {
             maxOf(selection.start, selection.end)
         } else {
             minOf(selection.start, selection.end)
         }
-        var remaining = delta
-        while (remaining != 0) {
-            val forward = remaining > 0
-            // Only a small window anchored at the current caret is needed: the
-            // cluster being crossed is always adjacent, so a cut window can
-            // never become the selected target.
-            val window = if (forward) {
-                input.getTextAfterCursor(MAX_GRAPHEME_READ, 0)?.toString() ?: return false
-            } else {
-                input.getTextBeforeCursor(MAX_GRAPHEME_READ, 0)?.toString() ?: return false
-            }
-            if (window.isEmpty()) break
-            val step = if (forward) {
-                UnicodeGrapheme.firstGraphemeLength(window)
-            } else {
-                -UnicodeGrapheme.lastGraphemeLength(window)
-            }
-            if (step == 0) break
-            caret += step
-            remaining += if (forward) -1 else 1
+        // Read once and walk boundaries within the window. Re-reading around
+        // the unchanged host caret would cross the same cluster on every step.
+        val forward = delta > 0
+        val window = if (forward) {
+            input.getTextAfterCursor(MAX_CONTEXT_READ, 0)?.toString() ?: return false
+        } else {
+            input.getTextBeforeCursor(MAX_CONTEXT_READ, 0)?.toString() ?: return false
         }
-        qaLog("move to=" + caret)
-        return applySelection(input, caret, caret)
+        val origin = if (forward) 0 else window.length
+        var offset = UnicodeGrapheme.moveBy(window, origin, delta)
+        if (window.length == MAX_CONTEXT_READ) {
+            // The far edge may cut through a surrogate/combining/ZWJ cluster.
+            // Stay inside the last fully observed boundary instead of landing
+            // on the artificial edge of a full read window.
+            offset = if (forward) {
+                minOf(offset, UnicodeGrapheme.previousBoundary(window, window.length))
+            } else {
+                maxOf(offset, UnicodeGrapheme.nextBoundary(window, 0))
+            }
+        }
+        val target = caret + offset - origin
+        return applySelection(input, target, target)
     }
 
     override fun selectAll(): Boolean {
@@ -564,14 +535,14 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     override fun sendEnter() {
         val input = connection
         if (input == null) {
-            service.sendDefaultEditorAction(false)
+            service?.sendDefaultEditorAction(false)
             return
         }
         invalidateSelectionCache()
-        val action = service.currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+        val action = service?.currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
             ?: EditorInfo.IME_ACTION_NONE
         val hasEditorAction = action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED
-        if (hasEditorAction && service.sendDefaultEditorAction(false)) return
+        if (hasEditorAction && service?.sendDefaultEditorAction(false) == true) return
         input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
         input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
     }
@@ -685,7 +656,7 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     }
 
     private val clipboardManager: ClipboardManager?
-        get() = service.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        get() = service?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
 
     private fun writeClipboard(text: String): Boolean {
         val manager = clipboardManager ?: return false
@@ -696,6 +667,7 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     }
 
     private fun readClipboardText(): String? {
+        val service = service ?: return null
         val clip = clipboardManager?.primaryClip ?: return null
         if (clip.itemCount == 0) return null
         return runCatching {

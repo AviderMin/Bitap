@@ -4,8 +4,9 @@
         <activity
             android:name=".qa.QaEditorActivity"
             android:exported="true"
+            android:process=":qa"
             android:label="Bitap QA Editor"
             android:theme="@style/Theme.Bitap"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
     </application>
 </manifest>

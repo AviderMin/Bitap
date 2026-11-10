@@ -442,9 +442,29 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 ## 25. 三项修复真机验证记录（2026-11-10）
 
 - 环境：22021211RC / LineageOS23.2 / Android16 / 1080×2400@440；debug APK SHA-256 `41B792A4A9C0616AA0ADE786BED17AC495A34F96A849DF35AB4E40EC068936F2`。新增 **debug-only** `app/src/debug/.../qa/QaEditorActivity` 作为原生 EditText、Compose BasicTextField、WebView textarea 的验证宿主，不进入 release。
-- 原生 EditText：`A😀B` 用空格下方手势左移一个可见字符后 selection `4-4 -> 3-3`；两次退格依次得到 `A😀`、`A`，未出现代理对中间位置。
+- 原生 EditText：`A😀B` 空格手势结果 `4-4 -> 3-3`，另有多步手势测得 `4-4 -> 0-0` 与 `0-0 -> 3-3`，均落在字素边界、未进入代理对内部；两次退格依次得到 `A😀`、`A`。精确的 `3->1`/`1->3` 仍需用可选选区宿主补测。
 - Compose BasicTextField：`A😀B` 两次退格得到 `A`，emoji 删除完整；空格手势移动未观察到 selection 变化（当前宿主/Compose input connection 选择回调未闭环），需继续定位。
 - WebView textarea：`A😀B -> A😀` 正常删除 B，但再退格留下 **lone high surrogate** `A\ud83d`；现有 `deleteSurroundingText`/code-point 路径仍会破坏 emoji，属于本轮发现的真实 WebView 缺陷，未声称修复。
 - 英文补全撤销：JVM `KeyboardControllerUndoTest` / `KeyboardControllerEnglishPredictionTest` 通过；真机 QA 宿主中完成英文补全后进入编辑工具页点击“撤销”未改变文本，当前不能作为真机验收通过。
 - 学习词条删除后的持续输入/切设置/重启链路尚未完成设备脚本化，仍需补验证。
 - 结论：三项修复的 JVM 回归已闭环；设备验证暴露 WebView emoji 删除、Compose 光标移动、真机撤销与学习删除链路问题。长句解码质量优化暂不启动，先处理这些设备层问题。
+
+## 26. 设备阻塞项定位与补验（2026-11-10）
+
+### 26.1 修复与宿主校正
+
+- **校正第25节的 WebView/Compose 归因**：原 debug QA Activity 与 IME 共用主进程；将 [debug manifest](app/src/debug/AndroidManifest.xml) 中宿主移到独立 `:qa` 进程后，保持原有 UTF-16 字素删除算法，WebView 已通过 `A😀B -> A😀 -> A`，Compose 光标手势也生效。旧 `.tmp/device-qa/webfix2.xml` 保留，证明旧宿主中确实发生过破坏，但不再据此认定独立应用中的 WebView 本身有删除缺陷；同进程同步 InputConnection 上下文读取是宿主相关问题的定位线索。
+- [TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt)：区分上下文读取失败（null）与真实空串，失败时发送宿主退格事件，避免猜测删除一个 UTF-16 单元；正常读取仍按字素长度删除。修复多步移动反复读取原光标旁同一字素的问题，改为在一次有界读取中遍历实际边界；填满4096单元窗口时避免落在可能截断字素的远端边缘。
+- **真机撤销根因**：设备选区日志 `.tmp/device-qa/completion-selection-trace.log` 记录英文补全 `hel -> hello ` 的 `3 -> 0 -> 6` 回调；此前只预期最终6，将中间0当作外部移动并清空撤销历史。[KeyboardController.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardController.kt) 为补全、撤销、重做的删除阶段补入带原选区约束的中间位置预期，保留外部移动时失效保护。诊断日志已从产品代码移除。
+- [QaEditorActivity.kt](app/src/debug/java/com/bitap/keyboard/qa/QaEditorActivity.kt) 增加 empty 预置、`selectionStart/selectionEnd` 启动参数，并保留 WebView 的实际状态输出；仅存在于 debug 源集。
+- 新增 [AndroidTextSessionTest](app/src/test/java/com/bitap/keyboard/core/AndroidTextSessionTest.kt) 7项，直接覆盖生产 Android 适配器发给 InputConnection 的删除计数、精确/多步移动、选区方向与窗口边缘；英文补全控制器增加实际异步中间回调序列回归，覆盖补全、撤销和重做。
+
+### 26.2 真机与工程结果
+
+- 新增 [editor_correctness.ps1](scripts/device-qa/editor_correctness.ps1)、[learning_deletion.ps1](scripts/device-qa/learning_deletion.ps1)，复用 [qa_common.ps1](scripts/device-qa/qa_common.ps1)。脚本检查 Bitap 为当前且已显示的 IME，使用实际按键、空格下长按滑动、编辑页按钮及设置页删除按钮；不直接派发控制器动作、不直接写学习存储。
+- 最终 APK 编辑器矩阵 **36 PASS / 0 FAIL**：WebView / Compose BasicTextField / 原生 EditText 分别覆盖两次退格、`4 -> 3 -> 1 -> 3`、真实输入 `hel`、补全到 `hello `、编辑页撤销回 `hel`、重做到 `hello `；原生与Compose另有带初始选区的精确 `3 -> 1` / `1 -> 3`。证据目录 `.tmp/device-qa/editor-correctness/`，包括每步XML、`results.json` 和记录设备/实际安装包哈希的 `environment.json`。
+- 最终 APK 学习删除链路 **11 PASS / 0 FAIL**：真实输入 `ceshi` 并点击候选学习“测试” → 设置页实际点击该行“删除” → 在同一 IME 主进程（PID 31157）中继续提交“你好” → 重开设置 → force-stop 后重新选择 Bitap 并继续输入。删除词条始终未复活；继续输入时 `nihao/你好` 持久化计数20→21，所有原有条目保留且计数未减少。只读 `run-as` 快照用于核对存储，不直接改文件。证据目录 `.tmp/device-qa/learning-deletion/`，含UI XML、阶段存储快照、11项结果与安装包哈希。首次脚本因Compose无障碍树扁平化无法按父节点识别删除按钮而安全退出；改为按已观察到的标题/按钮垂直重叠位置匹配唯一按钮后，最终脚本完整通过。
+- 最终 debug APK 108,851,694B，SHA-256 `718F32004BB3EC42E480D2144820E563F446223687DE334867617E813A369E4E`；设备读取的安装包哈希与本地包一致。`:app:processReleaseMainManifest` 通过，合并后的 release manifest 不包含 `QaEditorActivity` / `:qa`。
+- **工程门禁（与设备验收分列）**：`scripts/verify.ps1` **RESULT PASS**；单测 **526项 / 0 failures / 0 errors / 4 skipped**；lint **0 errors / 29 warnings / 1 hint**；v1/v2/v3/D05语料、Python契约、文档192文件0断链、APK无INTERNET/ACCESS_NETWORK_STATE权限检查均通过。日志 `.tmp/verify-device-correctness.log`。
+- **本轮结论**：第25节的四项设备待办（WebView删除、Compose光标、真机补全撤销、学习删除链路）在上述单机宿主矩阵内已补验通过；工程门禁也通过。此结论取代第25节当时“部分通过”的状态，不扩展为全部设备/编辑器的产品验收。
+- 设备范围仍限22021211RC / LineageOS23.2 / Android16 / 1080×2400@440 / 竖屏默认字体与键盘高度；不是多ROM、多机型、TalkBack、横屏或长字素极端序列的产品验收。长句解码质量优化保持暂缓。

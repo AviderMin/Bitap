@@ -27,6 +27,40 @@ import org.junit.Test
 class KeyboardControllerEnglishPredictionTest {
 
     @Test
+    fun replacementCallbacksKeepCompletionUndoAndRedoHistory() {
+        val runtime = Runtime()
+        try {
+            val controller = runtime.controller
+            controller.onStartInput(EditorInputInfo.from(0, 0))
+            controller.dispatch(KeyboardAction.ToggleLanguage)
+            "hel".forEachIndexed { index, char ->
+                controller.dispatch(KeyboardAction.AppendInput(char.toString()))
+                controller.onSelectionChanged(index + 1, index + 1, -1, -1, index, index)
+            }
+            controller.dispatch(KeyboardAction.EnglishSuggestionTapped("hello"))
+            // Actual EditText device sequence: replacement exposes both the
+            // deletion and commit caret, after dispatch has completed.
+            controller.onSelectionChanged(0, 0, -1, -1, 3, 3)
+            controller.onSelectionChanged(6, 6, -1, -1, 0, 0)
+            assertTrue(controller.state.value.canUndo)
+
+            controller.dispatch(KeyboardAction.Undo)
+            assertEquals("hel", runtime.session.text)
+            controller.onSelectionChanged(0, 0, -1, -1, 6, 6)
+            controller.onSelectionChanged(3, 3, -1, -1, 0, 0)
+            assertTrue(controller.state.value.canRedo)
+
+            controller.dispatch(KeyboardAction.Redo)
+            assertEquals("hello ", runtime.session.text)
+            controller.onSelectionChanged(0, 0, -1, -1, 3, 3)
+            controller.onSelectionChanged(6, 6, -1, -1, 0, 0)
+            assertTrue(controller.state.value.canUndo)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
     fun typingLettersShowsCompletionAndTapReplacesPrefix() {
         val runtime = Runtime()
         try {

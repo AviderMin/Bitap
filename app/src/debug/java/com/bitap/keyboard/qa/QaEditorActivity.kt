@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 /**
  * Debug-only editor host for device QA. It is never part of the release app:
  * app/src/debug is only merged into the debug variant.
+ * Runs in :qa so synchronous IME context reads cannot block the editor's UI
+ * thread in the same process. All edits still pass through the real IME.
  *
  * Launch examples:
  *   adb shell am start -n com.bitap.keyboard/.qa.QaEditorActivity --es field native --es preset emoji
@@ -75,7 +77,7 @@ class QaEditorActivity : ComponentActivity() {
         setContentView(root)
         handler.post(object : Runnable {
             override fun run() {
-                statusView.text = currentStatus(field)
+                if (field != "web") statusView.text = currentStatus(field)
                 handler.postDelayed(this, 250)
             }
         })
@@ -94,7 +96,7 @@ class QaEditorActivity : ComponentActivity() {
             imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION
             setSingleLine(false)
             setText(initial)
-            setSelection(initial.length)
+            setSelection(initialSelection(initial).start, initialSelection(initial).end)
             textSize = 24f
             requestFocus()
             addTextChangedListener(object : TextWatcher {
@@ -108,11 +110,7 @@ class QaEditorActivity : ComponentActivity() {
 
     private fun addComposeEditor(root: LinearLayout, preset: String) {
         val initial = initialText(preset)
-        composeValue = if (preset == "selection") {
-            TextFieldValue(initial, TextRange(1, 3))
-        } else {
-            TextFieldValue(initial, TextRange(initial.length))
-        }
+        composeValue = TextFieldValue(initial, initialSelection(initial))
         val composeView = ComposeView(this)
         root.addView(composeView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(180)))
         composeView.setContent {
@@ -132,9 +130,10 @@ class QaEditorActivity : ComponentActivity() {
     }
 
     private fun addWebEditor(root: LinearLayout, preset: String) {
-        val initial = initialText(preset).replace("&", "&amp;").replace("<", "&lt;")
-        val selectionStart = if (preset == "selection") 1 else initial.length
-        val selectionEnd = if (preset == "selection") 3 else initial.length
+        val rawInitial = initialText(preset)
+        val initial = rawInitial.replace("&", "&amp;").replace("<", "&lt;")
+        val selectionStart = initialSelection(rawInitial).start
+        val selectionEnd = initialSelection(rawInitial).end
         val html = """
             <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
             <style>body{font-family:sans-serif;margin:12px}textarea{width:100%;height:180px;font-size:24px}
@@ -179,9 +178,19 @@ class QaEditorActivity : ComponentActivity() {
     }
 
     private fun initialText(preset: String): String = when (preset) {
+        "empty" -> ""
         "hel" -> "hel"
         "selection" -> "abcd"
         else -> "A😀B"
+    }
+
+    private fun initialSelection(text: String): TextRange {
+        val fallbackStart = if (intent.getStringExtra("preset") == "selection") 1 else text.length
+        val fallbackEnd = if (intent.getStringExtra("preset") == "selection") 3 else text.length
+        return TextRange(
+            intent.getIntExtra("selectionStart", fallbackStart).coerceIn(0, text.length),
+            intent.getIntExtra("selectionEnd", fallbackEnd).coerceIn(0, text.length),
+        )
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
