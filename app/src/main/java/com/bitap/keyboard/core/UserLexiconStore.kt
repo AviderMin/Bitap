@@ -35,13 +35,44 @@ interface UserLexiconStore {
     fun saveEntries(entries: List<UserLexiconEntry>)
 
     /**
-     * Save only when no clear() happened since [generation] was observed. Store
-     * implementations with delayed writes should re-check this before commit.
+     * Atomically replace entries only when both the clear generation and the
+     * persisted revision still match the values observed before the caller
+     * built [entries]. A stale snapshot (settings delete/clear won the race)
+     * must not be written back; the caller reloads the store instead.
+     *
+     * Implementations shared by several instances must perform the checks and
+     * the write under one lock; the default here is only a best-effort
+     * contract for simple single-instance test stores.
      */
-    fun saveEntriesIfCurrent(entries: List<UserLexiconEntry>, generation: Long): Boolean {
+    fun saveEntriesIfCurrent(
+        entries: List<UserLexiconEntry>,
+        generation: Long,
+        expectedRevision: Long,
+    ): Boolean {
         if (generation != currentClearGeneration()) return false
+        if (expectedRevision != currentRevision()) return false
         saveEntries(entries)
         return true
+    }
+
+    /** Legacy overload guarding only against clear(); prefer the revision form. */
+    fun saveEntriesIfCurrent(entries: List<UserLexiconEntry>, generation: Long): Boolean =
+        saveEntriesIfCurrent(entries, generation, currentRevision())
+
+    /**
+     * Atomically read the current entries, apply [transform] and persist the
+     * result. Used by settings single-entry deletion so a concurrent engine
+     * save cannot be lost between separate load and save calls. Returns the
+     * entries that are now stored. Implementations shared by several instances
+     * must override this with one lock for read + transform + write; the
+     * default is a best-effort contract for simple test stores.
+     */
+    fun updateEntries(
+        transform: (List<UserLexiconEntry>) -> List<UserLexiconEntry>,
+    ): List<UserLexiconEntry> {
+        val updated = transform(loadEntries())
+        saveEntries(updated)
+        return updated
     }
 
     fun clear()
@@ -151,58 +182,93 @@ interface UserLexiconStore {
 /** File-backed store used by tests and non-Android callers. */
 class FileUserLexiconStore(private val file: File) : UserLexiconStore {
 
-    private val lock = Any()
     private val canonicalPath = runCatching { file.canonicalPath }.getOrDefault(file.absolutePath)
+
+    /** One lock per canonical path, shared by every store instance for that file. */
+    private val lock = pathLock(canonicalPath)
 
     override fun currentRevision(): Long = revisionCounter(canonicalPath).get()
 
     override fun load(): Map<String, Int> = loadEntries().associate { it.word to it.count }
 
     override fun save(weights: Map<String, Int>) {
-        saveRaw(UserLexiconStore.encode(weights))
+        val raw = UserLexiconStore.encode(weights)
+        synchronized(lock) { writeRawLocked(raw) }
     }
 
     override fun loadEntries(): List<UserLexiconEntry> = synchronized(lock) {
+        readEntriesLocked()
+    }
+
+    private fun readEntriesLocked(): List<UserLexiconEntry> {
         if (!file.isFile) return emptyList()
-        runCatching {
+        return runCatching {
             UserLexiconStore.decodeEntries(file.readText(Charsets.UTF_8))
         }.getOrDefault(emptyList())
     }
 
     override fun saveEntries(entries: List<UserLexiconEntry>) {
-        saveRaw(UserLexiconStore.encodeEntries(entries))
+        synchronized(lock) { writeEntriesLocked(entries) }
     }
 
-    private fun saveRaw(raw: String) {
-        val written = synchronized(lock) {
-            runCatching {
-                file.parentFile?.mkdirs()
-                val temp = File(file.parentFile, file.name + ".tmp")
-                temp.writeText(raw, Charsets.UTF_8)
-                if (!temp.renameTo(file)) {
-                    file.writeText(temp.readText(Charsets.UTF_8), Charsets.UTF_8)
-                    temp.delete()
-                }
-                true
-            }.getOrDefault(false)
-        }
+    override fun saveEntriesIfCurrent(
+        entries: List<UserLexiconEntry>,
+        generation: Long,
+        expectedRevision: Long,
+    ): Boolean = synchronized(lock) {
+        if (generation != UserLexiconStore.currentClearGeneration()) return@synchronized false
+        if (expectedRevision != revisionCounter(canonicalPath).get()) return@synchronized false
+        writeEntriesLocked(entries)
+    }
+
+    override fun updateEntries(
+        transform: (List<UserLexiconEntry>) -> List<UserLexiconEntry>,
+    ): List<UserLexiconEntry> = synchronized(lock) {
+        val current = readEntriesLocked()
+        val updated = transform(current)
+        if (writeEntriesLocked(updated)) updated else current
+    }
+
+    /** Writes entries and bumps the shared revision; caller holds [lock]. */
+    private fun writeEntriesLocked(entries: List<UserLexiconEntry>): Boolean =
+        writeRawLocked(UserLexiconStore.encodeEntries(entries))
+
+    /** Writes raw content and bumps the shared revision; caller holds [lock]. */
+    private fun writeRawLocked(raw: String): Boolean {
+        val written = runCatching {
+            file.parentFile?.mkdirs()
+            val temp = File(file.parentFile, file.name + ".tmp")
+            temp.writeText(raw, Charsets.UTF_8)
+            if (!temp.renameTo(file)) {
+                file.writeText(temp.readText(Charsets.UTF_8), Charsets.UTF_8)
+                temp.delete()
+            }
+            true
+        }.getOrDefault(false)
         if (written) revisionCounter(canonicalPath).incrementAndGet()
+        return written
     }
 
     override fun clear() {
-        UserLexiconStore.markCleared()
         synchronized(lock) {
+            UserLexiconStore.markCleared()
             runCatching { file.delete() }
+            revisionCounter(canonicalPath).incrementAndGet()
         }
-        revisionCounter(canonicalPath).incrementAndGet()
     }
 
     companion object {
         /** Revision counters shared by every store instance for one canonical path. */
         private val revisions = ConcurrentHashMap<String, AtomicLong>()
 
+        /** Locks shared by every store instance for one canonical path. */
+        private val pathLocks = ConcurrentHashMap<String, Any>()
+
         internal fun revisionCounter(canonicalPath: String): AtomicLong =
             revisions.computeIfAbsent(canonicalPath) { AtomicLong(0L) }
+
+        internal fun pathLock(canonicalPath: String): Any =
+            pathLocks.computeIfAbsent(canonicalPath) { Any() }
     }
 }
 
@@ -215,18 +281,27 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
         UserLexiconStore.PREFERENCES_NAME,
     )
 
+    /** One instance lock: read/check/transform/write must not interleave. */
+    private val lock = Any()
+
     override fun currentRevision(): Long = revision.get()
 
     override fun load(): Map<String, Int> = loadEntries().associate { it.word to it.count }
 
     override fun save(weights: Map<String, Int>) {
-        preferences.edit()
-            .putString(UserLexiconStore.KEY_WEIGHTS, UserLexiconStore.encode(weights))
-            .apply()
-        revision.incrementAndGet()
+        synchronized(lock) {
+            preferences.edit()
+                .putString(UserLexiconStore.KEY_WEIGHTS, UserLexiconStore.encode(weights))
+                .apply()
+            revision.incrementAndGet()
+        }
     }
 
-    override fun loadEntries(): List<UserLexiconEntry> {
+    override fun loadEntries(): List<UserLexiconEntry> = synchronized(lock) {
+        readEntriesLocked()
+    }
+
+    private fun readEntriesLocked(): List<UserLexiconEntry> {
         val fromEntries = UserLexiconStore.decodeEntries(
             preferences.getString(UserLexiconStore.KEY_ENTRIES, null),
         )
@@ -236,6 +311,30 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
     }
 
     override fun saveEntries(entries: List<UserLexiconEntry>) {
+        synchronized(lock) { writeEntriesLocked(entries) }
+    }
+
+    override fun saveEntriesIfCurrent(
+        entries: List<UserLexiconEntry>,
+        generation: Long,
+        expectedRevision: Long,
+    ): Boolean = synchronized(lock) {
+        if (generation != UserLexiconStore.currentClearGeneration()) return@synchronized false
+        if (expectedRevision != revision.get()) return@synchronized false
+        writeEntriesLocked(entries)
+        true
+    }
+
+    override fun updateEntries(
+        transform: (List<UserLexiconEntry>) -> List<UserLexiconEntry>,
+    ): List<UserLexiconEntry> = synchronized(lock) {
+        val updated = transform(readEntriesLocked())
+        writeEntriesLocked(updated)
+        updated
+    }
+
+    /** Writes entries and bumps the process/name-scoped revision; caller holds [lock]. */
+    private fun writeEntriesLocked(entries: List<UserLexiconEntry>) {
         preferences.edit()
             .putString(UserLexiconStore.KEY_ENTRIES, UserLexiconStore.encodeEntries(entries))
             .remove(UserLexiconStore.KEY_WEIGHTS)
@@ -244,11 +343,13 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
     }
 
     override fun clear() {
-        UserLexiconStore.markCleared()
-        preferences.edit()
-            .remove(UserLexiconStore.KEY_ENTRIES)
-            .remove(UserLexiconStore.KEY_WEIGHTS)
-            .apply()
-        revision.incrementAndGet()
+        synchronized(lock) {
+            UserLexiconStore.markCleared()
+            preferences.edit()
+                .remove(UserLexiconStore.KEY_ENTRIES)
+                .remove(UserLexiconStore.KEY_WEIGHTS)
+                .apply()
+            revision.incrementAndGet()
+        }
     }
 }

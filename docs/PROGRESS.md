@@ -432,3 +432,19 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 - 真机：`mixed_input.ps1` 扩展到 8 项并 **8 PASS / 0 FAIL**，新增 `nihaom -> 你好吗`、`zenml -> 怎么了`、`nihaob -> 你好吧`。
 - 边界：当前只覆盖常见单字母语气词简拼，不做方言/多音语气词穷举；不按句子写规则，不改变完整拼音路径。
 - `scripts/verify.ps1`（2026-11-10）：**RESULT PASS**。单测503项 / 0 failures / 0 errors / 4 skipped（86个测试XML）；lint 0 errors / 28 warnings / 1 hint；debug APK 109,782,770B，SHA-256 `00BD72296D48E5173A7EFB2ADCF8A4C06619485F74D993ACFC322C78B82A8E47`；文档187文件0断链、语料/Python契约/无网络权限均通过。
+## 24. 三项编辑与学习数据正确性修复（2026-11-10）
+
+- **P1 学习词条删除与延迟保存的原子性**：[UserLexiconStore.kt](app/src/main/java/com/bitap/keyboard/core/UserLexiconStore.kt) 增加 `saveEntriesIfCurrent(entries, generation, expectedRevision)` 与 `updateEntries { ... }`；File store 使用按 canonical path 共享的锁，SharedPreferences store 使用实例锁，版本/清除代数校验和写入在同一锁内完成。[PinyinEngine.kt](app/src/main/java/com/bitap/keyboard/core/PinyinEngine.kt) 保存前捕获 expectedRevision，CAS 失败时从 store 重载并替换内存，不写回旧快照；[BitapApp.kt](app/src/main/java/com/bitap/keyboard/ui/BitapApp.kt) 单条删除改为 store 原子更新。回归：`KeyboardR08Test` 10/10、`KeyboardS04Test` 3/3。
+- **P1 光标按字素簇移动**：[TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt) 的 `UnicodeGrapheme` 增加前后边界遍历 `moveBy`，`AndroidTextSession.moveCursorBy()` 按可见字素逐簇移动，A😀B、旗帜、ZWJ family、组合字符不会被代理对/组合序列截断；WordBoundary 已有 codePoint 边界保护。回归：`UnicodeGraphemeTest` 13 项、`TextSessionSelectionTest` 6 项。
+- **P2 英文补全撤销恢复原前缀**：[KeyboardController.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardController.kt) 的 `UndoRecord` 增加 `replacedText`；`hel -> hello -> Undo` 恢复 `hel`，Redo 恢复 `hello `，选区替换同样记录替换前后文本。回归：`KeyboardControllerUndoTest` 6 项、`KeyboardControllerEnglishPredictionTest` 12 项。
+- `scripts/verify.ps1`（2026-11-10）：**RESULT PASS**。单测518项 / 0 failures / 0 errors / 4 skipped（86个测试XML）；lint 0 errors / 29 warnings / 1 hint；debug APK 108,851,118B，SHA-256 `41B792A4A9C0616AA0ADE786BED17AC495A34F96A849DF35AB4E40EC068936F2`；文档188文件0断链、语料/Python契约/无网络权限均通过。
+- 未做真机验证；本轮修复是 JVM 回归和代码审查闭环，emoji/选区/真实编辑器行为仍需设备矩阵验证。
+## 25. 三项修复真机验证记录（2026-11-10）
+
+- 环境：22021211RC / LineageOS23.2 / Android16 / 1080×2400@440；debug APK SHA-256 `41B792A4A9C0616AA0ADE786BED17AC495A34F96A849DF35AB4E40EC068936F2`。新增 **debug-only** `app/src/debug/.../qa/QaEditorActivity` 作为原生 EditText、Compose BasicTextField、WebView textarea 的验证宿主，不进入 release。
+- 原生 EditText：`A😀B` 用空格下方手势左移一个可见字符后 selection `4-4 -> 3-3`；两次退格依次得到 `A😀`、`A`，未出现代理对中间位置。
+- Compose BasicTextField：`A😀B` 两次退格得到 `A`，emoji 删除完整；空格手势移动未观察到 selection 变化（当前宿主/Compose input connection 选择回调未闭环），需继续定位。
+- WebView textarea：`A😀B -> A😀` 正常删除 B，但再退格留下 **lone high surrogate** `A\ud83d`；现有 `deleteSurroundingText`/code-point 路径仍会破坏 emoji，属于本轮发现的真实 WebView 缺陷，未声称修复。
+- 英文补全撤销：JVM `KeyboardControllerUndoTest` / `KeyboardControllerEnglishPredictionTest` 通过；真机 QA 宿主中完成英文补全后进入编辑工具页点击“撤销”未改变文本，当前不能作为真机验收通过。
+- 学习词条删除后的持续输入/切设置/重启链路尚未完成设备脚本化，仍需补验证。
+- 结论：三项修复的 JVM 回归已闭环；设备验证暴露 WebView emoji 删除、Compose 光标移动、真机撤销与学习删除链路问题。长句解码质量优化暂不启动，先处理这些设备层问题。

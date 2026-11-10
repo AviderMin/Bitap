@@ -83,7 +83,8 @@ class TestEditorTextSession(
 
     override fun moveCursorBy(delta: Int): Boolean {
         if (delta == 0) return false
-        val target = (selectionEnd + delta).coerceIn(0, text.length)
+        val anchor = if (delta > 0) maxOf(selectionStart, selectionEnd) else minOf(selectionStart, selectionEnd)
+        val target = UnicodeGrapheme.moveBy(text, anchor, delta)
         selectionStart = target
         selectionEnd = target
         log += "moveCursor:$delta"

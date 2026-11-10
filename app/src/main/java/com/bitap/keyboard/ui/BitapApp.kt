@@ -243,12 +243,14 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
                                 // drops entries written after this screen loaded.
                                 val remaining = withContext(Dispatchers.IO) {
                                     runCatching {
-                                        val store = UserLexiconStore.create(context)
-                                        val updated = store.loadEntries().filterNot {
-                                            it.pinyin == entry.pinyin && it.word == entry.word
+                                        // Read, filter and write under the store's
+                                        // atomic update lock so a concurrent engine
+                                        // save cannot be lost between those steps.
+                                        UserLexiconStore.create(context).updateEntries { current ->
+                                            current.filterNot {
+                                                it.pinyin == entry.pinyin && it.word == entry.word
+                                            }
                                         }
-                                        store.saveEntries(updated)
-                                        updated
                                     }.getOrNull()
                                 }
                                 if (remaining != null) {

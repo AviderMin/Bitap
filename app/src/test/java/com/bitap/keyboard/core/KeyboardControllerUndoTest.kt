@@ -134,6 +134,32 @@ class KeyboardControllerUndoTest {
         }
     }
 
+    @Test
+    fun undoRestoresSelectionTextReplacedByCommitAndRedoReappliesIt() {
+        val runtime = Runtime(initialText = "abcdef")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+
+            // Select "cd" and let the next IME commit replace it with "x".
+            runtime.session.select(2, 4)
+            runtime.controller.onSelectionChanged(2, 4, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("x"))
+            assertEquals("abxef", runtime.session.text)
+
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("undo must restore the exact selected text", "abcdef", runtime.session.text)
+            assertEquals("caret returns to the end of the restored selection", 4, runtime.session.cursor)
+            assertTrue(runtime.controller.state.value.canRedo)
+
+            runtime.controller.dispatch(KeyboardAction.Redo)
+            assertEquals("redo must replace the restored selection again", "abxef", runtime.session.text)
+            assertEquals("caret returns to the committed replacement end", 3, runtime.session.cursor)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
     private inner class Runtime(initialText: String = "") {
         val scheduler = TestCoroutineScheduler()
         val dispatcher = StandardTestDispatcher(scheduler)

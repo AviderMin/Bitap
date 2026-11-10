@@ -54,4 +54,71 @@ class UnicodeGraphemeTest {
         assertEquals(11, UnicodeGrapheme.lastGraphemeLength("👨‍👩‍👧‍👦"))
         assertEquals(2, UnicodeGrapheme.lastGraphemeLength("e\u0301"))
     }
+
+    @Test
+    fun forwardTraversalMovesOneGraphemeAtATime() {
+        val text = "A😀B"
+        assertEquals(1, UnicodeGrapheme.nextBoundary(text, 0))
+        assertEquals(3, UnicodeGrapheme.nextBoundary(text, 1))
+        assertEquals(4, UnicodeGrapheme.nextBoundary(text, 3))
+        assertEquals(4, UnicodeGrapheme.nextBoundary(text, 4))
+        assertEquals(3, UnicodeGrapheme.moveBy(text, 0, 2))
+    }
+
+    @Test
+    fun backwardTraversalMovesOneGraphemeAtATime() {
+        val text = "A😀B"
+        assertEquals(3, UnicodeGrapheme.previousBoundary(text, 4))
+        assertEquals(1, UnicodeGrapheme.previousBoundary(text, 3))
+        assertEquals(0, UnicodeGrapheme.previousBoundary(text, 1))
+        assertEquals(0, UnicodeGrapheme.previousBoundary(text, 0))
+        assertEquals(1, UnicodeGrapheme.moveBy(text, 4, -2))
+    }
+
+    @Test
+    fun forwardAndBackwardTraversalKeepsFlagsWhole() {
+        val text = "a🇨🇳🇺🇸b"
+        assertEquals(5, UnicodeGrapheme.nextBoundary(text, 1))
+        assertEquals(9, UnicodeGrapheme.nextBoundary(text, 5))
+        assertEquals(10, UnicodeGrapheme.nextBoundary(text, 9))
+        assertEquals(9, UnicodeGrapheme.previousBoundary(text, 10))
+        assertEquals(5, UnicodeGrapheme.previousBoundary(text, 9))
+        assertEquals(1, UnicodeGrapheme.previousBoundary(text, 5))
+        assertEquals(2, UnicodeGrapheme.graphemeCount("🇨🇳🇺🇸"))
+    }
+
+    @Test
+    fun forwardAndBackwardTraversalKeepsZwjFamilyWhole() {
+        val text = "X👨‍👩‍👧‍👦Y"
+        assertEquals(12, UnicodeGrapheme.nextBoundary(text, 1))
+        assertEquals(13, UnicodeGrapheme.nextBoundary(text, 12))
+        assertEquals(12, UnicodeGrapheme.previousBoundary(text, 13))
+        assertEquals(1, UnicodeGrapheme.previousBoundary(text, 12))
+        assertEquals(1, UnicodeGrapheme.moveBy(text, 13, -2))
+    }
+
+    @Test
+    fun forwardAndBackwardTraversalKeepsCombiningMarksWithBase() {
+        val text = "ae\u0301b"
+        assertEquals(1, UnicodeGrapheme.nextBoundary(text, 0))
+        assertEquals(3, UnicodeGrapheme.nextBoundary(text, 1))
+        assertEquals(1, UnicodeGrapheme.previousBoundary(text, 3))
+        assertEquals(3, UnicodeGrapheme.moveBy(text, 1, 1))
+        assertEquals(1, UnicodeGrapheme.moveBy(text, 3, -1))
+    }
+
+    @Test
+    fun graphemeCountCountsVisibleCharacters() {
+        assertEquals(3, UnicodeGrapheme.graphemeCount("A😀B"))
+        assertEquals(1, UnicodeGrapheme.graphemeCount("👨‍👩‍👧‍👦"))
+        assertEquals(2, UnicodeGrapheme.graphemeCount("e\u0301a"))
+        assertEquals(0, UnicodeGrapheme.graphemeCount(""))
+    }
+
+    @Test
+    fun wordBoundariesNeverSplitSurrogatePairs() {
+        assertEquals(1, WordBoundary.nextWordEnd("A😀B", 0))
+        assertEquals(3, WordBoundary.previousWordStart("A😀B", 4))
+        assertEquals(1, WordBoundary.previousWordStart("A😀B", 3))
+    }
 }

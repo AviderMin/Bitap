@@ -49,6 +49,66 @@ class KeyboardControllerEnglishPredictionTest {
     }
 
     @Test
+    fun undoCompletionRestoresTypedPrefixAndRedoReappliesCompletion() {
+        val runtime = Runtime()
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+            listOf("h", "e", "l").forEach { runtime.controller.dispatch(KeyboardAction.AppendInput(it)) }
+            runtime.controller.dispatch(KeyboardAction.EnglishSuggestionTapped("hello"))
+            assertEquals("hello ", runtime.session.text)
+
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("undo must restore the replaced typed prefix", "hel", runtime.session.text)
+            assertEquals("caret returns to the original prefix end", 3, runtime.session.cursor)
+            assertTrue("undo must offer redo", runtime.controller.state.value.canRedo)
+
+            runtime.controller.dispatch(KeyboardAction.Redo)
+            assertEquals("redo must re-apply the completion", "hello ", runtime.session.text)
+            assertEquals(6, runtime.session.cursor)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun undoCompletionRestoresTheActualTypedCaseOfThePrefix() {
+        val runtime = Runtime()
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+            listOf("H", "e", "l").forEach { runtime.controller.dispatch(KeyboardAction.AppendInput(it)) }
+            runtime.controller.dispatch(KeyboardAction.EnglishSuggestionTapped("hello"))
+            assertEquals("hello ", runtime.session.text)
+
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("undo must restore the exact typed case", "Hel", runtime.session.text)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun externalCaretMoveInvalidatesCompletionUndo() {
+        val runtime = Runtime()
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+            listOf("h", "e", "l").forEach { runtime.controller.dispatch(KeyboardAction.AppendInput(it)) }
+            runtime.controller.dispatch(KeyboardAction.EnglishSuggestionTapped("hello"))
+            assertEquals("hello ", runtime.session.text)
+
+            runtime.session.select(0, 0)
+            runtime.controller.onSelectionChanged(0, 0, -1, -1, oldSelectionStart = 6, oldSelectionEnd = 6)
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("external caret move must invalidate completion undo", "hello ", runtime.session.text)
+            assertFalse(runtime.controller.state.value.canUndo)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
     fun externalCursorMoveInvalidatesCompletionBeforeTap() {
         val runtime = Runtime()
         try {

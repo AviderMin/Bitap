@@ -150,13 +150,20 @@ class KeyboardController(
         val candidatesEnd: Int,
     )
 
-    /** One exact IME commit: the typed text and its absolute [start]..[end] range. */
+    /**
+     * One exact IME edit: [text] occupies the absolute [start]..[end] range now,
+     * and [replacedText] was the text in [start]..[start]+replacedText.length
+     * before the edit. Undo removes [text] and re-inserts [replacedText]; redo
+     * removes the restored [replacedText] and re-inserts [text].
+     */
     private data class UndoRecord(
         val text: String,
         val start: Int,
         val end: Int,
         /** Input connection that produced the commit; undo never crosses editors. */
         val sessionId: String,
+        /** Exact text replaced by this edit; empty for a pure insertion. */
+        val replacedText: String = "",
     )
 
     /** A selection callback our own command is expected to produce. */
@@ -292,6 +299,7 @@ class KeyboardController(
                         start = first.start,
                         end = last.end,
                         sessionId = inputSessionId,
+                        replacedText = first.replacedText,
                     ),
                 )
                 while (undoStack.size > MAX_UNDO_STEPS) undoStack.removeFirst()
@@ -587,6 +595,13 @@ class KeyboardController(
                 val text = command.text
                 val start = virtualComposingStart ?: selectionStartOrFallback()
                 val selectionBefore = virtualSelection
+                // A non-collapsed selection is replaced by commitText; keep the
+                // exact old text so undo can restore the selection content.
+                val replacedText = if (selectionBefore != null && selectionBefore.start != selectionBefore.end) {
+                    runCatching { textSession.getSelectedText() }.getOrNull().orEmpty()
+                } else {
+                    ""
+                }
                 textSession.commitText(text)
                 val end = start + text.length
                 virtualComposingStart = null
@@ -597,6 +612,7 @@ class KeyboardController(
                         start = start,
                         end = end,
                         sessionId = inputSessionId,
+                        replacedText = replacedText,
                     )
                     queueExpectedSelection(from = selectionBefore ?: EditorSelection(start, start), to = end)
                 }
@@ -688,10 +704,15 @@ class KeyboardController(
             return
         }
         runCatching { textSession.deleteBackward(record.text.length) }
+        if (record.replacedText.isNotEmpty()) {
+            // Restore the exact text this edit replaced (English prefix or a
+            // selection), returning the caret to the original edit end.
+            runCatching { textSession.commitText(record.replacedText) }
+        }
         undoStack.removeLast()
         redoStack.addLast(record)
         while (redoStack.size > MAX_UNDO_STEPS) redoStack.removeFirst()
-        noteDirectEditorEdit(record.start)
+        noteDirectEditorEdit(record.start + record.replacedText.length)
         updateUndoAvailability()
         resetEnglishTracking()
     }
@@ -705,9 +726,18 @@ class KeyboardController(
             return
         }
         val selection = currentEditorSelection()
-        if (selection == null || selection.start != selection.end || selection.start != record.start) {
+        val restoredEnd = record.start + record.replacedText.length
+        if (selection == null || selection.start != selection.end || selection.start != restoredEnd) {
             clearUndoState()
             return
+        }
+        if (record.replacedText.isNotEmpty()) {
+            val before = runCatching { textSession.getTextBeforeCursor(record.replacedText.length) }.getOrNull()
+            if (before != record.replacedText) {
+                clearUndoState()
+                return
+            }
+            runCatching { textSession.deleteBackward(record.replacedText.length) }
         }
         runCatching { textSession.commitText(record.text) }
         redoStack.removeLast()
@@ -856,14 +886,18 @@ class KeyboardController(
         }
         val caret = selection.start
         val prefix = englishBuffer
-        if (prefix.isNotEmpty()) {
-            // The tracked prefix must still be exactly what sits before the caret
-            // (case-insensitive) before anything is deleted (P1-2).
+        // The tracked prefix must still be exactly what sits before the caret
+        // (case-insensitive) before anything is deleted (P1-2). Keep the actual
+        // typed text, including its case, so undo can restore it exactly.
+        val replacedText = if (prefix.isEmpty()) {
+            ""
+        } else {
             val before = runCatching { textSession.getTextBeforeCursor(prefix.length) }.getOrNull()
             if (before == null || !before.equals(prefix, ignoreCase = true)) {
                 resetEnglishTracking()
                 return
             }
+            before
         }
         if (prefix.isNotEmpty()) {
             runCatching { textSession.deleteBackward(prefix.length) }
@@ -877,6 +911,7 @@ class KeyboardController(
                 start = start,
                 end = start + inserted.length,
                 sessionId = inputSessionId,
+                replacedText = replacedText,
             ),
         )
         while (undoStack.size > MAX_UNDO_STEPS) undoStack.removeFirst()
@@ -1158,6 +1193,7 @@ class KeyboardController(
                 start = commitStart,
                 end = commitStart + word.length,
                 sessionId = inputSessionId,
+                replacedText = plan.original,
             ),
         )
         while (undoStack.size > MAX_UNDO_STEPS) undoStack.removeFirst()

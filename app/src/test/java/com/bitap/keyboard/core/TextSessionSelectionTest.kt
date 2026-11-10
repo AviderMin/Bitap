@@ -1,7 +1,9 @@
 package com.bitap.keyboard.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -41,6 +43,50 @@ class TextSessionSelectionTest {
 
         assertEquals(EditorSelection(3, 3), session.getSelection())
         assertEquals("", session.getTextAfterCursor(8))
+    }
+
+    @Test
+    fun moveCursorByNeverSelectsInsideSurrogatePair() {
+        val session = TestEditorTextSession(initialText = "A😀B")
+        // The fake starts with the caret after B at UTF-16 offset 4.
+        assertTrue(session.moveCursorBy(-1))
+        assertEquals("left one grapheme stops before B", 3, session.cursor)
+        assertNotInsideSurrogate(session)
+
+        assertTrue(session.moveCursorBy(-1))
+        assertEquals("left again stops before the emoji", 1, session.cursor)
+        assertNotInsideSurrogate(session)
+
+        session.updateSelection(1, 1)
+        assertTrue(session.moveCursorBy(1))
+        assertEquals("right stops after the emoji", 3, session.cursor)
+        assertNotInsideSurrogate(session)
+
+        session.updateSelection(3, 3)
+        assertTrue(session.moveCursorBy(-1))
+        assertEquals("the classic emoji regression must land before the emoji", 1, session.cursor)
+        assertNotInsideSurrogate(session)
+    }
+
+    @Test
+    fun moveCursorByKeepsZwjFamilyWhole() {
+        val session = TestEditorTextSession(initialText = "X👨‍👩‍👧‍👦Y")
+        assertTrue(session.moveCursorBy(-1))
+        assertEquals(12, session.cursor)
+        assertTrue(session.moveCursorBy(-1))
+        assertEquals(1, session.cursor)
+        assertTrue(session.moveCursorBy(1))
+        assertEquals(12, session.cursor)
+    }
+
+    private fun assertNotInsideSurrogate(session: TestEditorTextSession) {
+        val cursor = session.cursor
+        if (cursor in 1 until session.text.length) {
+            assertFalse(
+                "cursor " + cursor + " splits a surrogate pair",
+                Character.isLowSurrogate(session.text[cursor]),
+            )
+        }
     }
 
     @Test

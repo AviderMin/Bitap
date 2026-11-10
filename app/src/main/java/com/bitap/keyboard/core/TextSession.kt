@@ -8,14 +8,20 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
+import com.bitap.keyboard.BuildConfig
+
+private fun qaLog(message: String) {
+    if (BuildConfig.DEBUG) android.util.Log.d("BitapTextQa", message)
+}
 
 /**
- * Bounded Unicode grapheme-cluster boundary handling for editor deletion.
+ * Bounded Unicode grapheme-cluster boundary handling for editor deletion and
+ * cursor movement.
  *
- * Android's [InputConnection.deleteSurroundingText] counts UTF-16 code units,
- * not user-visible characters. This helper keeps one backspace from splitting
- * surrogate pairs, ZWJ emoji, skin-tone modifiers, regional-indicator flags,
- * variation selectors and combining marks.
+ * Android's [InputConnection] addresses text in UTF-16 code units, not
+ * user-visible characters. This helper keeps one backspace or cursor step from
+ * splitting surrogate pairs, ZWJ emoji, skin-tone modifiers, regional-indicator
+ * flags, variation selectors and combining marks.
  */
 internal object UnicodeGrapheme {
     private const val ZWJ = 0x200D
@@ -42,10 +48,103 @@ internal object UnicodeGrapheme {
         return text.length - text.offsetByCodePoints(0, start)
     }
 
+    /** Number of Unicode code points in the last user-visible cluster. */
+    fun lastGraphemeCodePointCount(text: String): Int {
+        val length = lastGraphemeLength(text)
+        if (length <= 0) return 0
+        val start = text.length - length
+        return Character.codePointCount(text, start, text.length)
+    }
+
+    /** True when [text] ends in a lone UTF-16 surrogate (invalid editor text). */
+    fun endsWithUnpairedSurrogate(text: String): Boolean {
+        if (text.isEmpty()) return false
+        val last = text[text.length - 1]
+        if (Character.isHighSurrogate(last)) return true
+        if (Character.isLowSurrogate(last)) {
+            return text.length < 2 || !Character.isHighSurrogate(text[text.length - 2])
+        }
+        return false
+    }
+
     /** Returns [text] with its last user-visible character removed. */
     fun dropLastGrapheme(text: String): String {
         val length = lastGraphemeLength(text)
         return if (length <= 0) text else text.dropLast(length)
+    }
+
+    /** Number of user-visible grapheme clusters in [text]. */
+    fun graphemeCount(text: String): Int = clusterBoundaries(text).size - 1
+
+    /** UTF-16 length of the first user-visible grapheme cluster in [text]. */
+    fun firstGraphemeLength(text: String): Int {
+        if (text.isEmpty()) return 0
+        val boundaries = clusterBoundaries(text)
+        return if (boundaries.size > 1) boundaries[1] else 0
+    }
+
+    /** UTF-16 offset of the first cluster boundary after [from]. */
+    fun nextBoundary(text: String, from: Int): Int = moveBy(text, from, 1)
+
+    /** UTF-16 offset of the first cluster boundary before [from]. */
+    fun previousBoundary(text: String, from: Int): Int = moveBy(text, from, -1)
+
+    /**
+     * Moves [from] by [delta] user-visible grapheme clusters inside [text].
+     *
+     * Positive [delta] lands on the end boundary of the next cluster(s) and
+     * negative [delta] on the start boundary of the previous one(s). An offset
+     * that already points inside a cluster is resolved to that cluster first, so
+     * the result never splits a surrogate pair, skin-tone sequence, ZWJ emoji,
+     * flag, variation selector or combining mark. The result is clamped to
+     * 0 through text.length.
+     */
+    fun moveBy(text: String, from: Int, delta: Int): Int {
+        val safeFrom = from.coerceIn(0, text.length)
+        if (text.isEmpty() || delta == 0) return safeFrom
+        val boundaries = clusterBoundaries(text)
+        val index = boundaryIndexAtOrBefore(boundaries, safeFrom)
+        val insideCluster = boundaries[index] != safeFrom
+        val step = delta.coerceIn(-boundaries.size, boundaries.size)
+        val target = if (step > 0) {
+            index + step
+        } else {
+            index + step + if (insideCluster) 1 else 0
+        }
+        return boundaries[target.coerceIn(0, boundaries.size - 1)]
+    }
+
+    /** UTF-16 offsets of every grapheme-cluster boundary in [text]. */
+    private fun clusterBoundaries(text: String): IntArray {
+        val codePoints = toCodePoints(text)
+        val boundaries = IntArray(codePoints.size + 1)
+        var boundaryCount = 0
+        var utf16Index = 0
+        boundaries[boundaryCount++] = 0
+        for (index in codePoints.indices) {
+            if (index > 0 && !joins(codePoints, index - 1, index)) {
+                boundaries[boundaryCount++] = utf16Index
+            }
+            utf16Index += Character.charCount(codePoints[index])
+        }
+        if (boundaries[boundaryCount - 1] != text.length) {
+            boundaries[boundaryCount++] = text.length
+        }
+        return boundaries.copyOf(boundaryCount)
+    }
+
+    private fun boundaryIndexAtOrBefore(boundaries: IntArray, offset: Int): Int {
+        var low = 0
+        var high = boundaries.size - 1
+        while (low < high) {
+            val middle = (low + high + 1) ushr 1
+            if (boundaries[middle] <= offset) {
+                low = middle
+            } else {
+                high = middle - 1
+            }
+        }
+        return low
     }
 
     private fun toCodePoints(text: String): IntArray {
@@ -294,6 +393,7 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     override fun deleteBackward() {
         val input = connection ?: return
         invalidateSelectionCache()
+        qaLog("delete input=" + input.javaClass.name + " before=" + input.getTextBeforeCursor(16, 0)?.toString())
         val selection = input.getSelectedText(0)
         if (!selection.isNullOrEmpty()) {
             input.commitText("", 1)
@@ -302,8 +402,20 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
         // Read a bounded suffix only; grapheme segmentation below never scans
         // the whole editor. 64 UTF-16 units cover even long ZWJ/tag sequences.
         val before = input.getTextBeforeCursor(64, 0)?.toString().orEmpty()
-        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before).coerceAtLeast(if (before.isEmpty()) 1 else 0)
-        input.deleteSurroundingText(deleteCount, 0)
+        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before)
+        if (deleteCount <= 0) {
+            input.deleteSurroundingText(1, 0)
+            return
+        }
+        // WebView (and some other hosts) interpret deleteSurroundingText counts
+        // differently; use the code-point API first, then fall back to UTF-16.
+        // The code-point count is computed from the last visible grapheme.
+        val codePointCount = UnicodeGrapheme.lastGraphemeCodePointCount(before)
+        val deleted = runCatching {
+            input.deleteSurroundingTextInCodePoints(codePointCount, 0)
+        }.getOrDefault(false)
+        if (!deleted) input.deleteSurroundingText(deleteCount, 0)
+        qaLog("delete after=" + input.getTextBeforeCursor(16, 0)?.toString() + " selected=" + input.getSelectedText(0))
     }
 
     override fun deleteBackward(count: Int) {
@@ -316,25 +428,41 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     override fun moveCursorBy(delta: Int): Boolean {
         if (delta == 0) return false
         val input = connection ?: return false
-        val selection = getSelection() ?: return false
+        val selection = getSelection() ?: run {
+            qaLog("move delta=" + delta + " no selection")
+            return false
+        }
+        qaLog("move delta=" + delta + " from=" + selection.start + "-" + selection.end)
         // A selection collapses in the requested direction before the move:
         // right goes to the selection end, left to its start.
-        val anchor = if (delta > 0) {
+        var caret = if (delta > 0) {
             maxOf(selection.start, selection.end)
         } else {
             minOf(selection.start, selection.end)
         }
-        val target = if (delta > 0) {
-            val requested = minOf(delta, MAX_CONTEXT_READ)
-            val after = input.getTextAfterCursor(requested, 0)?.toString() ?: return false
-            // A short read means the editor ends before the requested delta.
-            if (after.length < requested) anchor + after.length else anchor + delta
-        } else {
-            val requested = minOf(-delta, MAX_CONTEXT_READ)
-            val before = input.getTextBeforeCursor(requested, 0)?.toString() ?: return false
-            if (before.length < requested) anchor - before.length else anchor + delta
+        var remaining = delta
+        while (remaining != 0) {
+            val forward = remaining > 0
+            // Only a small window anchored at the current caret is needed: the
+            // cluster being crossed is always adjacent, so a cut window can
+            // never become the selected target.
+            val window = if (forward) {
+                input.getTextAfterCursor(MAX_GRAPHEME_READ, 0)?.toString() ?: return false
+            } else {
+                input.getTextBeforeCursor(MAX_GRAPHEME_READ, 0)?.toString() ?: return false
+            }
+            if (window.isEmpty()) break
+            val step = if (forward) {
+                UnicodeGrapheme.firstGraphemeLength(window)
+            } else {
+                -UnicodeGrapheme.lastGraphemeLength(window)
+            }
+            if (step == 0) break
+            caret += step
+            remaining += if (forward) -1 else 1
         }
-        return applySelection(input, target, target)
+        qaLog("move to=" + caret)
+        return applySelection(input, caret, caret)
     }
 
     override fun selectAll(): Boolean {
@@ -469,14 +597,36 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
         // SurroundingText carries both the absolute offset of its window and
         // the selection coordinates relative to that window.
         return runCatching {
-            val surrounding = input.getSurroundingText(0, 0, 0) ?: return@runCatching null
-            val offset = surrounding.offset
-            val start = surrounding.selectionStart
-            val end = surrounding.selectionEnd
-            if (offset < 0 || start < 0 || end < 0) {
-                null
+            // Ask for a small window on both sides: some editors (notably
+            // Compose) return no SurroundingText at all for a 0/0 request.
+            val surrounding = input.getSurroundingText(64, 64, 0)
+            if (surrounding != null) {
+                val offset = surrounding.offset
+                val start = surrounding.selectionStart
+                val end = surrounding.selectionEnd
+                if (offset >= 0 && start >= 0 && end >= 0) {
+                    return@runCatching EditorSelection(offset + start, offset + end)
+                }
+            }
+            // Last-resort absolute range for editors that do not implement
+            // SurroundingText but do expose ExtractedText.
+            val extracted = input.getExtractedText(ExtractedTextRequest(), 0)
+            val text = extracted?.text
+            if (text != null && extracted.selectionStart >= 0 && extracted.selectionEnd >= 0) {
+                return@runCatching EditorSelection(
+                    extracted.startOffset + extracted.selectionStart,
+                    extracted.startOffset + extracted.selectionEnd,
+                )
+            }
+            // Last resort for editors with no selection callback and no
+            // surrounding/extracted metadata: a short field can be treated as
+            // starting at zero. Do not guess when the read window filled up.
+            val before = input.getTextBeforeCursor(MAX_CONTEXT_READ, 0)?.toString()
+            val selected = input.getSelectedText(0)?.toString().orEmpty()
+            if (before != null && before.length < MAX_CONTEXT_READ) {
+                EditorSelection(before.length, before.length + selected.length)
             } else {
-                EditorSelection(offset + start, offset + end)
+                null
             }
         }.getOrNull()
     }
@@ -556,6 +706,8 @@ class AndroidTextSession(private val service: InputMethodService) : TextSession 
     private companion object {
         /** Upper bound for every cursor/word context read; keeps moves O(1). */
         const val MAX_CONTEXT_READ = 4_096
+        /** 64 UTF-16 units cover even long ZWJ/tag sequences for one grapheme. */
+        const val MAX_GRAPHEME_READ = 64
         const val CLIP_LABEL = "Bitap"
     }
 }

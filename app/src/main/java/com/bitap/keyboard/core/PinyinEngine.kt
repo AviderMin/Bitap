@@ -1584,27 +1584,41 @@ class PinyinEngine private constructor(
     fun persistSelectionWeights() {
         syncClearGeneration()
         val store = userLexiconStore ?: return
-        // Adopt external edits (settings delete/clear) before writing so the
-        // debounced save can never resurrect a deleted entry.
-        syncExternalStoreRevision()
+        // Adopt external edits (settings delete/clear) before taking the snapshot;
+        // the returned revision is the exact store state this snapshot is based on.
+        val expectedRevision = syncExternalStoreRevision()
         val generation = UserLexiconStore.currentClearGeneration()
         val entries = synchronized(selectionLock) { userEntries.values.toList() }
-        val saved = runCatching { store.saveEntriesIfCurrent(entries, generation) }.getOrDefault(false)
-        // A clear during a delayed save must not be followed by the old snapshot
-        // being left on disk. Re-clear if the generation changed.
+        // The store checks revision + clear generation and writes under one lock,
+        // so a settings deletion that wins the race rejects this stale snapshot.
+        val saved = runCatching {
+            store.saveEntriesIfCurrent(entries, generation, expectedRevision)
+        }.getOrDefault(false)
         if (generation != UserLexiconStore.currentClearGeneration()) {
+            // A clear during a delayed save must not be followed by the old snapshot
+            // being left on disk. Re-clear if the generation changed.
             synchronized(selectionLock) {
                 selectionCounts.clear()
                 userEntries.clear()
             }
             lastClearGeneration = UserLexiconStore.currentClearGeneration()
             runCatching { store.clear() }
-        } else if (!saved) {
-            syncClearGeneration()
+            lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
+            return
         }
-        // Our own write bumped the revision; remember it so the next persist
-        // does not mistake it for an external edit.
-        lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
+        if (!saved) {
+            // A settings delete/update won the race; never write the old snapshot
+            // back. Adopt the store's current entries instead. (If the revision
+            // did not move, this was a transient write failure: keep memory so a
+            // later retry can persist it.)
+            val currentRevision = runCatching { store.currentRevision() }.getOrDefault(expectedRevision)
+            if (currentRevision != expectedRevision) reloadStoreEntries(store)
+            return
+        }
+        // Remember the revision our own write produced. If another writer bumped
+        // it in the meantime, keep the pre-write value so the next sync reloads.
+        val afterWrite = runCatching { store.currentRevision() }.getOrDefault(expectedRevision)
+        lastStoreRevision = if (afterWrite > expectedRevision) expectedRevision + 1 else expectedRevision
     }
 
     private fun pruneUserEntriesLocked() {
@@ -1646,11 +1660,13 @@ class PinyinEngine private constructor(
      * rather than clearing the store, keeps every entry the external writer
      * preserved. Runs before search and persist so a stale snapshot can neither
      * be searched nor written back.
+     *
+     * @return the revision the reloaded snapshot corresponds to.
      */
-    private fun syncExternalStoreRevision() {
-        val store = userLexiconStore ?: return
+    private fun syncExternalStoreRevision(): Long {
+        val store = userLexiconStore ?: return lastStoreRevision
         val observed = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
-        if (observed == lastStoreRevision) return
+        if (observed == lastStoreRevision) return observed
         val generation = UserLexiconStore.currentClearGeneration()
         val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
         if (generation != UserLexiconStore.currentClearGeneration()) {
@@ -1658,11 +1674,25 @@ class PinyinEngine private constructor(
             // and the reloaded snapshot is already stale.
             syncClearGeneration()
             lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(observed)
-            return
+            return lastStoreRevision
         }
         replaceSelectionEntries(persisted)
         // Keep the pre-reload revision: a save racing with loadEntries bumps it
         // again and the next sync reloads the newer snapshot.
+        lastStoreRevision = observed
+        return observed
+    }
+
+    /** Replaces memory with the store's current content after a rejected write. */
+    private fun reloadStoreEntries(store: UserLexiconStore) {
+        val observed = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
+        val generation = UserLexiconStore.currentClearGeneration()
+        val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
+        if (generation != UserLexiconStore.currentClearGeneration()) {
+            syncClearGeneration()
+        } else {
+            replaceSelectionEntries(persisted)
+        }
         lastStoreRevision = observed
     }
 
