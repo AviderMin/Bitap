@@ -186,16 +186,24 @@ internal object WordBoundary {
         }
         if (index <= 0) return 0
         val codePoint = text.codePointBefore(index)
-        if (isCjk(codePoint)) return index - Character.charCount(codePoint)
+        if (isCjk(codePoint)) {
+            // Include any grapheme extensions (e.g. variation selectors) with
+            // the CJK character instead of splitting the cluster.
+            return UnicodeGrapheme.previousBoundary(text, index)
+        }
         if (isWordChar(codePoint)) {
             while (index > 0) {
-                val previous = text.codePointBefore(index)
+                val previousStart = UnicodeGrapheme.previousBoundary(text, index)
+                if (previousStart >= index) break
+                val previous = text.codePointAt(previousStart)
                 if (!isWordChar(previous)) break
-                index -= Character.charCount(previous)
+                index = previousStart
             }
             return index
         }
-        return index - Character.charCount(codePoint)
+        // Symbols (including ZWJ emoji, flags, skin-tone sequences and combining
+        // marks) move as whole grapheme clusters, never as single code points.
+        return UnicodeGrapheme.previousBoundary(text, index)
     }
 
     /** End offset of the word after [from], skipping leading whitespace. */
@@ -208,16 +216,18 @@ internal object WordBoundary {
         }
         if (index >= text.length) return text.length
         val codePoint = text.codePointAt(index)
-        if (isCjk(codePoint)) return index + Character.charCount(codePoint)
+        if (isCjk(codePoint)) return UnicodeGrapheme.nextBoundary(text, index)
         if (isWordChar(codePoint)) {
             while (index < text.length) {
                 val current = text.codePointAt(index)
                 if (!isWordChar(current)) break
-                index += Character.charCount(current)
+                val next = UnicodeGrapheme.nextBoundary(text, index)
+                if (next <= index) break
+                index = next
             }
             return index
         }
-        return index + Character.charCount(codePoint)
+        return UnicodeGrapheme.nextBoundary(text, index)
     }
 
     /** Number of UTF-16 units one backward word deletion removes before [from]. */
@@ -548,7 +558,10 @@ class AndroidTextSession internal constructor(
     }
 
     override fun getSelectedText(): String? =
-        connection?.getSelectedText(0)?.toString()?.takeIf { it.isNotBlank() }
+        // Keep the raw selected text, including whitespace-only selections. The
+        // previous isNotBlank() filter silently turned "  " into no selection and
+        // broke exact selection-replacement undo.
+        connection?.getSelectedText(0)?.toString()?.takeIf { it.isNotEmpty() }
 
     override fun getTextBeforeCursor(maxChars: Int): String? {
         if (maxChars <= 0) return null

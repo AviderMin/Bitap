@@ -126,6 +126,8 @@ class KeyboardController(
     private var virtualSelection: EditorSelection? = null
     /** Start offset of the active composing region, when [execute] created one. */
     private var virtualComposingStart: Int? = null
+    /** Selection text replaced by the active composition, awaiting its commit. */
+    private var pendingCompositionReplacement: PendingCompositionReplacement? = null
     /**
      * Selection callbacks our own commands are expected to produce, oldest
      * first. A callback matching an entry is internal; anything else that moves
@@ -170,6 +172,18 @@ class KeyboardController(
     private data class ExpectedSelection(
         val from: EditorSelection?,
         val to: EditorSelection,
+    )
+
+    /**
+     * Text replaced when a new composition started over a non-collapsed
+     * selection. setComposingText replaces that selection immediately, so the
+     * original text must be captured before the first composing update and later
+     * attached to the UndoRecord of the commit that resolves the composition.
+     */
+    private data class PendingCompositionReplacement(
+        val text: String,
+        val start: Int,
+        val sessionId: String,
     )
 
     /** Single entry point for every keyboard event. */
@@ -271,7 +285,10 @@ class KeyboardController(
             return
         }
         trackEnglishInput(action, _state.value)
-        if (actionClearsUndo(action)) clearUndoState()
+        if (actionClearsUndo(action)) {
+            clearUndoState()
+            pendingCompositionReplacement = null
+        }
         committedThisDispatch.clear()
         val canReadContext = _state.value.aiEnabled && _state.value.editorInfo.aiContextAllowed
         val effective = if (
@@ -531,6 +548,7 @@ class KeyboardController(
             // External cursor/selection move: the typed English prefix no longer
             // belongs before this caret and the exact commit range is gone.
             virtualComposingStart = null
+            pendingCompositionReplacement = null
             expectedSelectionChanges.clear()
             clearUndoState()
             resetEnglishTracking()
@@ -595,13 +613,19 @@ class KeyboardController(
                 val text = command.text
                 val start = virtualComposingStart ?: selectionStartOrFallback()
                 val selectionBefore = virtualSelection
-                // A non-collapsed selection is replaced by commitText; keep the
-                // exact old text so undo can restore the selection content.
-                val replacedText = if (selectionBefore != null && selectionBefore.start != selectionBefore.end) {
+                // A composition started over a selection already replaced it with
+                // composing text; restore that captured selection text. Otherwise
+                // a non-collapsed selection is replaced by commitText directly.
+                val compositionReplacement = pendingCompositionReplacement
+                    ?.takeIf { virtualComposingStart != null && it.start == start && it.sessionId == inputSessionId }
+                val replacedText = compositionReplacement?.text ?: if (
+                    selectionBefore != null && selectionBefore.start != selectionBefore.end
+                ) {
                     runCatching { textSession.getSelectedText() }.getOrNull().orEmpty()
                 } else {
                     ""
                 }
+                pendingCompositionReplacement = null
                 textSession.commitText(text)
                 val end = start + text.length
                 virtualComposingStart = null
@@ -620,10 +644,28 @@ class KeyboardController(
 
             is ImeCommand.SetComposingText -> {
                 val text = command.text
+                val startingComposition = virtualComposingStart == null
                 val start = virtualComposingStart ?: selectionStartOrFallback()
+                val selectionBefore = virtualSelection
+                if (startingComposition) {
+                    pendingCompositionReplacement = if (
+                        text.isNotEmpty() &&
+                        selectionBefore != null &&
+                        selectionBefore.start != selectionBefore.end
+                    ) {
+                        PendingCompositionReplacement(
+                            text = runCatching { textSession.getSelectedText() }.getOrNull().orEmpty(),
+                            start = minOf(selectionBefore.start, selectionBefore.end),
+                            sessionId = inputSessionId,
+                        )
+                    } else {
+                        null
+                    }
+                }
                 textSession.setComposingText(text)
                 val end = start + text.length
                 virtualComposingStart = if (text.isEmpty()) null else start
+                if (text.isEmpty()) pendingCompositionReplacement = null
                 virtualSelection = EditorSelection(end, end)
                 queueExpectedSelection(from = EditorSelection(start, start), to = end)
             }
@@ -631,6 +673,9 @@ class KeyboardController(
             ImeCommand.FinishComposing -> {
                 textSession.finishComposingText()
                 virtualComposingStart = null
+                // Composition ended without being committed: the replacement
+                // transaction must not leak into a later unrelated commit.
+                pendingCompositionReplacement = null
                 virtualSelection?.let { queueExpectedSelection(from = it, to = it.start) }
             }
 
@@ -648,6 +693,7 @@ class KeyboardController(
                 virtualComposingStart?.let { composingStart ->
                     if (caret <= composingStart) virtualComposingStart = null
                 }
+                if (virtualComposingStart == null) pendingCompositionReplacement = null
                 queueExpectedSelection(from = selectionBefore, to = caret)
             }
 
@@ -656,6 +702,7 @@ class KeyboardController(
                 // The editor may insert a newline or perform an action; exact
                 // caret tracking is no longer guaranteed until the host reports.
                 virtualComposingStart = null
+                pendingCompositionReplacement = null
                 virtualSelection = null
             }
         }
@@ -761,12 +808,14 @@ class KeyboardController(
     /** Records a direct editor edit that bypassed [execute]. */
     private fun noteDirectEditorEdit(caret: Int) {
         virtualComposingStart = null
+        pendingCompositionReplacement = null
         virtualSelection = EditorSelection(caret, caret)
         queueExpectedSelection(from = null, to = caret)
     }
 
     /** Re-adopts the host-reported selection after a direct TextSession operation. */
     private fun adoptEditorSelection() {
+        pendingCompositionReplacement = null
         runCatching { textSession.getSelection() }.getOrNull()?.let { virtualSelection = it }
     }
 
@@ -774,6 +823,7 @@ class KeyboardController(
     private fun resetVirtualEditorTracking() {
         virtualSelection = runCatching { textSession.getSelection() }.getOrNull()
         virtualComposingStart = null
+        pendingCompositionReplacement = null
         expectedSelectionChanges.clear()
     }
 

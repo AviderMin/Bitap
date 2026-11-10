@@ -467,4 +467,12 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 - 最终 debug APK 108,851,694B，SHA-256 `718F32004BB3EC42E480D2144820E563F446223687DE334867617E813A369E4E`；设备读取的安装包哈希与本地包一致。`:app:processReleaseMainManifest` 通过，合并后的 release manifest 不包含 `QaEditorActivity` / `:qa`。
 - **工程门禁（与设备验收分列）**：`scripts/verify.ps1` **RESULT PASS**；单测 **526项 / 0 failures / 0 errors / 4 skipped**；lint **0 errors / 29 warnings / 1 hint**；v1/v2/v3/D05语料、Python契约、文档192文件0断链、APK无INTERNET/ACCESS_NETWORK_STATE权限检查均通过。日志 `.tmp/verify-device-correctness.log`。
 - **本轮结论**：第25节的四项设备待办（WebView删除、Compose光标、真机补全撤销、学习删除链路）在上述单机宿主矩阵内已补验通过；工程门禁也通过。此结论取代第25节当时“部分通过”的状态，不扩展为全部设备/编辑器的产品验收。
+## 27. 第13轮编辑正确性修复（2026-11-10）
+
+- **P1 中文选区替换撤销**：[KeyboardController.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardController.kt) 增加 pending composition replacement：选区上开始组合输入时先保存 `getSelectedText()` 原文，候选提交、`CommitRaw`、语言切换和部分退格后提交时写入 `UndoRecord.replacedText`；撤销恢复原选区文本，重做重新应用。回归 `abcdef` 选中 `cd` → 输入 `ni` → 选「你」→ Undo 得 `abcdef`、Redo 得 `ab你ef`。
+- **P2 空白选区**：[TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt) 的 `getSelectedText()` 改为返回非空原始选区内容（不再 `isNotBlank()` 过滤），两空格选区在复制/剪切/撤销中保留。
+- **P2 组合 emoji 按词删除/移动**：`WordBoundary.previousWordStart/nextWordEnd/backwardDeletionLength` 使用 `UnicodeGrapheme` 字素边界，`A👨‍👩‍👧‍👦` 的按词删除不再拆成单个码点；覆盖 family/flags/skin-tone/combining。
+- 回归：`KeyboardControllerUndoTest` 11 项、`KeyboardControllerEnglishPredictionTest` 13 项、`UnicodeGraphemeTest` 16 项、`TextSessionSelectionTest` 8 项、`AndroidTextSessionTest` 10 项全部通过。
+- `scripts/verify.ps1`（2026-11-10）：**RESULT PASS**。单测539项 / 0 failures / 0 errors / 4 skipped（87个测试XML）；lint 0 errors / 29 warnings / 1 hint；debug APK 108,854,202B，SHA-256 `15986CC67B239EE4A349B0AAD6B5E1BADE51E05894E527148D6A9AB7072E4A47`；语料、Python契约、文档192文件0断链、无网络权限均通过。
+- 本轮未做真机验证；上述为 JVM 与适配器 fake 回归，长句质量优化仍暂缓。
 - 设备范围仍限22021211RC / LineageOS23.2 / Android16 / 1080×2400@440 / 竖屏默认字体与键盘高度；不是多ROM、多机型、TalkBack、横屏或长字素极端序列的产品验收。长句解码质量优化保持暂缓。

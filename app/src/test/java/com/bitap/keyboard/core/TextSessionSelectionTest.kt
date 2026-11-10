@@ -90,6 +90,45 @@ class TextSessionSelectionTest {
     }
 
     @Test
+    fun wordCursorAndDeletionKeepEmojiGraphemesWhole() {
+        val family = TestEditorTextSession(initialText = "A👨‍👩‍👧‍👦")
+        assertTrue(family.moveCursorByWord(-1))
+        assertEquals("word-left stops before the whole family", 1, family.cursor)
+        assertTrue(family.moveCursorByWord(1))
+        assertEquals(12, family.cursor)
+        assertTrue(family.deleteBackwardWord())
+        assertEquals("A", family.text)
+
+        val flagCursor = TestEditorTextSession(initialText = "a🇨🇳")
+        assertTrue(flagCursor.moveCursorByWord(-1))
+        assertEquals("flag word-left stops before the whole flag", 1, flagCursor.cursor)
+        assertTrue(flagCursor.moveCursorByWord(1))
+        assertEquals(5, flagCursor.cursor)
+
+        val flag = TestEditorTextSession(initialText = "a🇨🇳")
+        assertTrue(flag.deleteBackwardWord())
+        assertEquals("a", flag.text)
+
+        val mixed = TestEditorTextSession(initialText = "hello 👨‍👩‍👧‍👦")
+        assertTrue(mixed.moveCursorByWord(-1))
+        assertEquals("word-left moves to the start of the emoji", 6, mixed.cursor)
+        assertTrue(mixed.moveCursorByWord(1))
+        assertEquals(17, mixed.cursor)
+        assertTrue(mixed.deleteBackwardWord())
+        assertEquals("hello ", mixed.text)
+    }
+
+    @Test
+    fun whitespaceOnlySelectionIsStillASelection() {
+        val session = TestEditorTextSession(initialText = "a  b")
+        session.select(1, 3)
+        assertEquals("  ", session.getSelectedText())
+        assertTrue(session.cutSelection())
+        assertEquals("ab", session.text)
+        assertEquals("  ", session.clipboardText)
+    }
+
+    @Test
     fun defaultTextSessionSelectionApisAreOptional() {
         val session = object : TextSession {
             override val isActive: Boolean = true

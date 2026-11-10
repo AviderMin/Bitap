@@ -121,4 +121,40 @@ class UnicodeGraphemeTest {
         assertEquals(3, WordBoundary.previousWordStart("A😀B", 4))
         assertEquals(1, WordBoundary.previousWordStart("A😀B", 3))
     }
+
+    @Test
+    fun wordDeletionKeepsZwjFamilyAndSkinToneWhole() {
+        val family = "A👨‍👩‍👧‍👦"
+        assertEquals(1, WordBoundary.previousWordStart(family, family.length))
+        assertEquals(family.length, WordBoundary.nextWordEnd(family, 1))
+        assertEquals(11, WordBoundary.backwardDeletionLength(family, family.length))
+
+        val rocket = "a👩🏽‍🚀"
+        assertEquals(1, WordBoundary.previousWordStart(rocket, rocket.length))
+        assertEquals(rocket.length, WordBoundary.nextWordEnd(rocket, 1))
+        assertEquals(rocket.length - 1, WordBoundary.backwardDeletionLength(rocket, rocket.length))
+    }
+
+    @Test
+    fun wordDeletionKeepsFlagsAndCombiningMarksWhole() {
+        val flag = "a🇨🇳"
+        assertEquals(1, WordBoundary.previousWordStart(flag, flag.length))
+        assertEquals(flag.length, WordBoundary.nextWordEnd(flag, 1))
+        assertEquals(4, WordBoundary.backwardDeletionLength(flag, flag.length))
+
+        val accented = "aé"
+        assertEquals(1, WordBoundary.previousWordStart(accented, accented.length))
+        assertEquals(accented.length, WordBoundary.nextWordEnd(accented, 1))
+        assertEquals(2, WordBoundary.backwardDeletionLength(accented, accented.length))
+    }
+
+    @Test
+    fun wordBoundariesKeepNormalWordsAndCjkSemantics() {
+        val sentence = "hello world"
+        assertEquals(6, WordBoundary.previousWordStart(sentence, sentence.length))
+        assertEquals(5, WordBoundary.nextWordEnd(sentence, 0))
+        assertEquals(5, WordBoundary.backwardDeletionLength(sentence, 5))
+        assertEquals(1, WordBoundary.previousWordStart("你好", 2))
+        assertEquals(1, WordBoundary.nextWordEnd("你好", 0))
+    }
 }

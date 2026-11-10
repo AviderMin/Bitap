@@ -135,6 +135,116 @@ class KeyboardControllerUndoTest {
     }
 
     @Test
+    fun chineseSelectionReplacementUndoRestoresTheOriginalText() {
+        val runtime = Runtime(initialText = "abcdef")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+
+            // P1: select "cd", type pinyin "ni", then choose "你". SetComposingText
+            // replaces the selection before the later candidate commit, so the
+            // original selection must travel through the composition transaction.
+            runtime.session.select(2, 4)
+            runtime.controller.onSelectionChanged(2, 4, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("ni"))
+            runtime.scheduler.advanceUntilIdle()
+            assertEquals(listOf("你"), runtime.controller.state.value.candidates.map { it.word })
+            runtime.controller.dispatch(KeyboardAction.CandidateTapped(0))
+            assertEquals("ab你ef", runtime.session.text)
+
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("undo must restore the text replaced by the composition", "abcdef", runtime.session.text)
+            assertEquals("caret returns after the restored selection", 4, runtime.session.cursor)
+
+            runtime.controller.dispatch(KeyboardAction.Redo)
+            assertEquals("redo must re-apply the candidate replacement", "ab你ef", runtime.session.text)
+            assertEquals(3, runtime.session.cursor)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun chineseSelectionReplacementCommitRawUndoRestoresTheOriginalText() {
+        val runtime = Runtime(initialText = "abcdef")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.session.select(2, 4)
+            runtime.controller.onSelectionChanged(2, 4, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("ni"))
+            runtime.scheduler.advanceUntilIdle()
+
+            runtime.controller.dispatch(KeyboardAction.CommitRaw)
+            assertEquals("abnief", runtime.session.text)
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("raw-commit undo must restore the selection", "abcdef", runtime.session.text)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun chineseSelectionReplacementBackspaceThenRawCommitUndoRestoresTheOriginalText() {
+        val runtime = Runtime(initialText = "abcdef")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.session.select(2, 4)
+            runtime.controller.onSelectionChanged(2, 4, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("ni"))
+            runtime.scheduler.advanceUntilIdle()
+
+            // Partial backspace keeps the pending replacement transaction alive
+            // until the shortened composition is committed.
+            runtime.controller.dispatch(KeyboardAction.Backspace)
+            runtime.controller.dispatch(KeyboardAction.CommitRaw)
+            assertEquals("abnef", runtime.session.text)
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("undo must still restore the original selection", "abcdef", runtime.session.text)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun chineseSelectionReplacementToggleCommitUndoRestoresTheOriginalText() {
+        val runtime = Runtime(initialText = "abcdef")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.session.select(2, 4)
+            runtime.controller.onSelectionChanged(2, 4, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("ni"))
+            runtime.scheduler.advanceUntilIdle()
+
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+            assertEquals("abnief", runtime.session.text)
+            assertEquals(InputLanguage.English, runtime.controller.state.value.language)
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("toggle-commit undo must restore the selection", "abcdef", runtime.session.text)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun undoRestoresWhitespaceOnlySelectionReplacedByCommit() {
+        val runtime = Runtime(initialText = "a  b")
+        try {
+            runtime.controller.onStartInput(EditorInputInfo.from(0, 0))
+            runtime.controller.dispatch(KeyboardAction.ToggleLanguage)
+
+            runtime.session.select(1, 3)
+            runtime.controller.onSelectionChanged(1, 3, -1, -1)
+            runtime.controller.dispatch(KeyboardAction.AppendInput("x"))
+            assertEquals("axb", runtime.session.text)
+
+            runtime.controller.dispatch(KeyboardAction.Undo)
+            assertEquals("whitespace-only selection must be restored exactly", "a  b", runtime.session.text)
+            assertEquals(3, runtime.session.cursor)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
     fun undoRestoresSelectionTextReplacedByCommitAndRedoReappliesIt() {
         val runtime = Runtime(initialText = "abcdef")
         try {

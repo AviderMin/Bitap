@@ -55,6 +55,32 @@ class AndroidTextSessionTest {
     }
 
     @Test
+    fun getSelectedTextKeepsWhitespaceSelectionAndNullWhenCollapsed() {
+        val spaces = Host("a  b", 1, 3)
+        assertEquals("  ", spaces.session.getSelectedText())
+
+        val collapsed = Host("a  b")
+        assertEquals(null, collapsed.session.getSelectedText())
+    }
+
+    @Test
+    fun wordDeleteRemovesTheWholeZwjFamilyInOneHostOperation() {
+        val host = Host("A👨‍👩‍👧‍👦")
+        assertTrue(host.session.deleteBackwardWord())
+        assertEquals("A", host.text)
+        assertEquals(listOf(11), host.deletions)
+    }
+
+    @Test
+    fun wordCursorKeepsZwjFamilyWhole() {
+        val host = Host("A👨‍👩‍👧‍👦")
+        assertTrue(host.session.moveCursorByWord(-1))
+        assertEquals(1, host.start)
+        assertTrue(host.session.moveCursorByWord(1))
+        assertEquals(12, host.start)
+    }
+
+    @Test
     fun longMoveClampsAtTextBoundary() {
         val host = Host("A😀B")
         host.session.moveCursorBy(Int.MIN_VALUE)
