@@ -8,6 +8,7 @@ import com.bitap.keyboard.ime.candidateChipContentDescription
 import com.bitap.keyboard.ime.candidatePanelMaxHeightDp
 import com.bitap.keyboard.ime.candidatePanelPageCount
 import com.bitap.keyboard.ime.candidatePanelPageSize
+import com.bitap.keyboard.ime.candidatePanelVisibleRows
 import com.bitap.keyboard.ime.firstPartialCandidateIndex
 import com.bitap.keyboard.ime.pageForIndex
 import org.junit.Assert.assertEquals
@@ -21,9 +22,9 @@ import org.junit.Test
  *
  * Device baseline: the expanded panel was configured for 6 rows per page but
  * only ~4 full rows were visible, and the page footer sat below the fold.
- * These tests lock the replacement arithmetic (page size equals fully visible
- * rows, height budget fits all rows plus a fixed footer) and the pure helpers
- * that locate partial candidates without reordering the engine candidate list.
+ * These tests lock the current flow layout arithmetic (12/8 candidates per page,
+ * a 4/2 visible-row height budget plus fixed footer) and the pure helpers that
+ * locate partial candidates without reordering the engine candidate list.
  */
 class CandidatePanelGeometryTest {
 
@@ -40,17 +41,21 @@ class CandidatePanelGeometryTest {
     )
 
     @Test
-    fun pageSizeMatchesFullyVisibleRows() {
-        // Portrait: 4 rows; compact landscape/tiny window: 2 rows.
-        assertEquals(4, candidatePanelPageSize(compact = false))
-        assertEquals(2, candidatePanelPageSize(compact = true))
+    fun pageCapacityFitsMoreCandidatesThanVisibleRows() {
+        // Flow layout packs multiple short chips per row, so one page now holds
+        // 12 (portrait) / 8 (compact) candidates while the visible-row budget
+        // stays 4 / 2.
+        assertEquals(12, candidatePanelPageSize(compact = false))
+        assertEquals(8, candidatePanelPageSize(compact = true))
+        assertTrue(candidatePanelPageSize(false) > candidatePanelVisibleRows(false) * 2)
+        assertTrue(candidatePanelPageSize(true) > candidatePanelVisibleRows(true) * 2)
     }
 
     @Test
-    fun maxHeightFitsEveryPageRowAndFixedFooter() {
+    fun maxHeightFitsEveryVisibleRowAndFixedFooter() {
         for (compact in listOf(false, true)) {
-            val pageSize = candidatePanelPageSize(compact)
-            val expected = pageSize * CANDIDATE_PANEL_ROW_HEIGHT_DP +
+            val visibleRows = candidatePanelVisibleRows(compact)
+            val expected = visibleRows * CANDIDATE_PANEL_ROW_HEIGHT_DP +
                 CANDIDATE_PANEL_FOOTER_HEIGHT_DP + CANDIDATE_PANEL_INNER_PADDING_DP
             assertEquals(
                 "total height budget for compact=$compact",
@@ -58,13 +63,13 @@ class CandidatePanelGeometryTest {
                 candidatePanelMaxHeightDp(compact),
             )
             // After subtracting the inner padding, the content budget must equal
-            // all page rows plus the fixed footer with no scroll remainder.
+            // the visible-row budget plus the fixed footer.
             val contentBudget = candidatePanelMaxHeightDp(compact) - CANDIDATE_PANEL_INNER_PADDING_DP
             assertEquals(
-                pageSize * CANDIDATE_PANEL_ROW_HEIGHT_DP,
+                visibleRows * CANDIDATE_PANEL_ROW_HEIGHT_DP,
                 contentBudget - CANDIDATE_PANEL_FOOTER_HEIGHT_DP,
             )
-            assertTrue("every page row must be fully visible", contentBudget > CANDIDATE_PANEL_FOOTER_HEIGHT_DP)
+            assertTrue("every visible row must fit", contentBudget > CANDIDATE_PANEL_FOOTER_HEIGHT_DP)
         }
         // Explicit before -> after values: portrait 220 -> 264 dp, compact 120 -> 164 dp.
         assertEquals(264, candidatePanelMaxHeightDp(compact = false))
@@ -149,24 +154,24 @@ class CandidatePanelGeometryTest {
 
     @Test
     fun firstPartialPageMatchesDeviceCaseAndLastPageBoundary() {
-        // Rank 6 partial with the portrait page size 4 lands on page index 1, so
-        // page 0 must offer the "看分段" shortcut.
+        // Rank 6 partial is on page 0 with both flow capacities, so page 0 must
+        // offer the "看分段" shortcut.
         val rankSix = (1..5).map { candidate("完整$it", consumed = 7) } +
             candidate("分段词", consumed = 3)
         val index = firstPartialCandidateIndex(rankSix, composingLength = 7)
         assertEquals(5, index)
-        assertEquals(1, pageForIndex(index, candidatePanelPageSize(compact = false)))
-        assertEquals(2, pageForIndex(index, candidatePanelPageSize(compact = true)))
+        assertEquals(0, pageForIndex(index, candidatePanelPageSize(compact = false)))
+        assertEquals(0, pageForIndex(index, candidatePanelPageSize(compact = true)))
 
-        // A partial at the final candidate index is reachable on the last page.
+        // A partial at the final candidate index is reachable on the same page
+        // at the new flow capacity.
         val lastPageCandidates = (1..8).map { candidate("完整$it", consumed = 5) } +
             candidate("尾段", consumed = 2)
         val lastIndex = firstPartialCandidateIndex(lastPageCandidates, composingLength = 5)
         assertEquals(8, lastIndex)
-        assertEquals(2, pageForIndex(lastIndex, pageSize = 4))
-        val pageCount = candidatePanelPageCount(lastPageCandidates.size, pageSize = 4)
-        assertEquals(3, pageCount)
-        assertEquals(pageCount - 1, pageForIndex(lastIndex, pageSize = 4))
+        assertEquals(0, pageForIndex(lastIndex, candidatePanelPageSize(compact = false)))
+        val pageCount = candidatePanelPageCount(lastPageCandidates.size, candidatePanelPageSize(compact = false))
+        assertEquals(1, pageCount)
     }
 
     @Test

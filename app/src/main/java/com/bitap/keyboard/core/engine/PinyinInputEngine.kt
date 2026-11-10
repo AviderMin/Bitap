@@ -2,6 +2,7 @@ package com.bitap.keyboard.core.engine
 
 import com.bitap.keyboard.core.Candidate
 import com.bitap.keyboard.core.LongInputBoundaryMode
+import com.bitap.keyboard.core.MixedInputResolver
 import com.bitap.keyboard.core.PinyinEngine
 
 /**
@@ -18,6 +19,12 @@ import com.bitap.keyboard.core.PinyinEngine
  * It never writes editor text and never reads the editor; the restricted
  * [QueryContext] is passed by the caller but the pinyin baseline does not use
  * it yet, so behavior is exactly the pre-D03 behavior.
+ *
+ * D07: [query] additionally asks [MixedInputResolver] for continuous
+ * Chinese-English-digit candidates and prepends them to the baseline results
+ * (deduped by word, tagged [CandidateSource.Other], truncated to the caller
+ * limit). Pure pinyin tokens that the baseline fully decodes are untouched
+ * because the resolver returns no mixed candidates for them.
  */
 class PinyinInputEngine(
     private val delegate: PinyinEngine,
@@ -53,7 +60,7 @@ class PinyinInputEngine(
     override fun query(request: QueryRequest): QueryResult {
         val startedAt = nanoTime()
         var cancelled = false
-        val recalled = delegate.search(request.rawInput, request.limit) {
+        val shouldContinue: () -> Boolean = {
             if (request.shouldContinue()) {
                 true
             } else {
@@ -61,23 +68,85 @@ class PinyinInputEngine(
                 false
             }
         }
+        val recalled = delegate.search(request.rawInput, request.limit, shouldContinue)
+
+        // D07: prepend continuous mixed Chinese-English-digit candidates. The
+        // resolver only decodes a token when the baseline has no full-coverage
+        // pinyin decoding, so pure-pinyin results are unchanged. Its prefix
+        // callback calls [PinyinEngine.search] directly (never this adapter) to
+        // avoid recursion.
+        val mixed = if (request.limit > 0 && request.shouldContinue()) {
+            val rawCandidates = candidatesForResolver(request, recalled, shouldContinue)
+            val resolved = MixedInputResolver.resolve(request.rawInput, request.limit) { prefix ->
+                if (prefix == request.rawInput) {
+                    rawCandidates
+                } else {
+                    delegate.search(prefix, MIXED_PREFIX_SEARCH_LIMIT, shouldContinue)
+                }
+            }
+            if (cancelled) emptyList() else resolved
+        } else {
+            emptyList()
+        }
+
         val elapsedNanos = (nanoTime() - startedAt).coerceAtLeast(0L)
-        val candidates = recalled.map { it.toEngineCandidate() }
+        val candidates = mergeCandidates(mixed, recalled, request.limit)
         return QueryResult(
             sessionId = request.sessionId,
             compositionVersion = request.compositionVersion,
             candidates = candidates,
             segments = request.segments.ifEmpty { segmentBoundariesOf(request.rawInput) },
             diagnostics = QueryDiagnostics(
-                recallCount = recalled.size,
+                recallCount = recalled.size + mixed.size,
                 returnedCount = candidates.size,
                 elapsedNanos = elapsedNanos,
                 cancelled = cancelled,
                 // The legacy engine clips inside search(); an exact fill may mean
                 // clipping. Callers should treat this as a hint, not a guarantee.
-                truncated = request.limit > 0 && recalled.size >= request.limit,
+                truncated = request.limit > 0 && recalled.size + mixed.size >= request.limit,
             ),
         )
+    }
+
+    /**
+     * Candidate list used by the resolver's whole-token check. The baseline
+     * search above is clipped at [QueryRequest.limit]; when that clip might
+     * hide a lower-ranked full-coverage candidate, ask for a slightly wider
+     * window once. Otherwise the already computed list is reused.
+     */
+    private fun candidatesForResolver(
+        request: QueryRequest,
+        recalled: List<Candidate>,
+        shouldContinue: () -> Boolean,
+    ): List<Candidate> {
+        if (recalled.size < request.limit || request.limit >= MIXED_PREFIX_SEARCH_LIMIT) return recalled
+        return delegate.search(request.rawInput, MIXED_PREFIX_SEARCH_LIMIT, shouldContinue)
+    }
+
+    /**
+     * Prepends mixed candidates to baseline candidates, deduping by word and
+     * respecting [limit]. Mixed candidates are tagged [CandidateSource.Other];
+     * baseline candidates keep their legacy mapping.
+     */
+    private fun mergeCandidates(
+        mixed: List<Candidate>,
+        recalled: List<Candidate>,
+        limit: Int,
+    ): List<EngineCandidate> {
+        if (limit <= 0) return emptyList()
+        val merged = ArrayList<EngineCandidate>(minOf(limit, mixed.size + recalled.size))
+        val seenWords = HashSet<String>(mixed.size + recalled.size)
+        mixed.forEach { candidate ->
+            if (merged.size < limit && seenWords.add(candidate.word)) {
+                merged += candidate.toMixedEngineCandidate()
+            }
+        }
+        recalled.forEach { candidate ->
+            if (merged.size < limit && seenWords.add(candidate.word)) {
+                merged += candidate.toEngineCandidate()
+            }
+        }
+        return merged
     }
 
     override fun recordSelection(event: SelectionEvent) {
@@ -109,6 +178,9 @@ class PinyinInputEngine(
 
     companion object {
         const val ENGINE_ID = "pinyin-baseline"
+
+        /** Candidate window used for the resolver's internal prefix probes. */
+        private const val MIXED_PREFIX_SEARCH_LIMIT = 8
     }
 }
 
@@ -120,6 +192,16 @@ fun Candidate.toEngineCandidate(): EngineCandidate = EngineCandidate(
     consumedInputLength = consumedInputLength,
     isCorrection = isCorrection,
     source = if (isCorrection) CandidateSource.Correction else CandidateSource.Dictionary,
+)
+
+/** Maps one mixed-input candidate to the engine-facing DTO (D07). */
+private fun Candidate.toMixedEngineCandidate(): EngineCandidate = EngineCandidate(
+    word = word,
+    pinyin = pinyin,
+    frequency = frequency,
+    consumedInputLength = consumedInputLength,
+    isCorrection = false,
+    source = CandidateSource.Other,
 )
 
 /**

@@ -23,6 +23,28 @@ object KeyboardReducer {
     const val AI_LEXICON_SELECTION_NOT_PINYIN_MESSAGE =
         "AI 词库只根据拼音给出候选；当前选区不是拼音，请先输入拼音或选中一段拼音"
 
+    /** Short hint when a pinyin query failed without an active confirmation. */
+    const val CANDIDATE_QUERY_FAILED_MESSAGE = "候选查询失败，请重试或继续输入"
+
+    /** Hint when a failed query had to fall back to committing the raw text. */
+    const val CANDIDATE_QUERY_FALLBACK_MESSAGE = "候选查询失败，已按原文提交"
+
+    /** Short user-facing reason for a failed dictionary load (P0-B). */
+    const val DICTIONARY_LOAD_FAILED_MESSAGE = "词库加载失败"
+
+    /**
+     * D07: sentinel stored in [KeyboardUiState.candidatesFor] while
+     * [KeyboardUiState.composing] is a literal English run typed in Chinese
+     * mode. It can never equal real pinyin composing, so the controller can
+     * skip pinyin queries without a separate UI state flag, while the visible
+     * composing text still preserves the typed case.
+     */
+    const val LITERAL_COMPOSING_MARKER = "\u0000literal"
+
+    /** True when [state] is a D07 literal English run (not a pinyin composition). */
+    fun isLiteralComposing(state: KeyboardUiState): Boolean =
+        state.composing.isNotEmpty() && state.candidatesFor == LITERAL_COMPOSING_MARKER
+
     private const val DOUBLE_TAP_WINDOW_MS = 350L
 
     fun reduce(state: KeyboardUiState, action: KeyboardAction): Reduction = when (action) {
@@ -31,8 +53,25 @@ object KeyboardReducer {
         is KeyboardAction.ShowLayer -> showLayer(state, action.layer)
         is KeyboardAction.AppendInput -> appendInput(state, action.text)
         is KeyboardAction.ComposingUpdated -> composingUpdated(state, action)
+        is KeyboardAction.PinyinQueryFailed -> pinyinQueryFailed(state, action)
+        is KeyboardAction.DictionaryStateChanged -> dictionaryStateChanged(state, action)
+        KeyboardAction.RetryDictionaryLoad -> retryDictionaryLoad(state)
         is KeyboardAction.CandidateTapped -> candidateTapped(state, action.index)
         KeyboardAction.CommitRaw -> commitRaw(state)
+        // The controller owns the actual editor deletion; pure reducer callers
+        // keep state unchanged so Undo cannot become a hidden text edit.
+        KeyboardAction.Undo -> Reduction(state)
+        KeyboardAction.Redo -> Reduction(state)
+        is KeyboardAction.MoveCursor -> Reduction(state)
+        // Editing-tool actions are performed by KeyboardController through
+        // TextSession; direct reducer callers only observe unchanged state.
+        KeyboardAction.ToggleEditingTools,
+        KeyboardAction.SelectAll,
+        KeyboardAction.CopySelection,
+        KeyboardAction.CutSelection,
+        KeyboardAction.Paste,
+        KeyboardAction.DeleteWord -> Reduction(state)
+        is KeyboardAction.MoveCursorByWord -> Reduction(state)
         KeyboardAction.Space -> space(state)
         KeyboardAction.Backspace -> backspace(state)
         KeyboardAction.Enter -> enter(state)
@@ -42,6 +81,7 @@ object KeyboardReducer {
         is KeyboardAction.AiCandidatesUpdated -> aiCandidatesUpdated(state, action.candidates)
         is KeyboardAction.AiCandidatesFailed -> aiCandidatesFailed(state, action.message)
         is KeyboardAction.AiCandidateTapped -> aiCandidateTapped(state, action.word)
+        is KeyboardAction.EnglishSuggestionTapped -> Reduction(state)
         is KeyboardAction.AiPanelOpened -> aiPanelOpened(state, action.source)
         is KeyboardAction.AiToneChosen -> aiToneChosen(state, action.tone)
         KeyboardAction.AiCancel -> aiCancel(state)
@@ -80,6 +120,7 @@ object KeyboardReducer {
                 composing = "",
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
                 pendingConfirmation = null,
                 lastShiftTapAt = 0L,
             ),
@@ -108,12 +149,18 @@ object KeyboardReducer {
         // R05/S01: switching layers must not commit an active composition, and
         // must not destroy candidates that still belong to the same composing.
         val keepCandidates = state.candidatesFor == state.composing
+        val nextCandidatesFor = when {
+            keepCandidates -> state.candidatesFor
+            // D07: a layer switch must not drop the literal-run marker.
+            isLiteralComposing(state) -> LITERAL_COMPOSING_MARKER
+            else -> ""
+        }
         return Reduction(
             state.copy(
                 layer = layer,
                 shift = ShiftState.Off,
                 candidates = if (keepCandidates) state.candidates else emptyList(),
-                candidatesFor = if (keepCandidates) state.candidatesFor else "",
+                candidatesFor = nextCandidatesFor,
                 lastShiftTapAt = 0L,
             ),
         )
@@ -130,6 +177,12 @@ object KeyboardReducer {
         }
         if (state.pendingConfirmation != null) {
             return enqueueAction(state, KeyboardAction.AppendInput(text))
+        }
+        // D07: an active literal run consumes every literal character before any
+        // layer-specific path, so moving to Numbers/Symbols to type digits,
+        // underscore or hyphen never queues a pinyin confirmation.
+        if (isLiteralComposing(state)) {
+            return appendLiteralInput(state, text)
         }
         if (state.language == InputLanguage.Chinese &&
             state.editorInfo.allowsChineseInput &&
@@ -155,6 +208,8 @@ object KeyboardReducer {
             }
 
             InputLanguage.Chinese -> {
+                if (isLiteralComposing(state)) return appendLiteralInput(state, text)
+                if (shouldStartLiteralRun(state, text)) return startLiteralRun(state, text)
                 val lower = text.lowercase()
                 if (lower.any { it !in 'a'..'z' }) {
                     commitCompositionThen(state, text)
@@ -169,6 +224,7 @@ object KeyboardReducer {
                             compositionVersion = state.compositionVersion + 1,
                             candidates = emptyList(),
                             candidatesFor = "",
+                            candidateQueryError = null,
                             aiCandidates = emptyList(),
                             aiCandidatesFor = "",
                             aiCandidatesLoading = false,
@@ -183,6 +239,111 @@ object KeyboardReducer {
 
     private fun isPinyinSeparator(text: String): Boolean =
         text == "'" || text == "’" || text == "‘"
+
+    /** D07: a single ASCII Latin letter (the only way to start a literal run). */
+    private fun isLatinLetter(text: String): Boolean =
+        text.length == 1 && (text[0] in 'a'..'z' || text[0] in 'A'..'Z')
+
+    /** D07: characters that continue a literal English run unchanged. */
+    private fun isLiteralRunChar(text: String): Boolean =
+        text.length == 1 &&
+            (isLatinLetter(text) || text[0] in '0'..'9' || text[0] == '_' || text[0] == '-')
+
+    /**
+     * D07: in Chinese mode an active Shift plus the first Latin letter starts a
+     * literal English run. Manual language switching remains the fallback for
+     * editors where Shift is not available.
+     */
+    private fun shouldStartLiteralRun(state: KeyboardUiState, text: String): Boolean =
+        state.language == InputLanguage.Chinese &&
+            state.layer == KeyboardLayer.Letters &&
+            state.editorInfo.allowsChineseInput &&
+            state.composing.isEmpty() &&
+            state.shift != ShiftState.Off &&
+            isLatinLetter(text)
+
+    private fun startLiteralRun(state: KeyboardUiState, text: String): Reduction {
+        // The keyboard sends the lowercase key identity even when Shift is on,
+        // so apply the normal Shift rule for the first letter (Android16 from
+        // Shift+"a"). Later letters keep the typed case.
+        val composing = applyShift(text, state.shift)
+        val nextShift = if (state.shift == ShiftState.Locked) ShiftState.Locked else ShiftState.Off
+        return Reduction(
+            state.copy(
+                composing = composing,
+                compositionVersion = state.compositionVersion + 1,
+                candidates = emptyList(),
+                candidatesFor = LITERAL_COMPOSING_MARKER,
+                candidateQueryError = null,
+                shift = nextShift,
+                aiCandidates = emptyList(),
+                aiCandidatesFor = "",
+                aiCandidatesLoading = false,
+                aiCandidatesError = null,
+            ),
+            listOf(ImeCommand.SetComposingText(composing)),
+        )
+    }
+
+    private fun appendLiteralInput(state: KeyboardUiState, text: String): Reduction {
+        if (isLiteralRunChar(text)) {
+            // Caps Lock continues to uppercase letters; a one-shot Shift has
+            // already been consumed when the run started.
+            val appended = if (state.shift == ShiftState.Locked) text.uppercase() else text
+            val composing = state.composing + appended
+            return Reduction(
+                state.copy(
+                    composing = composing,
+                    compositionVersion = state.compositionVersion + 1,
+                    candidates = emptyList(),
+                    candidatesFor = LITERAL_COMPOSING_MARKER,
+                    candidateQueryError = null,
+                    aiCandidates = emptyList(),
+                    aiCandidatesFor = "",
+                    aiCandidatesLoading = false,
+                    aiCandidatesError = null,
+                ),
+                listOf(ImeCommand.SetComposingText(composing)),
+            )
+        }
+        // Space is normally delivered as [KeyboardAction.Space]; this branch
+        // keeps direct AppendInput(" ") callers on the same literal+space path.
+        if (text == " ") return commitLiteralWithSuffix(state, " ")
+        return commitLiteralThen(state, text)
+    }
+
+    /** D07: commits the literal run and [suffix] as one typed block. */
+    private fun commitLiteralWithSuffix(state: KeyboardUiState, suffix: String): Reduction =
+        Reduction(
+            clearLiteralState(state),
+            listOf(ImeCommand.CommitText(state.composing + suffix)),
+        )
+
+    /** D07: commits the literal run, then [text] (punctuation) as its own commit. */
+    private fun commitLiteralThen(state: KeyboardUiState, text: String): Reduction =
+        Reduction(
+            clearLiteralState(state),
+            buildList {
+                add(ImeCommand.CommitText(state.composing))
+                if (text.isNotEmpty()) add(ImeCommand.CommitText(text))
+            },
+        )
+
+    /** D07: ends a literal run without changing unrelated editor/settings state. */
+    private fun clearLiteralState(state: KeyboardUiState): KeyboardUiState = state.copy(
+        composing = "",
+        compositionVersion = state.compositionVersion + 1,
+        candidates = emptyList(),
+        candidatesFor = "",
+        candidateQueryError = null,
+        pendingConfirmation = null,
+        pendingComposing = "",
+        queuedActions = emptyList(),
+        aiCandidates = emptyList(),
+        aiCandidatesFor = "",
+        aiCandidatesLoading = false,
+        aiCandidatesError = null,
+    )
 
     private fun isNumericInputAllowed(info: EditorInputInfo, text: String): Boolean {
         if (text.length != 1) return false
@@ -209,6 +370,7 @@ object KeyboardReducer {
                 compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
             ),
             listOf(ImeCommand.SetComposingText(composing)),
         )
@@ -222,6 +384,10 @@ object KeyboardReducer {
     private fun commitCompositionThen(state: KeyboardUiState, text: String): Reduction {
         if (state.pendingConfirmation != null) {
             return enqueueAction(state, KeyboardAction.AppendInput(text))
+        }
+        if (isLiteralComposing(state)) {
+            // D07: punctuation always commits the literal run, never a pinyin query.
+            return commitLiteralThen(state, text)
         }
         if (state.composing.isNotEmpty() && state.candidatesFor != state.composing) {
             return queueConfirmation(state, PendingConfirmation.Punctuation(text))
@@ -238,6 +404,8 @@ object KeyboardReducer {
     }
 
     private fun composingUpdated(state: KeyboardUiState, action: KeyboardAction.ComposingUpdated): Reduction {
+        // D07: a literal run never issues pinyin queries; any late result is stale.
+        if (isLiteralComposing(state)) return Reduction(state)
         // Old query results must never cross composition sessions even when the
         // visible composing string happens to be identical (e.g. ni -> Space -> ni).
         if (action.version != 0L && action.version != state.compositionVersion) return Reduction(state)
@@ -269,6 +437,7 @@ object KeyboardReducer {
         val updated = state.copy(
             candidates = stamped,
             candidatesFor = action.composing,
+            candidateQueryError = null,
             compositionSessionId = if (state.compositionSessionId.isEmpty() && action.sessionId.isNotEmpty()) {
                 action.sessionId
             } else {
@@ -278,6 +447,104 @@ object KeyboardReducer {
         val pending = state.pendingConfirmation ?: return Reduction(updated)
         return resolvePending(updated, pending)
     }
+
+    /**
+     * P0-A recovery: the engine query for [KeyboardAction.PinyinQueryFailed.composing]
+     * failed. A stale failure (old version/session or a different visible
+     * composition) is dropped exactly like a stale [KeyboardAction.ComposingUpdated].
+     *
+     * When the failure matches the composition a confirmation is waiting for,
+     * the confirmation ends with the raw-text fallback (Space/Candidate use
+     * [commitRaw] semantics; Punctuation commits the raw text plus its
+     * punctuation via [commitCandidateThenText]) and every key queued behind it
+     * is replayed in order, so a pressed key is never lost. Otherwise the failure is
+     * recorded as [KeyboardUiState.candidateQueryError] and the composition is
+     * marked as queried-with-no-result, so a later Space cannot wait forever for
+     * a result that will never arrive.
+     */
+    private fun pinyinQueryFailed(
+        state: KeyboardUiState,
+        action: KeyboardAction.PinyinQueryFailed,
+    ): Reduction {
+        // D07: literal runs never wait for or accept a pinyin query result.
+        if (isLiteralComposing(state)) return Reduction(state)
+        if (action.version != 0L && action.version != state.compositionVersion) return Reduction(state)
+        if (action.sessionId.isNotEmpty() &&
+            state.compositionSessionId.isNotEmpty() &&
+            action.sessionId != state.compositionSessionId
+        ) {
+            return Reduction(state)
+        }
+        if (action.composing != state.composing) return Reduction(state)
+        val message = action.message.ifBlank { CANDIDATE_QUERY_FAILED_MESSAGE }
+        val pending = state.pendingConfirmation
+        if (pending == null) {
+            // Treat the failure as a completed empty result for this composition:
+            // candidates are only kept when they already belong to it.
+            val keepCandidates = state.candidatesFor == state.composing
+            return Reduction(
+                state.copy(
+                    candidates = if (keepCandidates) state.candidates else emptyList(),
+                    candidatesFor = state.composing,
+                    candidateQueryError = message,
+                ),
+            )
+        }
+        if (state.pendingComposing != action.composing) {
+            return Reduction(state.copy(candidateQueryError = message))
+        }
+        // End the wait with the raw-text fallback, then replay the keys the user
+        // pressed while the query was outstanding (same ordering rules as a
+        // successful ComposingUpdated).
+        val queued = state.queuedActions
+        val cleared = state.copy(
+            pendingConfirmation = null,
+            pendingComposing = "",
+            queuedActions = emptyList(),
+        )
+        val base = when (pending) {
+            // The user pressed punctuation while waiting: keep the normal
+            // "raw text + punctuation" fallback instead of swallowing the key.
+            is PendingConfirmation.Punctuation ->
+                commitCandidateThenText(cleared, candidate = null, text = pending.text)
+
+            PendingConfirmation.Space, is PendingConfirmation.Candidate -> commitRaw(cleared)
+        }
+        val failedState = base.state.copy(candidateQueryError = CANDIDATE_QUERY_FALLBACK_MESSAGE)
+        val baseLearned = base.learnedSelections.ifEmpty { listOfNotNull(base.learnedSelection) }
+        return replayQueued(failedState, queued, base.commands, baseLearned)
+    }
+
+    /**
+     * P0-B: dictionary lifecycle updates are orthogonal to composition/query
+     * state. Only the dictionary fields change: a late load result must never
+     * resolve a pending confirmation, drop candidates or touch the composing
+     * text, so the raw-text fallback keeps working while the dictionary fails.
+     */
+    private fun dictionaryStateChanged(
+        state: KeyboardUiState,
+        action: KeyboardAction.DictionaryStateChanged,
+    ): Reduction {
+        val error = when (action.state) {
+            DictionaryLoadState.Failed ->
+                action.error?.takeIf { it.isNotBlank() } ?: DICTIONARY_LOAD_FAILED_MESSAGE
+
+            DictionaryLoadState.Loading, DictionaryLoadState.Ready -> null
+        }
+        return Reduction(state.copy(dictionaryState = action.state, dictionaryError = error))
+    }
+
+    /**
+     * P0-B: an explicit retry re-enters Loading immediately (before the reload
+     * coroutine starts) and clears the previous failure hint. Existing
+     * composition/candidate/pending state is deliberately untouched.
+     */
+    private fun retryDictionaryLoad(state: KeyboardUiState): Reduction = Reduction(
+        state.copy(
+            dictionaryState = DictionaryLoadState.Loading,
+            dictionaryError = null,
+        ),
+    )
 
     /**
      * True when [this] candidate provably belongs to the state's current
@@ -454,6 +721,7 @@ object KeyboardReducer {
                 compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
                 pendingConfirmation = null,
                 pendingComposing = "",
                 queuedActions = emptyList(),
@@ -499,6 +767,7 @@ object KeyboardReducer {
                 compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
                 pendingConfirmation = null,
                 pendingComposing = "",
                 queuedActions = emptyList(),
@@ -538,6 +807,7 @@ object KeyboardReducer {
                 compositionVersion = state.compositionVersion + 1,
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
                 pendingConfirmation = null,
                 pendingComposing = "",
                 queuedActions = emptyList(),
@@ -553,6 +823,7 @@ object KeyboardReducer {
     private fun space(state: KeyboardUiState): Reduction = when {
         state.editorInfo.numericMode != NumericInputMode.None -> Reduction(state)
         state.pendingConfirmation != null -> enqueueAction(state, KeyboardAction.Space)
+        isLiteralComposing(state) -> commitLiteralWithSuffix(state, " ")
         state.composing.isEmpty() -> Reduction(state, listOf(ImeCommand.CommitText(" ")))
         state.candidatesFor != state.composing -> queueConfirmation(state, PendingConfirmation.Space)
         state.candidates.isNotEmpty() -> commitCandidate(state, state.candidates.first())
@@ -562,6 +833,25 @@ object KeyboardReducer {
     private fun backspace(state: KeyboardUiState): Reduction {
         if (state.pendingConfirmation != null) {
             return enqueueAction(state, KeyboardAction.Backspace)
+        }
+        if (isLiteralComposing(state)) {
+            // D07: backspace shrinks the literal run exactly like pinyin
+            // composing, but the marker and typed case must survive.
+            val remaining = state.composing.dropLast(1)
+            return if (remaining.isEmpty()) {
+                Reduction(clearLiteralState(state), listOf(ImeCommand.FinishComposing, ImeCommand.DeleteBackward))
+            } else {
+                Reduction(
+                    state.copy(
+                        composing = remaining,
+                        compositionVersion = state.compositionVersion + 1,
+                        candidates = emptyList(),
+                        candidatesFor = LITERAL_COMPOSING_MARKER,
+                        candidateQueryError = null,
+                    ),
+                    listOf(ImeCommand.SetComposingText(remaining)),
+                )
+            }
         }
         if (state.composing.isEmpty()) {
             return Reduction(state, listOf(ImeCommand.DeleteBackward))
@@ -577,6 +867,7 @@ object KeyboardReducer {
                     compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
+                    candidateQueryError = null,
                     pendingConfirmation = null,
                     pendingComposing = "",
                     queuedActions = emptyList(),
@@ -594,6 +885,7 @@ object KeyboardReducer {
                     compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
+                    candidateQueryError = null,
                     pendingConfirmation = null,
                     pendingComposing = "",
                     queuedActions = emptyList(),
@@ -611,6 +903,10 @@ object KeyboardReducer {
         if (state.pendingConfirmation != null) {
             return enqueueAction(state, KeyboardAction.Enter)
         }
+        if (isLiteralComposing(state)) {
+            // D07: Enter commits only the literal text; it never sends an editor action.
+            return Reduction(clearLiteralState(state), listOf(ImeCommand.CommitText(state.composing)))
+        }
         if (state.composing.isNotEmpty()) {
             return Reduction(
                 state.copy(
@@ -618,6 +914,7 @@ object KeyboardReducer {
                     compositionVersion = state.compositionVersion + 1,
                     candidates = emptyList(),
                     candidatesFor = "",
+                    candidateQueryError = null,
                     pendingConfirmation = null,
                     pendingComposing = "",
                     queuedActions = emptyList(),
@@ -655,6 +952,7 @@ object KeyboardReducer {
                 },
                 candidates = emptyList(),
                 candidatesFor = "",
+                candidateQueryError = null,
                 pendingConfirmation = null,
                 pendingComposing = "",
                 queuedActions = emptyList(),
@@ -665,6 +963,8 @@ object KeyboardReducer {
                 aiCandidatesLoading = false,
                 aiCandidatesError = null,
                 lastShiftTapAt = 0L,
+                hasSelection = false,
+                editingToolsVisible = false,
             ),
         )
     }
@@ -678,6 +978,9 @@ object KeyboardReducer {
         state: KeyboardUiState,
         action: KeyboardAction.SelectionChanged,
     ): Reduction {
+        // Selection tracking is independent of composing: the editing page
+        // needs the real range even when no pinyin session is active.
+        val hasSelection = action.selectionStart != action.selectionEnd
         if (state.composing.isEmpty()) {
             // R07: even without composing, any cursor/selection move invalidates
             // an AI-lexicon request or its displayed candidates.
@@ -685,9 +988,10 @@ object KeyboardReducer {
                 state.aiCandidatesLoading ||
                 state.aiCandidatesError != null ||
                 state.aiCandidatesFor.isNotEmpty()
-            if (!hasAiCandidates) return Reduction(state)
+            if (!hasAiCandidates) return Reduction(state.copy(hasSelection = hasSelection))
             return Reduction(
                 state.copy(
+                    hasSelection = hasSelection,
                     aiCandidates = emptyList(),
                     aiCandidatesFor = "",
                     aiCandidatesLoading = false,
@@ -699,16 +1003,17 @@ object KeyboardReducer {
             action.candidatesEnd >= action.candidatesStart
         // The normal IME-own callback after setComposingText places a collapsed
         // caret exactly at the end of the composing region; that must NOT end the
-        // composition on every keystroke.
+        // composition on every keystroke, but it must still clear a stale
+        // hasSelection flag because the callback describes a collapsed caret.
         val normalImeCallback = hasCandidatesRegion &&
             action.selectionStart == action.selectionEnd &&
             action.selectionEnd == action.candidatesEnd
-        if (normalImeCallback) return Reduction(state)
+        if (normalImeCallback) return Reduction(state.copy(hasSelection = hasSelection))
 
         // Any caret inside the composition (before its end), any real selection,
         // or a moved/cleared candidate region is handled safely: finish the
         // composition without deleting text, clear candidates and queued confirms.
-        return endComposition(state)
+        return endComposition(state.copy(hasSelection = hasSelection))
     }
 
     private fun endComposition(state: KeyboardUiState): Reduction = Reduction(
@@ -717,6 +1022,7 @@ object KeyboardReducer {
             compositionVersion = state.compositionVersion + 1,
             candidates = emptyList(),
             candidatesFor = "",
+            candidateQueryError = null,
             pendingConfirmation = null,
             pendingComposing = "",
             queuedActions = emptyList(),
@@ -732,6 +1038,8 @@ object KeyboardReducer {
 
     private fun requestAiCandidates(state: KeyboardUiState): Reduction {
         if (!state.aiEnabled || !state.editorInfo.aiContextAllowed) return Reduction(state)
+        // D07: a literal English run is not pinyin; never query the AI lexicon for it.
+        if (isLiteralComposing(state)) return Reduction(state)
         // A second request while one is loading is a cancel, not a restart. The
         // controller turns RequestAiCandidates into cancelAi() in that case; this
         // guard keeps a direct reducer caller from arming a duplicate request.

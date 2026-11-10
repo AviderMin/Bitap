@@ -14,9 +14,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -39,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +59,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -73,10 +78,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.bitap.keyboard.core.Candidate
+import com.bitap.keyboard.core.DictionaryLoadState
 import com.bitap.keyboard.core.EditorInputKind
 import com.bitap.keyboard.core.InputLanguage
 import com.bitap.keyboard.core.KeyboardAction
 import com.bitap.keyboard.core.KeyboardLayer
+import com.bitap.keyboard.core.KeyboardReducer
 import com.bitap.keyboard.core.KeyboardUiState
 import com.bitap.keyboard.core.NumericInputMode
 import com.bitap.keyboard.core.ShiftState
@@ -103,22 +110,29 @@ internal fun usesCandidatePanelOverlay(compact: Boolean): Boolean = compact
 /**
  * Expanded panel geometry.
  *
- * One row is a 48 dp [CandidateChip] minimum plus the 2 dp gap to the next row.
- * The footer is one 48 dp [PanelTextButton] row and is fixed outside the item
- * scroller; the panel inner padding is 8 dp on top and 8 dp on the bottom.
- * Page size is chosen so all page rows plus the footer fit inside
- * [candidatePanelMaxHeightDp] without the item list scrolling at the default
- * font scale. A larger accessibility font (or a long multi-line candidate) can
- * still make chips taller; only the item list (never the footer) scrolls then.
+ * Chips flow horizontally and wrap by their intrinsic width, so short words
+ * share a row while long words can span more width instead of every candidate
+ * claiming its own full row. [candidatePanelVisibleRows] still fixes the panel
+ * height budget: portrait 4 rows, compact 2 rows, plus the fixed 48 dp footer.
+ * [candidatePanelPageSize] is the number of candidates per page (not rows); a
+ * page may scroll internally when large fonts or many long words need it.
  */
 internal const val CANDIDATE_PANEL_ROW_HEIGHT_DP = 50
 internal const val CANDIDATE_PANEL_FOOTER_HEIGHT_DP = 48
 internal const val CANDIDATE_PANEL_INNER_PADDING_DP = 16
 
-internal fun candidatePanelPageSize(compact: Boolean): Int = if (compact) 2 else 4
+/** Rows that must fit without scrolling at the default font scale. */
+internal fun candidatePanelVisibleRows(compact: Boolean): Int = if (compact) 2 else 4
+
+/**
+ * Candidate capacity per page. Flow layout fits several short chips per row,
+ * so a page holds more candidates than the row budget; the item area scrolls
+ * when long words or an accessibility font increase the row count.
+ */
+internal fun candidatePanelPageSize(compact: Boolean): Int = if (compact) 8 else 12
 
 internal fun candidatePanelMaxHeightDp(compact: Boolean): Int =
-    candidatePanelPageSize(compact) * CANDIDATE_PANEL_ROW_HEIGHT_DP +
+    candidatePanelVisibleRows(compact) * CANDIDATE_PANEL_ROW_HEIGHT_DP +
         CANDIDATE_PANEL_FOOTER_HEIGHT_DP + CANDIDATE_PANEL_INNER_PADDING_DP
 
 /** Number of pages for [candidateCount] candidates; an empty result still has one page. */
@@ -178,6 +192,161 @@ internal fun aiEntryContentDescription(aiLoading: Boolean, aiReady: Boolean): St
 
 internal fun aiEntryLabel(aiLoading: Boolean): String = if (aiLoading) "取消 AI" else "✦ AI"
 
+/**
+ * Progressive delete-repeat interval. A held backspace starts at the existing
+ * 55 ms cadence, speeds up after eight repeats and again after twenty so long
+ * deletions do not require dozens of separate presses. Pure so JVM tests can
+ * pin the curve without a device.
+ */
+internal fun deleteRepeatIntervalMs(repeatCount: Int): Long = when {
+    repeatCount <= 8 -> 55L
+    repeatCount <= 20 -> 40L
+    else -> 25L
+}
+
+/** P0-B: exact dictionary status copy, shown only in Chinese mode. */
+internal const val DICTIONARY_LOADING_TEXT = "词库加载中…"
+
+/** P0-B: failed state copy; the whole line is tappable to retry the load. */
+internal const val DICTIONARY_FAILED_TEXT = "词库加载失败，点此重试（仍可提交原文）"
+
+/**
+ * P0-B: single-line dictionary status for the candidate bar. [Ready] renders
+ * nothing (no permanent placeholder), and English mode hides dictionary status
+ * entirely because pinyin candidates do not apply there.
+ */
+internal fun dictionaryStatusText(
+    language: InputLanguage,
+    state: DictionaryLoadState,
+): String? = when {
+    language != InputLanguage.Chinese -> null
+    state == DictionaryLoadState.Loading -> DICTIONARY_LOADING_TEXT
+    state == DictionaryLoadState.Failed -> DICTIONARY_FAILED_TEXT
+    else -> null
+}
+
+/** P0-B: only the failed dictionary state turns the status line into a retry button. */
+internal fun dictionaryStatusActionable(state: DictionaryLoadState): Boolean =
+    state == DictionaryLoadState.Failed
+
+/**
+ * P0-B + P0-A: one merged candidate-bar status line.
+ *
+ * Priority: dictionary failure (with retry) > candidate query error > dictionary
+ * loading. The two error kinds never overwrite each other in state; the UI shows
+ * the higher-priority one on the same line so no extra permanent row is reserved.
+ * [isError] selects the danger color.
+ */
+internal data class CandidateBarStatus(
+    val text: String,
+    val actionable: Boolean,
+    val isError: Boolean,
+)
+
+internal fun candidateBarStatus(
+    language: InputLanguage,
+    dictionaryState: DictionaryLoadState,
+    candidateQueryError: String?,
+): CandidateBarStatus? {
+    if (language != InputLanguage.Chinese) return null
+    val dictionaryFailedText = dictionaryStatusText(language, DictionaryLoadState.Failed)
+    if (dictionaryState == DictionaryLoadState.Failed && dictionaryFailedText != null) {
+        return CandidateBarStatus(
+            text = dictionaryFailedText,
+            actionable = true,
+            isError = true,
+        )
+    }
+    val queryError = candidateQueryError?.takeIf { it.isNotBlank() }
+    if (queryError != null) {
+        return CandidateBarStatus(text = queryError, actionable = false, isError = true)
+    }
+    val loadingText = dictionaryStatusText(language, DictionaryLoadState.Loading)
+    if (dictionaryState == DictionaryLoadState.Loading && loadingText != null) {
+        return CandidateBarStatus(text = loadingText, actionable = false, isError = false)
+    }
+    return null
+}
+
+/**
+ * Whether the last candidate row should remain on screen while the next
+ * debounced query is pending. This is deliberately a display-only decision:
+ * the reducer still clears stale candidates so they can never be committed.
+ */
+internal fun shouldRetainCandidateRow(
+    composing: String,
+    candidatesFor: String,
+    hasFreshCandidates: Boolean,
+    candidateQueryError: String?,
+): Boolean = !hasFreshCandidates &&
+    composing.isNotEmpty() &&
+    candidatesFor != composing &&
+    candidatesFor != KeyboardReducer.LITERAL_COMPOSING_MARKER &&
+    candidateQueryError == null
+
+/**
+ * Editing tools are a dedicated keyboard page, not a transient row. The page
+ * stays open only while the editor has no active pinyin composition: composing
+ * text owns the candidate bar and the key area, so the page must not compete
+ * with it for height or taps.
+ */
+internal fun shouldShowEditingPage(state: KeyboardUiState): Boolean =
+    state.editingToolsVisible && state.composing.isEmpty()
+
+/** One key of [EditingToolsPage]: visual label, accessibility text and action. */
+internal data class EditingTool(
+    val label: String,
+    val description: String,
+    val action: KeyboardAction,
+)
+
+/**
+ * The eight editing-tool keys in visual order (select all, copy, cut, paste,
+ * word-left, word-right, delete-word, collapse). Pure so JVM tests can pin the
+ * copy and order without rendering the Compose row.
+ */
+internal fun editingTools(): List<EditingTool> = listOf(
+    EditingTool(label = "全选", description = "全选文本", action = KeyboardAction.SelectAll),
+    EditingTool(label = "复制", description = "复制选中文本", action = KeyboardAction.CopySelection),
+    EditingTool(label = "剪切", description = "剪切选中文本", action = KeyboardAction.CutSelection),
+    EditingTool(label = "粘贴", description = "粘贴剪贴板内容", action = KeyboardAction.Paste),
+    EditingTool(label = "词左", description = "光标左移一个词", action = KeyboardAction.MoveCursorByWord(-1)),
+    EditingTool(label = "词右", description = "光标右移一个词", action = KeyboardAction.MoveCursorByWord(1)),
+    EditingTool(label = "删词", description = "删除前一个词", action = KeyboardAction.DeleteWord),
+    EditingTool(label = "收起", description = "收起编辑工具", action = KeyboardAction.ToggleEditingTools),
+)
+
+/**
+ * Undo/redo live only on the dedicated editing page. The main keyboard's
+ * function row stays uncluttered next to the Chinese/English toggle.
+ */
+internal fun editingHistoryTools(): List<EditingTool> = listOf(
+    EditingTool(label = "撤销", description = "撤销上次上屏", action = KeyboardAction.Undo),
+    EditingTool(label = "重做", description = "重做上次撤销", action = KeyboardAction.Redo),
+)
+
+/** Labels of [editingTools] in visual order, exposed for JVM copy tests. */
+internal fun editingToolLabels(): List<String> = editingTools().map { it.label }
+
+/** Labels of [editingHistoryTools] in visual order, exposed for JVM copy tests. */
+internal fun editingHistoryToolLabels(): List<String> = editingHistoryTools().map { it.label }
+
+/** One horizontal cursor step for the space-below gesture pad. */
+internal const val CURSOR_DRAG_STEP_DP = 16
+
+/** Accessibility hint for the invisible long-press drag pad under the spacebar. */
+internal const val SPACE_CURSOR_HINT = "空格下方长按滑动移动光标"
+
+/**
+ * Whole cursor steps represented by a horizontal drag distance. Pure so the
+ * gesture threshold and direction can be pinned on the JVM without Compose.
+ */
+internal fun cursorStepsForDrag(dragPx: Float, thresholdPx: Float): Int {
+    if (thresholdPx <= 0f) return 0
+    return (dragPx / thresholdPx).toInt()
+}
+
+
 @Composable
 fun KeyboardScreen(
     state: KeyboardUiState,
@@ -192,12 +361,45 @@ fun KeyboardScreen(
     // render the expanded panel as an overlay instead of adding keyboard height.
     var candidatesExpanded by remember { mutableStateOf(false) }
     var candidatePage by remember { mutableIntStateOf(0) }
+    // Preserve the last rendered candidate row while the next debounced query is
+    // in flight. The reducer must clear stale candidates for correctness, but the
+    // UI should not blink blank on every letter: old chips stay visible (disabled)
+    // until the new query publishes, then they are replaced atomically.
+    var retainedCandidates by remember { mutableStateOf<List<Candidate>>(emptyList()) }
+    var retainedComposingLength by remember { mutableIntStateOf(0) }
     // T06: in landscape/tiny windows the classic 54 dp rows + candidate strips
     // cover the editor. Compact mode keeps the row hit target at 48 dp
     // (42 dp keycap + 6 dp vertical padding) while reducing paddings, removing
     // the decorative dock line and collapsing candidate extras to one row.
     val compact = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ||
         configuration.screenHeightDp < 480
+    val freshCandidates = state.candidates
+    val freshCandidatesFor = state.candidatesFor
+    LaunchedEffect(freshCandidates, freshCandidatesFor, state.composing, state.candidateQueryError) {
+        when {
+            freshCandidates.isNotEmpty() -> {
+                retainedCandidates = freshCandidates
+                retainedComposingLength = freshCandidatesFor.length.takeIf { it > 0 } ?: state.composing.length
+            }
+
+            !shouldRetainCandidateRow(
+                composing = state.composing,
+                candidatesFor = freshCandidatesFor,
+                hasFreshCandidates = freshCandidates.isNotEmpty(),
+                candidateQueryError = state.candidateQueryError,
+            ) -> {
+                retainedCandidates = emptyList()
+                retainedComposingLength = 0
+            }
+        }
+    }
+    val displayCandidates = if (freshCandidates.isNotEmpty()) freshCandidates else retainedCandidates
+    val displayComposingLength = if (freshCandidates.isNotEmpty()) {
+        freshCandidatesFor.length.takeIf { it > 0 } ?: state.composing.length
+    } else {
+        retainedComposingLength
+    }
+    val candidatesInteractive = freshCandidates.isNotEmpty() && freshCandidatesFor == state.composing
     val heightScale = state.keyboardHeightScale.coerceIn(0.85f, 1.35f)
     val keyHeight = if (compact) 42.dp else 54.dp
     val rowGap = if (compact) 2.dp else 4.dp
@@ -241,7 +443,7 @@ fun KeyboardScreen(
                 )
                 .border(0.5.dp, palette.hairline, KeyboardDockShape)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(top = if (compact) 2.dp else 5.dp, bottom = if (compact) 2.dp else 4.dp + bottomLift),
+                .padding(top = if (compact) 2.dp else 5.dp, bottom = if (compact) 2.dp else 4.dp),
         ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -267,6 +469,9 @@ fun KeyboardScreen(
             }
             CandidateBar(
                 state = state,
+                displayCandidates = displayCandidates,
+                displayComposingLength = displayComposingLength,
+                candidatesInteractive = candidatesInteractive,
                 onAction = onAction,
                 haptic = haptic,
                 onOpenSettings = onOpenSettings,
@@ -276,31 +481,43 @@ fun KeyboardScreen(
                 candidatePage = candidatePage,
                 onCandidatePageChange = { candidatePage = it },
             )
-            when (state.layer) {
-                KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
-                KeyboardLayer.Numbers -> if (state.numericMode != NumericInputMode.None) {
-                    NumericLayout(state = state, press = press)
-                } else {
-                    SymbolLayout(
-                        rows = NumberRows,
-                        bottomRow = listOf(".", ",", "?", "!", "'", "\""),
-                        switchLabel = "#+=",
-                        switchDescription = "切换到更多符号",
-                        nextLayer = KeyboardLayer.Symbols,
+            if (shouldShowEditingPage(state)) {
+                EditingToolsPage(press = press)
+            } else {
+                when (state.layer) {
+                    KeyboardLayer.Letters -> LetterLayout(state = state, press = press)
+                    KeyboardLayer.Numbers -> if (state.numericMode != NumericInputMode.None) {
+                        NumericLayout(state = state, press = press)
+                    } else {
+                        SymbolLayout(
+                            rows = NumberRows,
+                            bottomRow = listOf(".", ",", "?", "!", "'", "\""),
+                            switchLabel = "#+=",
+                            switchDescription = "切换到更多符号",
+                            nextLayer = KeyboardLayer.Symbols,
+                            press = press,
+                        )
+                    }
+
+                    KeyboardLayer.Symbols -> SymbolLayout(
+                        rows = SymbolRows,
+                        bottomRow = listOf(".", ",", "?", "!", ":", ";", "'"),
+                        switchLabel = "ABC",
+                        switchDescription = "切换到字母键盘",
+                        nextLayer = KeyboardLayer.Letters,
                         press = press,
                     )
                 }
-
-                KeyboardLayer.Symbols -> SymbolLayout(
-                    rows = SymbolRows,
-                    bottomRow = listOf(".", ",", "?", "!", ":", ";", "'"),
-                    switchLabel = "ABC",
-                    switchDescription = "切换到字母键盘",
-                    nextLayer = KeyboardLayer.Letters,
-                    press = press,
-                )
+                FunctionRow(state = state, press = press)
+                if (!compact) {
+                    SpaceCursorPad(
+                        press = press,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .height(maxOf(4.dp + bottomLift, 16.dp)),
+                    )
+                }
             }
-            FunctionRow(state = state, press = press)
         }
         // P0 landscape fix: the expanded panel is an overlay anchored above the
         // fixed bottom function row. It never adds layout height, so the key area
@@ -308,6 +525,9 @@ fun KeyboardScreen(
         if (usesCandidatePanelOverlay(compact)) {
             CandidatePanelOverlay(
                 state = state,
+                displayCandidates = displayCandidates,
+                displayComposingLength = displayComposingLength,
+                candidatesInteractive = candidatesInteractive,
                 expanded = candidatesExpanded,
                 page = candidatePage,
                 onPageChange = { candidatePage = it },
@@ -327,6 +547,9 @@ fun KeyboardScreen(
 @Composable
 private fun CandidateBar(
     state: KeyboardUiState,
+    displayCandidates: List<Candidate>,
+    displayComposingLength: Int,
+    candidatesInteractive: Boolean,
     onAction: (KeyboardAction) -> Unit,
     haptic: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -339,18 +562,15 @@ private fun CandidateBar(
     val palette = LocalBitapPalette.current
     val candidateScrollState = rememberScrollState()
     val expandedPageSize = candidatePanelPageSize(compact)
-    val composingLength = state.composing.length
-    val candidateVersion = state.candidates.firstOrNull()?.word
-    // R11: a new composition/result set starts at the first candidate instead of
+    val composingLength = displayComposingLength
+    // R11: a new candidate result set starts at the first candidate instead of
     // leaving the previous scroll position at the end of the old result list.
-    LaunchedEffect(state.composing, state.candidatesFor, candidateVersion, state.candidates.size) {
+    // Do not key this on state.composing: the retained row must stay put while
+    // the next query is in flight.
+    LaunchedEffect(displayCandidates, displayComposingLength) {
         onCandidatePageChange(0)
         candidateScrollState.scrollTo(0)
-        if (state.candidates.isEmpty()) onCandidatesExpandedChange(false)
-    }
-    // Collapse the expanded candidate page whenever the composition changes.
-    LaunchedEffect(state.composing) {
-        onCandidatesExpandedChange(false)
+        if (displayCandidates.isEmpty()) onCandidatesExpandedChange(false)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
     if (!compact && state.composing.isNotEmpty()) {
@@ -390,7 +610,9 @@ private fun CandidateBar(
                     .padding(start = 4.dp, end = 2.dp),
             )
         }
-        if (state.composing.isNotEmpty() || state.candidates.isNotEmpty() || state.aiCandidates.isNotEmpty()) {
+        if (state.composing.isNotEmpty() || displayCandidates.isNotEmpty() ||
+            state.aiCandidates.isNotEmpty() || state.englishSuggestions.isNotEmpty()
+        ) {
             Row(
                 modifier = Modifier
                     .weight(1f)
@@ -418,7 +640,27 @@ private fun CandidateBar(
                         )
                     }
                 }
-                if (state.candidates.isEmpty() && state.composing.isNotEmpty()) {
+                if (state.language == InputLanguage.English && state.englishSuggestions.isNotEmpty()) {
+                    Text(
+                        text = "联想",
+                        color = palette.accent,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 2.dp, end = 1.dp),
+                    )
+                    state.englishSuggestions.forEachIndexed { index, word ->
+                        CandidateChip(
+                            label = word,
+                            description = "英文联想 " + word,
+                            accent = index == 0,
+                            onClick = {
+                                haptic()
+                                onAction(KeyboardAction.EnglishSuggestionTapped(word))
+                            },
+                        )
+                    }
+                }
+                if (displayCandidates.isEmpty() && state.composing.isNotEmpty()) {
                     CandidateChip(
                         label = state.composing,
                         description = "提交原始拼音 " + state.composing,
@@ -429,13 +671,14 @@ private fun CandidateBar(
                         },
                     )
                 } else {
-                    state.candidates.forEachIndexed { index, candidate ->
+                    displayCandidates.forEachIndexed { index, candidate ->
                         CandidateChip(
                             label = candidate.word,
                             description = candidateChipContentDescription(candidate, composingLength),
                             accent = index == 0,
                             isCorrection = candidate.isCorrection,
                             isPartial = isPartialCandidate(candidate, composingLength),
+                            enabled = candidatesInteractive,
                             onClick = {
                                 haptic()
                                 onAction(KeyboardAction.CandidateTapped(index))
@@ -468,7 +711,7 @@ private fun CandidateBar(
                 Text(text = "原文", color = palette.accent, fontSize = 11.sp)
             }
         }
-        if (state.candidates.isNotEmpty()) {
+        if (displayCandidates.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -520,6 +763,30 @@ private fun CandidateBar(
                 )
             }
         }
+        // Dedicated editing page entry: between the AI entry and settings, not
+        // in the bottom function row.
+        if (state.composing.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable {
+                        haptic()
+                        onAction(KeyboardAction.ToggleEditingTools)
+                    }
+                    .semantics {
+                        contentDescription = if (state.editingToolsVisible) "返回键盘" else "打开编辑工具页"
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "编辑",
+                    color = if (state.editingToolsVisible) palette.accent else palette.textSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -539,16 +806,17 @@ private fun CandidateBar(
         // the key rows or the bottom function row off screen.
         if (!compact) {
             AnimatedVisibility(
-                visible = candidatesExpanded && state.candidates.isNotEmpty(),
+                visible = candidatesExpanded && displayCandidates.isNotEmpty(),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 CandidateExpandedPanel(
-                    candidates = state.candidates,
+                    candidates = displayCandidates,
                     composingLength = composingLength,
                     page = candidatePage,
                     pageSize = expandedPageSize,
                     compact = compact,
+                    enabled = candidatesInteractive,
                     onPageChange = onCandidatePageChange,
                     onCandidateClick = { index ->
                         haptic()
@@ -574,8 +842,42 @@ private fun CandidateBar(
             modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
         )
     }
+    // P0-B + P0-A: one contextual status line under the candidate strip. It is
+    // absent in Ready/English, so no permanent placeholder changes keyboard
+    // height; a failed dictionary reuses the line as a full-width retry button
+    // while CommitRaw (raw chip / 原文) stays independently available.
+    val statusLine = candidateBarStatus(
+        language = state.language,
+        dictionaryState = state.dictionaryState,
+        candidateQueryError = state.candidateQueryError,
+    )
+    if (statusLine != null) {
+        Text(
+            text = statusLine.text,
+            color = if (statusLine.isError) palette.danger else palette.textSecondary,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (statusLine.actionable) {
+                        Modifier
+                            .clickable {
+                                haptic()
+                                onAction(KeyboardAction.RetryDictionaryLoad)
+                            }
+                            .semantics { contentDescription = "重新加载词库" }
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+        )
+    }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CandidateExpandedPanel(
     candidates: List<Candidate>,
@@ -583,6 +885,7 @@ private fun CandidateExpandedPanel(
     page: Int,
     pageSize: Int,
     compact: Boolean = false,
+    enabled: Boolean = true,
     onPageChange: (Int) -> Unit,
     onCandidateClick: (Int) -> Unit,
     haptic: () -> Unit,
@@ -618,34 +921,29 @@ private fun CandidateExpandedPanel(
             .heightIn(max = candidatePanelMaxHeightDp(compact).dp)
             .padding(8.dp),
     ) {
-        Column(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
                 .verticalScroll(itemScrollState),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             pageItems.forEachIndexed { itemIndex, candidate ->
                 val globalIndex = pageStart + itemIndex
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 2.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    CandidateChip(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = candidate.word,
-                        description = candidateChipContentDescription(candidate, composingLength),
-                        accent = globalIndex == 0,
-                        maxLines = 3,
-                        isCorrection = candidate.isCorrection,
-                        isPartial = isPartialCandidate(candidate, composingLength),
-                        onClick = {
-                            haptic()
-                            onCandidateClick(globalIndex)
-                        },
-                    )
-                }
+                CandidateChip(
+                    label = candidate.word,
+                    description = candidateChipContentDescription(candidate, composingLength),
+                    accent = globalIndex == 0,
+                    maxLines = 3,
+                    isCorrection = candidate.isCorrection,
+                    isPartial = isPartialCandidate(candidate, composingLength),
+                    enabled = enabled,
+                    onClick = {
+                        haptic()
+                        onCandidateClick(globalIndex)
+                    },
+                )
             }
         }
         // The footer is outside the item scroller so the page controls stay visible
@@ -702,6 +1000,9 @@ private fun CandidateExpandedPanel(
 @Composable
 private fun CandidatePanelOverlay(
     state: KeyboardUiState,
+    displayCandidates: List<Candidate>,
+    displayComposingLength: Int,
+    candidatesInteractive: Boolean,
     expanded: Boolean,
     page: Int,
     onPageChange: (Int) -> Unit,
@@ -711,17 +1012,18 @@ private fun CandidatePanelOverlay(
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
-        visible = expanded && state.candidates.isNotEmpty(),
+        visible = expanded && displayCandidates.isNotEmpty(),
         modifier = modifier,
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
         CandidateExpandedPanel(
-            candidates = state.candidates,
-            composingLength = state.composing.length,
+            candidates = displayCandidates,
+            composingLength = displayComposingLength,
             page = page,
             pageSize = candidatePanelPageSize(compact = true),
             compact = true,
+            enabled = candidatesInteractive,
             onPageChange = onPageChange,
             onCandidateClick = onCandidateClick,
             haptic = haptic,
@@ -842,6 +1144,7 @@ private fun CandidateChip(
     maxLines: Int = 1,
     isCorrection: Boolean = false,
     isPartial: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val palette = LocalBitapPalette.current
@@ -850,7 +1153,7 @@ private fun CandidateChip(
         modifier = modifier
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 10.dp)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
@@ -1069,10 +1372,10 @@ private fun KeyRow(
                         repeatJobs[pointerId] = pointerScope.launch {
                             delay(400)
                             if (repeat != null) {
-                                tracker.recordRepeat(pointerId)
                                 while (isActive) {
                                     repeat()
-                                    delay(55)
+                                    tracker.recordRepeat(pointerId)
+                                    delay(deleteRepeatIntervalMs(tracker.repeatCount(pointerId)))
                                 }
                             } else {
                                 tracker.recordRepeat(pointerId)
@@ -1428,6 +1731,120 @@ private fun NumericLayout(state: KeyboardUiState, press: (KeyboardAction) -> Uni
     }
 }
 
+/**
+ * Dedicated editing-tools keyboard page. It replaces the letter/symbol rows
+ * instead of adding a transient row, so the key area keeps a stable height and
+ * the edit entry lives in the candidate bar between AI and settings.
+ */
+@Composable
+private fun EditingToolsPage(press: (KeyboardAction) -> Unit) {
+    val palette = LocalBitapPalette.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "编辑工具",
+            color = palette.accent,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        CompositionLocalProvider(LocalKeyboardKeyHeight provides 48.dp) {
+            KeyRow(
+                keys = editingTools().take(4).map { tool ->
+                    KeyCap(
+                        label = tool.label,
+                        description = tool.description,
+                        weight = 1f,
+                        isFunction = true,
+                        fontSize = 15.sp,
+                        onClick = { press(tool.action) },
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 3.dp),
+            )
+            KeyRow(
+                keys = editingTools().drop(4).map { tool ->
+                    KeyCap(
+                        label = tool.label,
+                        description = tool.description,
+                        weight = 1f,
+                        isFunction = true,
+                        fontSize = 15.sp,
+                        onClick = { press(tool.action) },
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 3.dp),
+            )
+            KeyRow(
+                keys = editingHistoryTools().map { tool ->
+                    KeyCap(
+                        label = tool.label,
+                        description = tool.description,
+                        weight = 1f,
+                        isFunction = true,
+                        fontSize = 15.sp,
+                        onClick = { press(tool.action) },
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 3.dp),
+            )
+        }
+        Text(
+            text = "提示：空格下方长按并左右滑动，可移动光标",
+            color = palette.textSecondary,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+    }
+}
+
+/**
+ * Invisible interaction pad in the blank area below the spacebar.
+ *
+ * Long-press first, then slide horizontally: every 16 dp becomes one cursor
+ * move. The pad only exists in portrait/expanded-height mode; it never takes
+ * horizontal space from the spacebar row or shifts the key geometry when the
+ * height setting changes.
+ */
+@Composable
+private fun SpaceCursorPad(
+    press: (KeyboardAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { CURSOR_DRAG_STEP_DP.dp.toPx() }
+    var accumulated by remember { mutableFloatStateOf(0f) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth(0.38f)
+            .heightIn(min = 16.dp)
+            .semantics { contentDescription = SPACE_CURSOR_HINT }
+            .pointerInput(thresholdPx) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { accumulated = 0f },
+                    onDragEnd = { accumulated = 0f },
+                    onDragCancel = { accumulated = 0f },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        accumulated += dragAmount.x
+                        val steps = cursorStepsForDrag(accumulated, thresholdPx)
+                        if (steps != 0) {
+                            accumulated -= steps * thresholdPx
+                            val direction = if (steps > 0) 1 else -1
+                            repeat(if (steps > 0) steps else -steps) {
+                                press(KeyboardAction.MoveCursor(direction))
+                            }
+                        }
+                    },
+                )
+            },
+    )
+}
+
 @Composable
 private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit) {
     if (state.numericMode != NumericInputMode.None) {
@@ -1511,7 +1928,7 @@ private fun FunctionRow(state: KeyboardUiState, press: (KeyboardAction) -> Unit)
                 KeyCap(
                     label = "空格",
                     description = "空格",
-                    weight = 4.4f,
+                    weight = 4.2f,
                     isFunction = true,
                     fontSize = 14.sp,
                     onClick = { press(KeyboardAction.Space) },

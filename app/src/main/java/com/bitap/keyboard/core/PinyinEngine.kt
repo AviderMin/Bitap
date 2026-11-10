@@ -45,6 +45,21 @@ class PinyinEngine private constructor(
     internal data class EngineTuning(
         val beamSize: Int = MAX_LATTICE_PATHS,
         val entriesPerKey: Int = MAX_ENTRIES_PER_KEY,
+        /**
+         * Long-input-only lattice beam. 0 keeps [beamSize] for every input
+         * (production default); experiments opt in explicitly.
+         */
+        val longInputBeamSize: Int = 0,
+        /** Long-input-only entries per pinyin key. 0 keeps [entriesPerKey]. */
+        val longInputEntriesPerKey: Int = 0,
+        /** Enables bounded tail-window local correction (production default false). */
+        val localCorrectionWindowEnabled: Boolean = false,
+        /** Maximum number of trailing pinyin characters scanned by the local correction window. */
+        val localCorrectionTailLimit: Int = 12,
+        /** Maximum window length for one edit-distance-1 correction attempt. */
+        val localCorrectionMaxWindow: Int = 12,
+        /** Maximum number of local correction candidates emitted per query. */
+        val localCorrectionBudget: Int = 8,
         val contextWeight: Double = CONTEXT_WEIGHT,
         /** Minimum corpus bigram count before a boundary score is trusted. */
         val contextGateMinBigram: Int = 0,
@@ -84,6 +99,10 @@ class PinyinEngine private constructor(
     private val selectionCounts = HashMap<String, Int>()
     private val userEntries = LinkedHashMap<String, UserLexiconEntry>()
     private var lastClearGeneration = UserLexiconStore.currentClearGeneration()
+
+    /** Last persisted revision observed on [userLexiconStore], to detect external edits. */
+    @Volatile
+    private var lastStoreRevision: Long = userLexiconStore?.currentRevision() ?: 0L
     private var selectionsSinceDecay = 0
 
     /** Session learning switch; controller updates it from settings + editor policy. */
@@ -124,6 +143,7 @@ class PinyinEngine private constructor(
         val cappedLimit = limit.coerceAtMost(DEFAULT_LIMIT)
         if (cappedLimit <= 0) return emptyList()
         syncClearGeneration()
+        syncExternalStoreRevision()
         // Hard input budget: overlong/invalid composing must stay cheap and
         // deletable rather than occupying the decoder. The IME controller keeps
         // the full composition in UI state and queries bounded prefixes; this
@@ -269,6 +289,19 @@ class PinyinEngine private constructor(
 
     /** Frequency of a dictionary word, or null when absent (diagnostics only). */
     internal fun debugWordFrequency(word: String): Long? = index?.wordFrequency?.get(word)
+
+    /**
+     * Diagnostic-only: unpruned best full-cover segmentation for one continuous
+     * pinyin query. Uses the same dictionary index and word scores as the
+     * decoder but no beam; outside tests nothing calls it.
+     */
+    internal fun debugBestSegmentation(input: String): List<String>? {
+        val current = index ?: return null
+        val parsed = parseQuery(input)
+        if (parsed.segments.size != 1) return null
+        return bestSegmentation(parsed.segments.single(), current, snapshotUserEntries())
+            ?.map { it.word }
+    }
 
     /**
      * Diagnostic/evaluation helper for the next long-input batch: returns at
@@ -621,6 +654,82 @@ class PinyinEngine private constructor(
         if (shouldContinue() && collector.bestFullScore(n) < CORRECTION_TRIGGER_SCORE) {
             collectCorrections(query, current, userSnapshot, collector, shouldContinue)
         }
+
+        // Experimental long-input local correction: default off, bounded tail
+        // window only. Production search never enters this branch.
+        if (shouldContinue() && tuning.localCorrectionWindowEnabled) {
+            collectLocalCorrections(query, current, userSnapshot, collector, shouldContinue)
+        }
+
+        // Sentence-final particles are often typed with only their initial:
+        // nihaom -> 你好吗, zenml -> 怎么了. Run after corrections so a corrected
+        // prefix (zenm -> 怎么) can still receive the particle.
+        if (shouldContinue()) {
+            collectParticleSuffixes(query, collector, shouldContinue)
+        }
+    }
+
+    /** CJK Unified Ideograph ranges used by the particle suffix guard. */
+    private fun isCjk(char: Char): Boolean =
+        char in '\u4E00'..'\u9FFF' ||
+            char in '\u3400'..'\u4DBF' ||
+            char in '\uF900'..'\uFAFF'
+
+    /**
+     * D07 follow-up: complete sentence-final particles typed with a one-letter
+     * shorthand (nihaom -> 你好吗, zenml -> 怎么了). The prefix must already have
+     * a full-coverage CJK candidate; otherwise a stray single letter could turn
+     * ordinary partial pinyin into an unrelated particle phrase.
+     */
+    private fun collectParticleSuffixes(
+        query: String,
+        collector: CandidateCollector,
+        shouldContinue: () -> Boolean,
+    ) {
+        if (query.length < 2) return
+        val particles = PARTICLE_SHORTHAND_SUFFIXES[query.last()] ?: return
+        val prefix = query.dropLast(1)
+        if (prefix.isEmpty() || prefix.any { it !in 'a'..'z' }) return
+        val existing = collector.snapshot()
+        // A non-correction candidate that already covers the whole query is a
+        // complete decoding (for example the shorthand zenm -> 怎么); do not
+        // append a particle to it. Corrections are allowed to feed a particle,
+        // because zenml is often typed as zenm + the l initial.
+        if (existing.any {
+                it.consumed >= query.length &&
+                    !it.isCorrection &&
+                    it.word.any { char -> isCjk(char) }
+            }
+        ) {
+            return
+        }
+        val bases = existing
+            .asSequence()
+            .filter {
+                it.consumed >= prefix.length &&
+                    (it.pinyin == prefix || (it.isCorrection && it.pinyin.startsWith(prefix)))
+            }
+            .filter { candidate -> candidate.word.any { char -> isCjk(char) } }
+            .filter { candidate -> candidate.word.lastOrNull() !in PARTICLE_CHARS }
+            .sortedWith(compareByDescending<Ranked> { it.score }.thenBy { it.order })
+            .take(MAX_PARTICLE_PREFIX_CANDIDATES)
+            .toList()
+        if (bases.isEmpty()) return
+        bases.forEach { base ->
+            particles.forEachIndexed { particleIndex, particle ->
+                if (!shouldContinue()) return
+                collector.add(
+                    Ranked(
+                        word = base.word + particle,
+                        pinyin = query,
+                        score = base.score + PARTICLE_CANDIDATE_BONUS - particleIndex * 0.01,
+                        consumed = query.length,
+                        frequency = base.frequency,
+                        order = 0,
+                    ),
+                )
+            }
+        }
     }
 
     /**
@@ -718,9 +827,18 @@ class PinyinEngine private constructor(
         fullPathSink: MutableList<DebugPath>? = null,
         partialPathSink: MutableList<DebugPath>? = null,
     ) {
-        val effectiveBeam = if (beamSize > 0) beamSize else tuning.beamSize
-        val effectiveEntries = if (entriesPerKey > 0) entriesPerKey else tuning.entriesPerKey
         val n = query.length
+        val longInput = n >= tuning.longInputThreshold
+        val effectiveBeam = when {
+            beamSize > 0 -> beamSize
+            longInput && tuning.longInputBeamSize > 0 -> tuning.longInputBeamSize
+            else -> tuning.beamSize
+        }
+        val effectiveEntries = when {
+            entriesPerKey > 0 -> entriesPerKey
+            longInput && tuning.longInputEntriesPerKey > 0 -> tuning.longInputEntriesPerKey
+            else -> tuning.entriesPerKey
+        }
         val buckets = Array(n + 1) { ArrayList<PathNode>() }
         buckets[0].add(PathNode("", null, 0.0, 0))
         val maxKeyLength = min(index.maxKeyLength, MAX_LATTICE_KEY_LENGTH)
@@ -1228,6 +1346,113 @@ class PinyinEngine private constructor(
             .forEach(collector::add)
     }
 
+
+    /**
+     * Experimental long-input local correction. Scans only windows fully inside
+     * the last [EngineTuning.localCorrectionTailLimit] characters, generates
+     * edit-distance-one variants, and emits partial candidates whose consumed
+     * length ends at the correction window. Prefixes use [bestSegmentation];
+     * the untouched suffix stays unconsumed. Default off.
+     */
+    private fun collectLocalCorrections(
+        query: String,
+        index: Index,
+        userSnapshot: Map<String, List<Entry>>,
+        collector: CandidateCollector,
+        shouldContinue: () -> Boolean,
+    ) {
+        if (query.length <= MAX_CORRECTION_QUERY_LENGTH) return
+        val budget = tuning.localCorrectionBudget.coerceAtLeast(0)
+        if (budget == 0) return
+        val tailLimit = tuning.localCorrectionTailLimit.coerceIn(2, query.length)
+        val maxWindow = tuning.localCorrectionMaxWindow.coerceIn(2, tailLimit)
+        val tailStart = (query.length - tailLimit).coerceAtLeast(0)
+        val prefixCache = HashMap<Int, List<Entry>?>()
+        fun prefixAt(position: Int): List<Entry>? {
+            if (position == 0) return emptyList()
+            if (!prefixCache.containsKey(position)) {
+                prefixCache[position] = bestSegmentation(query.substring(0, position), index, userSnapshot)
+            }
+            return prefixCache[position]
+        }
+        val suffixCache = HashMap<Int, Boolean>()
+        val windows = ArrayList<IntArray>()
+        for (start in tailStart..(query.length - 2)) {
+            if (prefixAt(start) == null) continue
+            val maxEnd = minOf(query.length, start + maxWindow)
+            for (end in (start + 2)..maxEnd) {
+                if (end < query.length) {
+                    val suffixOk = suffixCache.getOrPut(end) {
+                        bestSegmentation(query.substring(end), index, userSnapshot) != null
+                    }
+                    if (!suffixOk) continue
+                }
+                windows += intArrayOf(start, end, end - start)
+            }
+        }
+        windows.sortWith(compareByDescending<IntArray> { it[2] }.thenByDescending { it[1] })
+        val found = ArrayList<Ranked>()
+        var scannedVariants = 0
+        outer@ for (windowSpec in windows) {
+            val start = windowSpec[0]
+            val end = windowSpec[1]
+            val window = query.substring(start, end)
+            for (variant in editDistanceOneVariants(window)) {
+                if (!shouldContinue()) return
+                if (variant == window) continue
+                scannedVariants++
+                if (scannedVariants > MAX_LOCAL_CORRECTION_VARIANTS) break@outer
+                val entries = entriesForPinyin(variant, index, userSnapshot)
+                if (entries.isEmpty()) continue
+                val prefix = prefixAt(start) ?: continue
+                    val prefixText = prefix.joinToString("") { it.word }
+                    val prefixScore = prefix.sumOf { latticeWordScore(it, index) }
+                    val insertionBonus = if (variant.length == window.length + 1) 0.8 else 0.0
+                    for (entry in entries.take(2)) {
+                        if (entry.word.length < 2) continue
+                        val word = prefixText + entry.word
+                        found += Ranked(
+                            word = word,
+                            pinyin = query.substring(0, end),
+                            score = partialSelectionScore(prefixScore + entryBaseScore(entry, index), end, query.length) +
+                                CORRECTION_EXACT_BONUS + insertionBonus - CORRECTION_PENALTY,
+                            consumed = end,
+                            frequency = entry.frequency,
+                            order = 0,
+                            isCorrection = true,
+                        )
+                    }
+                }
+        }
+        found
+            .sortedWith(compareByDescending<Ranked> { it.score }.thenBy { it.word })
+            .distinctBy { it.word }
+            .take(budget)
+            .forEach(collector::add)
+    }
+
+    /** All edit-distance-one variants of [query] (delete/insert/replace/transpose). */
+    private fun editDistanceOneVariants(query: String): LinkedHashSet<String> {
+        val variants = LinkedHashSet<String>()
+        for (position in query.indices) variants += query.removeRange(position, position + 1)
+        val alphabet = 'a'..'z'
+        for (position in 0..query.length) {
+            for (char in alphabet) variants += query.substring(0, position) + char + query.substring(position)
+        }
+        for (position in query.indices) {
+            for (char in alphabet) {
+                if (char == query[position]) continue
+                variants += query.substring(0, position) + char + query.substring(position + 1)
+            }
+        }
+        for (position in 0 until query.length - 1) {
+            if (query[position] == query[position + 1]) continue
+            variants += query.substring(0, position) + query[position + 1] + query[position] + query.substring(position + 2)
+        }
+        variants.remove(query)
+        return variants
+    }
+
     /** Best full-cover word segmentation of a corrected pinyin string. */
     private fun bestSegmentation(
         query: String,
@@ -1281,6 +1506,7 @@ class PinyinEngine private constructor(
         persist: Boolean = true,
     ) {
         syncClearGeneration()
+        syncExternalStoreRevision()
         if (!learningEnabled) return
         val key = word.trim()
         if (key.isEmpty()) return
@@ -1327,13 +1553,18 @@ class PinyinEngine private constructor(
             selectionCounts.clear()
             userEntries.clear()
         }
-        runCatching { userLexiconStore?.clear() }
+        val store = userLexiconStore
+        runCatching { store?.clear() }
         lastClearGeneration = UserLexiconStore.currentClearGeneration()
+        if (store != null) {
+            lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
+        }
     }
 
     /** Applies a simple count decay; production maintenance calls this explicitly. */
     fun decaySelectionWeights() {
         syncClearGeneration()
+        syncExternalStoreRevision()
         synchronized(selectionLock) { decaySelectionWeightsLocked() }
         persistSelectionWeights()
     }
@@ -1353,6 +1584,9 @@ class PinyinEngine private constructor(
     fun persistSelectionWeights() {
         syncClearGeneration()
         val store = userLexiconStore ?: return
+        // Adopt external edits (settings delete/clear) before writing so the
+        // debounced save can never resurrect a deleted entry.
+        syncExternalStoreRevision()
         val generation = UserLexiconStore.currentClearGeneration()
         val entries = synchronized(selectionLock) { userEntries.values.toList() }
         val saved = runCatching { store.saveEntriesIfCurrent(entries, generation) }.getOrDefault(false)
@@ -1368,6 +1602,9 @@ class PinyinEngine private constructor(
         } else if (!saved) {
             syncClearGeneration()
         }
+        // Our own write bumped the revision; remember it so the next persist
+        // does not mistake it for an external edit.
+        lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
     }
 
     private fun pruneUserEntriesLocked() {
@@ -1403,6 +1640,32 @@ class PinyinEngine private constructor(
         lastClearGeneration = current
     }
 
+    /**
+     * Replaces the in-memory snapshot with store content written by another
+     * instance (for example the settings screen deleting one entry). Replacing,
+     * rather than clearing the store, keeps every entry the external writer
+     * preserved. Runs before search and persist so a stale snapshot can neither
+     * be searched nor written back.
+     */
+    private fun syncExternalStoreRevision() {
+        val store = userLexiconStore ?: return
+        val observed = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
+        if (observed == lastStoreRevision) return
+        val generation = UserLexiconStore.currentClearGeneration()
+        val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
+        if (generation != UserLexiconStore.currentClearGeneration()) {
+            // A clear raced with the reload; clear-generation invalidation wins
+            // and the reloaded snapshot is already stale.
+            syncClearGeneration()
+            lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(observed)
+            return
+        }
+        replaceSelectionEntries(persisted)
+        // Keep the pre-reload revision: a save racing with loadEntries bumps it
+        // again and the next sync reloads the newer snapshot.
+        lastStoreRevision = observed
+    }
+
     private fun loadPersistedSelectionWeights() {
         syncClearGeneration()
         val store = userLexiconStore ?: return
@@ -1410,9 +1673,11 @@ class PinyinEngine private constructor(
         val persisted = runCatching { store.loadEntries() }.getOrDefault(emptyList())
         if (generation != UserLexiconStore.currentClearGeneration()) {
             syncClearGeneration()
+            lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
             return
         }
         mergeSelectionEntries(persisted)
+        lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
     }
 
     private fun mergeSelectionEntries(persisted: List<UserLexiconEntry>) {
@@ -1427,6 +1692,26 @@ class PinyinEngine private constructor(
                 if (pinyin.isNotEmpty()) {
                     val key = pinyin + "\t" + word
                     userEntries[key] = entry.copy(pinyin = pinyin, word = word, count = count)
+                }
+            }
+            pruneUserEntriesLocked()
+        }
+    }
+
+    /** Replaces both in-memory maps with exactly the persisted entries. */
+    private fun replaceSelectionEntries(persisted: List<UserLexiconEntry>) {
+        synchronized(selectionLock) {
+            selectionCounts.clear()
+            userEntries.clear()
+            persisted.forEach { entry ->
+                val word = entry.word.trim()
+                val count = entry.count.coerceAtMost(MAX_SELECTION_WEIGHT)
+                if (word.isEmpty() || count <= 0) return@forEach
+                selectionCounts[word] = maxOf(selectionCounts[word] ?: 0, count)
+                val pinyin = normalize(entry.pinyin)
+                if (pinyin.isNotEmpty()) {
+                    userEntries[pinyin + "\t" + word] =
+                        entry.copy(pinyin = pinyin, word = word, count = count)
                 }
             }
             pruneUserEntriesLocked()
@@ -1450,6 +1735,7 @@ class PinyinEngine private constructor(
         syncClearGeneration()
         val store = userLexiconStore ?: UserLexiconStore.create(context).also {
             userLexiconStore = it
+            lastStoreRevision = runCatching { it.currentRevision() }.getOrDefault(lastStoreRevision)
         }
         val generation = UserLexiconStore.currentClearGeneration()
         // R08: user-lexicon decoding/loading is I/O work, not a main-thread read.
@@ -1461,6 +1747,7 @@ class PinyinEngine private constructor(
         } else {
             mergeSelectionEntries(persistedEntries)
         }
+        lastStoreRevision = runCatching { store.currentRevision() }.getOrDefault(lastStoreRevision)
         val loaded = withContext(Dispatchers.IO) {
             context.assets.open(ASSET_NAME).bufferedReader(Charsets.UTF_8).use { reader ->
                 buildIndex(reader.lineSequence())
@@ -1715,6 +2002,24 @@ class PinyinEngine private constructor(
         private const val MAX_PARTIAL_PATHS_PER_POSITION = 4
         private const val MAX_SHORTHAND_ENTRIES = 96
         private const val MAX_SHORTHAND_BUCKET = 256
+        private const val MAX_PARTICLE_PREFIX_CANDIDATES = 4
+        private const val PARTICLE_CANDIDATE_BONUS = 0.5
+
+        /** One-letter shorthand -> sentence-final particle spellings. */
+        private val PARTICLE_SHORTHAND_SUFFIXES: Map<Char, List<String>> = mapOf(
+            'm' to listOf("吗", "嘛"),
+            'l' to listOf("了", "啦"),
+            'b' to listOf("吧"),
+            'n' to listOf("呢"),
+            'a' to listOf("啊"),
+            'y' to listOf("呀"),
+            'w' to listOf("哇"),
+            'o' to listOf("哦"),
+        )
+
+        /** Particle characters; a base already ending in one is not extended. */
+        private val PARTICLE_CHARS: Set<Char> =
+            PARTICLE_SHORTHAND_SUFFIXES.values.flatten().map { it.last() }.toSet()
         private const val PARTIAL_QUOTA = 16
 
         /** Ranking cap: learning gives priority, not unbounded dominance. */
@@ -1732,6 +2037,8 @@ class PinyinEngine private constructor(
         private const val MIN_CORRECTION_SKIP_FREQUENCY = 1_000L
         private const val CORRECTION_TRIGGER_SCORE = 12.0
         private const val MAX_CORRECTION_ENTRIES = 64
+        /** Hard scan budget for the experimental long-input local correction. */
+        private const val MAX_LOCAL_CORRECTION_VARIANTS = 4_096
 
         // Generic scoring weights (calibrated on a natural-language dev corpus,
         // never on individual acceptance sentences).

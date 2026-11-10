@@ -162,10 +162,10 @@ class KeyboardP0InputFixTest {
     fun compactCandidatePanelUsesFixedHeightOverlayPolicy() {
         assertTrue(usesCandidatePanelOverlay(compact = true))
         assertFalse(usesCandidatePanelOverlay(compact = false))
-        // P0 geometry: page size equals fully visible rows (4 portrait / 2 compact)
-        // and the height budget fits those rows plus the fixed 48 dp footer.
-        assertEquals(2, candidatePanelPageSize(compact = true))
-        assertEquals(4, candidatePanelPageSize(compact = false))
+        // Flow geometry: page capacity is 8 compact / 12 portrait; the height
+        // budget still fits two/four visible rows plus the fixed 48 dp footer.
+        assertEquals(8, candidatePanelPageSize(compact = true))
+        assertEquals(12, candidatePanelPageSize(compact = false))
         assertEquals(164, candidatePanelMaxHeightDp(compact = true))
         assertEquals(264, candidatePanelMaxHeightDp(compact = false))
     }

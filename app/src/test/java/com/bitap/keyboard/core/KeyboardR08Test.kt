@@ -101,6 +101,55 @@ class KeyboardR08Test {
     }
 
     @Test
+    fun externalClearIsNotResurrectedByRunningEnginePersist() {
+        val file = tempFile()
+        try {
+            val store = FileUserLexiconStore(file)
+            val engine = PinyinEngine.fromLines(sequenceOf("ni\t你\t100"), store)
+            engine.recordSelection("你", "ni")
+            assertTrue(store.loadEntries().isNotEmpty())
+
+            // Settings clears the persisted entries; the live engine's deferred
+            // save must adopt the empty store instead of restoring its snapshot.
+            store.saveEntries(emptyList())
+            engine.persistSelectionWeights()
+
+            assertTrue("cleared entry must not be written back", store.loadEntries().isEmpty())
+            assertEquals(0, engine.selectionCount("你"))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun externalSingleEntryDeletionDoesNotResurrectOrDropOtherEntries() {
+        val file = tempFile()
+        try {
+            val store = FileUserLexiconStore(file)
+            val engine = PinyinEngine.fromLines(sequenceOf("ni\t你\t100"), store)
+            engine.recordSelection("你", "ni")
+            engine.recordSelection("天气", "tianqi", source = "ai")
+            assertEquals(2, store.loadEntries().size)
+
+            // The settings screen deletes one entry through another store
+            // instance for the same file. The shared revision must let the
+            // running engine reload the remaining entry, not drop it.
+            val settingsStore = FileUserLexiconStore(file)
+            settingsStore.saveEntries(settingsStore.loadEntries().filterNot { it.word == "你" })
+            assertEquals(store.currentRevision(), settingsStore.currentRevision())
+
+            engine.persistSelectionWeights()
+
+            val persisted = store.loadEntries()
+            assertEquals(listOf("天气"), persisted.map { it.word })
+            assertEquals(0, engine.selectionCount("你"))
+            assertEquals(1, engine.userEntryCount)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun userLexiconCapacityIsBounded() {
         val engine = PinyinEngine.fromLines(emptySequence())
         repeat(PinyinEngine.MAX_USER_ENTRIES + 20) { index ->

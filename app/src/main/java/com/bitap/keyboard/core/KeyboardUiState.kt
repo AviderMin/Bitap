@@ -25,6 +25,20 @@ enum class ShiftState {
 }
 
 /**
+ * Lifecycle of the bundled pinyin dictionary load (P0-B).
+ *
+ * The IME starts in [Loading]; a successful `loadFromAssets` moves it to
+ * [Ready], any non-cancellation failure moves it to [Failed]. [Failed] only
+ * disables pinyin candidates: raw-text commit and the rest of the keyboard stay
+ * usable, and the user can request a reload from the candidate bar.
+ */
+enum class DictionaryLoadState {
+    Loading,
+    Ready,
+    Failed,
+}
+
+/**
  * High-level editor type derived from [EditorInfo.inputType]. It drives the
  * initial language/layer and the AI privacy policy in [KeyboardReducer].
  */
@@ -317,6 +331,20 @@ data class KeyboardUiState(
     /** Pinyin string the current [candidates] were generated for. */
     val candidatesFor: String = "",
     val candidates: List<Candidate> = emptyList(),
+    /**
+     * Short user-facing hint set when the last pinyin query failed (P0-A).
+     * The composing text stays intact so the user can retry, edit or commit
+     * raw; the hint is cleared by the next composing update/input/commit.
+     */
+    val candidateQueryError: String? = null,
+    /** True while the last committed text can be removed by [KeyboardAction.Undo]. */
+    val canUndo: Boolean = false,
+    /** True while an undone commit can be re-applied by [KeyboardAction.Redo]. */
+    val canRedo: Boolean = false,
+    /** P0-B: observable pinyin dictionary load state; starts loading on IME creation. */
+    val dictionaryState: DictionaryLoadState = DictionaryLoadState.Loading,
+    /** Short user-facing reason when [dictionaryState] is Failed. */
+    val dictionaryError: String? = null,
     /** Set when Space/Candidate/Punctuation waits for a fresh composing query. */
     val pendingConfirmation: PendingConfirmation? = null,
     /** Snapshot of composing at the time the pending confirmation was created. */
@@ -341,10 +369,16 @@ data class KeyboardUiState(
     val aiCandidatesFor: String = "",
     val aiCandidatesLoading: Boolean = false,
     val aiCandidatesError: String? = null,
+    /** English word completions / next-word suggestions shown above the English keyboard. */
+    val englishSuggestions: List<String> = emptyList(),
     val hapticsEnabled: Boolean = true,
     val soundEnabled: Boolean = false,
     val keyboardHeightScale: Float = 1.0f,
     val lastShiftTapAt: Long = 0L,
+    /** True while the editor selection is a non-empty range (drives copy/cut). */
+    val hasSelection: Boolean = false,
+    /** True while the dedicated editing-tools keyboard page is open. */
+    val editingToolsVisible: Boolean = false,
 ) {
     /** Raw EditorInfo values, exposed for integrations/tests. */
     val inputType: Int
@@ -419,10 +453,66 @@ sealed interface KeyboardAction {
         val sessionId: String = "",
     ) : KeyboardAction
 
+    /**
+     * Async pinyin query failed with a non-cancellation throwable (P0-A).
+     *
+     * [composing], [version] and [sessionId] identify the composition the failed
+     * query belonged to, so a late failure can never resolve a newer pending
+     * confirmation or touch a newer input. When a matching confirmation is
+     * waiting the reducer commits the raw composing text and replays queued keys.
+     */
+    data class PinyinQueryFailed(
+        val composing: String,
+        val version: Long = 0L,
+        /** Input session this failure belongs to; empty keeps the legacy path. */
+        val sessionId: String = "",
+        /** Optional short user-facing hint; blank lets the reducer choose one. */
+        val message: String = "",
+    ) : KeyboardAction
+
+    /** P0-B: the dictionary load finished (or failed); [error] is a short hint. */
+    data class DictionaryStateChanged(
+        val state: DictionaryLoadState,
+        val error: String? = null,
+    ) : KeyboardAction
+
+    /** P0-B: user asked to reload a failed dictionary; the controller reloads it. */
+    data object RetryDictionaryLoad : KeyboardAction
+
     data class CandidateTapped(val index: Int) : KeyboardAction
 
     /** Commit the raw composing text (used by the "no candidates" fallback chip). */
     data object CommitRaw : KeyboardAction
+
+    /** Remove the last text committed by the IME, when it is still intact. */
+    data object Undo : KeyboardAction
+
+    /** Re-apply the most recently undone commit at the same cursor position. */
+    data object Redo : KeyboardAction
+
+    /** Move the cursor by [delta] characters; zero is a no-op. */
+    data class MoveCursor(val delta: Int) : KeyboardAction
+
+    /** Open or close the dedicated editing-tools keyboard page. */
+    data object ToggleEditingTools : KeyboardAction
+
+    /** Select the whole editor content through [TextSession.selectAll]. */
+    data object SelectAll : KeyboardAction
+
+    /** Copy the current selection through [TextSession.copySelection]. */
+    data object CopySelection : KeyboardAction
+
+    /** Cut the current selection through [TextSession.cutSelection]. */
+    data object CutSelection : KeyboardAction
+
+    /** Paste the clipboard through [TextSession.paste]. */
+    data object Paste : KeyboardAction
+
+    /** Move the cursor by [delta] words; zero is a no-op. */
+    data class MoveCursorByWord(val delta: Int) : KeyboardAction
+
+    /** Delete the word before the cursor through [TextSession.deleteBackwardWord]. */
+    data object DeleteWord : KeyboardAction
 
     data object Space : KeyboardAction
 
@@ -457,6 +547,9 @@ sealed interface KeyboardAction {
     data class AiCandidatesFailed(val message: String) : KeyboardAction
 
     data class AiCandidateTapped(val word: String) : KeyboardAction
+
+    /** An English completion/next-word chip was tapped. */
+    data class EnglishSuggestionTapped(val word: String) : KeyboardAction
 
     /** Opens the AI panel; an empty [source] is filled from TextSession by the controller. */
     data class AiPanelOpened(val source: String = "") : KeyboardAction

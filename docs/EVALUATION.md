@@ -49,6 +49,14 @@ Top1/Top5报告命中数/分母、Wilson95%置信区间和分类；配对实验�
 
 Partial排序诊断（`build/d05/partial-ranking.txt`）：固定候选池、64切点、quota和early partial位置，先冻结入选候选及消费范围，仅重排既定partial槽位；必须断言所有模式的候选文本/消费集合与Top64命中一致，再报告完整句自然集Top1/Top5/rankCost、前缀Top1/Top8/Top64、命中样本平均名次/消费长度、贪心整句成功/失败步数。`SHORTEST_FIRST`仅把Top8从14提高到16/33，命中样本平均消费长度16.26（SCORE17.70），不能按“前N出现率”单独称收益；生产默认保持SCORE。
 
+长句路径丢失诊断（`build/d05/long-sentence-path-loss.txt`、`-detail.tsv`）：只看D05 dev `natural_long` 且拼音≤64的90条，按“未生成（独立词库能否拼出）/仅宽beam或entry预算可见/已生成未收集/已收集但排名低/截断”分层，并单列33条65–70超预算句；报告分母、置信区间、JVM查询时延和API限制（debug full-path sink 4000条上限、无per-position beam bucket）。它是开发诊断，不是验收，不改变生产排序默认；分类依赖当前beam/entry/候选配额，不能当作根因定论。
+
+长输入lattice预算消融（`build/d05/long-budget-ablation.txt`）：对D05 natural 667（short300/medium277/long90）比较baseline beam64/entries8与beam96/128/192、entries16/32及组合；必须同时报告natural_long 90的Top1/Top5/rankCost/oracle64、natural667是否回退、p50/p95 JVM时延。该报告证明预算提升没有Top1/Top5收益且时延上升，不能把oracle微增当作产品改善，也不能据此启用生产默认。
+
+长输入局部纠错窗口（`build/d05/local-correction.txt`）：默认关闭的尾部窗口编辑距离1实验，合成用例验证word/consumed/isCorrection/后缀保留；D05 typo100与natural667必须报告baseline/enabled对照、top8/top64额外纠错候选数、Top1/Top5回退、专名/英文/数字回退样本和JVM时延。当前结论为不开启；没有D06真实长串局部错拼数据前不能把合成用例当作能力验收。
+
+D07 连续中英数字混排（工作树基础版）：`KeyboardMixedInputTest` 18项覆盖 Shift 启动 literal run、大小写/数字/`_`/`-`、空格/回车/标点/退格/语言与字段切换、literal run 不触发拼音查询；`MixedInputResolverTest` 16项覆盖词表规范化、最长英文/数字后缀、整词 English fallback、短功能词不劫持拼音、去重/limit、`PinyinInputEngine` 合并与纯拼音不变；另用生产 `pinyin_dict.tsv` 实测 `daimajianchayongsonar -> 代码检查用Sonar` 等4例。该矩阵是 JVM 合成事件与引擎单测，不是设备验收；D05 `mixed_en` 50条仍作为交互项，不进入纯引擎 Top1/Top5 分母。
+
 ## 4. 训练重合与验收治理
 
 生产字符n-gram使用全部89,289条Tatoeba。v2自然句同源已确认。v3换成CC0后仍有1/601规范化精确重合；审计规则为CJK字符规范化、bigram Jaccard≥0.80、长度比≥0.5，不做语义级保证。

@@ -14,17 +14,31 @@
 | P1 D08触控 | 双指交叠、按下/抬起顺序、跨行/边缘/cancel、命中区域 | 可回放时间戳事件+真实双拇指试打，不只ADB单指 |
 | P1 D09兼容性与AI剩余项 | Android13–16、多ROM/字段、TalkBack；AI关闭/取消固定场景 | 构建hash、状态矩阵；同场景10秒释放与取消无旧写入 |
 | P2 D10学习/管理 | 200条容量/淘汰、分段造词、单条删除、清除 | 重启/删除/清除不复活；密码/隐私输入零写入 |
-| P2 D11编辑效率 | 空格拖光标、删除加速、撤销、最近符号 | Unicode/选区正确，实际任务操作减少 |
+| P2 D11编辑效率 | 选区/复制/剪切/粘贴/按词删除、撤销/重做、空格下方长按滑动光标、删除加速；最近符号、选区拖拽扩展仍待做 | Unicode/选区正确，实际任务操作减少 |
 | P2 D12性能 | trace后再优化重组、分配、查询和加载 | 固定设备p95/p99/PSS，长会话稳定性，避免盲目重写UI |
 | P2 D13/D14引导与发布 | 启用试打、能力文案、版本/签名/依赖迁移/持续门禁 | 无模型完整试用，APK权限/来源/回退与未测项清晰 |
 | 有条件 D04 Android PoC | 完整实用Rime方案先达到值得集成的dev质量 | 独立实验变体、NDK/JNI、真实消费/学习/取消、包体与同设备预算 |
-| 后续 D15 | 英文预测、联想、双拼或九宫格择一 | 用户需求证据与独立预算，基础质量达标后开展 |
+| P1 D15 英文预测/联想 | 已实现基础版本地常用词补全 + 用户 bigram 下一词；中文下一词/云模型不在本阶段 | 英文本地词表与用户学习可清除；真实任务击键/接受率与中英混排回归后续补 |
 
 前两个P0可以作为不同批次推进；一个批次不同时改候选排列、排序权重、词库和预算。当前0.50权重只有小幅Top5收益且有shorthand回退，先保留可回退对照，不继续靠扫描更多权重当作主要研发路线。
 
-当前状态（2026-11-08，工作树未提交）：P0候选面板已实现按可见行分页（竖屏4行/紧凑2行）、页脚固定、分段候选标识与“看分段”入口，并有JVM策略/UI测试；P0长输入已实现64字符前缀分段查询、删除/原文提交全文可靠，并有JVM控制器测试。已在22021211RC/Android16单机竖屏完成短候选4行+页脚、分段跳转和66字符长输入前缀消费的初步设备验证；字体放大、横屏/紧凑悬浮面板、多ROM、操作成本与完整IME矩阵仍未验证，上表验收项保持不变。
+当前状态（2026-11-09，HEAD `71625de`）：P0候选面板已实现按可见行分页（竖屏4行/紧凑2行）、页脚固定、分段候选标识与“看分段”入口，并有JVM策略/UI测试；P0长输入已实现64字符前缀分段查询、删除/原文提交全文可靠，并有JVM控制器测试。上述批次已包含在 `71625de`。已在22021211RC/Android16单机竖屏完成短候选4行+页脚、分段跳转和66字符长输入前缀消费的初步设备验证；字体放大、横屏/紧凑悬浮面板、多ROM、操作成本与完整IME矩阵仍未验证，上表验收项保持不变。
 
 长输入边界诊断（D05 dev 33条超预算自然句）：固定64的前缀Top8/Top64为17/23条，64附近音节或词回退为14/19条，说明仅回退1–2字符无收益；词边界短段24/40可把Top64提高到30/28条，但Top1仍低、操作步数上升，因此暂不切换生产默认。partial排序实验（固定候选池/切点）：冻结入选候选后所有模式的候选文本/消费集合一致、Top64命中均为23/33；`SCORE`保留完整句234/667 Top1、366/667 Top5不变，`LONGEST_FIRST`明显变差，`SHORTEST_FIRST`仅把Top8从14提高到16/33、命中样本平均消费长度由17.70降至16.26，整句完成仍为1/33，不构成可用净收益；生产默认继续`SCORE`。详见[进度](PROGRESS.md)第8–9节。
+
+2026-11-09 可靠性闭环与长句路径诊断（工作树，未提交）：P0-A 候选查询失败恢复已加入 `KeyboardAction.PinyinQueryFailed`，匹配 pending 时结束等待并回退原文/标点，排队按键按序回放，`CancellationException` 保持取消语义；P0-B 词库加载改为 `DictionaryLoadState { Loading, Ready, Failed }` 并提供失败提示与重试，失败时仍可提交原文。D05 natural_long 90条预算内长句新增路径丢失诊断（`build/d05/long-sentence-path-loss.txt`）：Top1 3/90、Top5 14/90、oracle64 22/90；59/90 正确路径在 production lattice 不可见：其中58条独立词库路径存在、表现为 beam/entry 早期剪断，1条为词库缺条目；另有7/90 仅宽预算可见、8/90 已收集但排名低。生产默认排序不变；详见[进度](PROGRESS.md)第10节。
+
+2026-11-09 长句预算与局部纠错实验（工作树，均默认关闭）：P1-D 长输入 lattice 预算消融显示 beam96/128/192、entries16/32 及组合的 natural_long Top1/Top5/rankCost 全部零变化（oracle最多+1），p95 1.4–2.9x，natural667 部分组合还有 oracle 回退；不采纳预算默认。P1-E 局部纠错窗口合成用例 5/5 可用，但 D05 typo100 无增益，natural667 Top5 回退 10、oracle -10、top64 额外 46 个纠错候选；保留 localCorrectionWindowEnabled=false。详见[进度](PROGRESS.md)第11节。
+
+2026-11-09 最终验证：`scripts/verify.ps1` PASS（426项单测 / 0 failures / 4 skipped；lint 0 errors / 26 warnings / 1 hint；debug APK 109,385,318B，SHA-256 `3638736308BB09E3EA91D241391F1FCA21736E4BD94D62CA3788871AB2D4EBED`）。设备22021211RC/LineageOS23.2/Android16上最终合并 smoke **10 PASS / 0 FAIL**（键盘、候选、退格、标点、连续输入、密码、设置页、AI开关）；`nihao`展开12项2行长短混排、字体1.3展开12项3行、66字符长输入展开正常；候选闪动修复后输入 `n`→`i` 瞬间仍保留旧候选行；设置页新增本地学习词条单项删除，编辑器新增最多10步撤销/重做和光标左右移动。
+
+编辑效率（工作树）：长按删除已加入渐进加速（55ms→40ms→25ms，前8/第9–20/第21次起），纯函数测试覆盖；同设备ADB长按2秒从`len=40`删除到`len=0`，1.5秒从`len=66`到`len=40`。候选面板展开改为`FlowRow`长短混排，短词多项同行、长词按自身宽度换行，每页容量12/8项，页脚固定。多ROM、TalkBack、真实双拇指与完整操作成本仍未验证。
+
+2026-11-09 市场对照与编辑工具（工作树，未提交）：新增 [市场对照](MARKET_COMPARISON.md)，用公开资料对照搜狗/百度/讯飞/微信键盘/Gboard/SwiftKey，明确 Bitap 真实定位（离线、无网络权限、隐私优先、本地 AI 主动触发）与下一步优先级。编辑工具在既有撤销/重做和光标移动之上补齐 `TextSession` 的全选、复制、剪切、粘贴、按词移动光标、按词删除；编辑入口放在候选条 AI 与设置之间，打开独立编辑键盘页，不再向功能行追加临时行；按用户反馈移除可见←/→键，改为空格下方留白处长按滑动（16dp/步）。JVM `KeyboardControllerEditingTest` 9 项 + `KeyboardScreenEditingTest` 6 项 + `KeyboardScreenSpaceCursorTest` 3 项通过，设备 `editing_tools.ps1` 14 PASS/0 FAIL、smoke 10 PASS/0 FAIL。设备验证与剩余边界见[进度](PROGRESS.md)第18节；选区拖拽扩展、剪贴板历史、androidTest/多编辑器矩阵仍未完成。
+
+2026-11-09 英文补全与下一词基础版（工作树，未提交）：新增 EnglishPrediction.kt（内置常用词 + 用户 bigram 学习，SharedPreferences 持久化，仅保存单词/bigram，不保存句子），英文模式候选条显示最多3个“联想”chip；密码/禁学习字段不记录；设置页“清除本地学习词库”同步清除英文学习。JVM EnglishPredictionTest 6 项 + KeyboardControllerEnglishPredictionTest 5 项通过，设备 english_prediction.ps1 4 PASS/0 FAIL（hel→hello、thank→you，重启后 bigram 仍在）。剩余：真实任务击键/接受率、中文下一词、原生/Compose/多行/多ROM验证，详见[进度](PROGRESS.md)第19节。
+
+2026-11-10 D07 连续中英数字混排基础版（工作树，未提交）：中文模式 Shift+首字母启动 literal English run（保留大小写，字母/数字/`_`/`-` 连续追加，空格/回车/标点/退格/语言切换有确定语义，不触发拼音查询）；新增 `EnglishLexicon`/`MixedInputResolver`，`PinyinInputEngine` 在纯拼音无完整覆盖时补充“中文前缀+规范英文/数字后缀”候选（最多3项，Source=Other，纯拼音结果不变）。JVM `KeyboardMixedInputTest` 18项 + `MixedInputResolverTest` 16项通过，生产 `pinyin_dict.tsv` 实测 `daimajianchayongsonar -> 代码检查用Sonar`、`jiage123 -> 价格123`、`yongpython -> 用Python`；22021211RC 单机 `mixed_input.ps1` 8 PASS/0 FAIL（literal Android16、literal+空格、纯拼音 fangan、混排 Sonar、整词 Android、nihaom→你好吗、zenml→怎么了、nihaob→你好吧），smoke 10/10、editing_tools 14/14（重跑）、english_prediction 4/4；小写开头 identifier 与任意专名覆盖仍需后续交互设计。详见[进度](PROGRESS.md)第21节。
 
 ## 2. 阶段退出条件
 

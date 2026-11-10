@@ -18,7 +18,7 @@ class PinyinEngineTest {
             "ni\t泥\t50",
             "ni\t你\t10",
             "nihao\t你好\t80",
-            "nihaoma\t你好吗\t20",
+            "zenme\t怎么\t100",
             "hao\t好\t200",
         ),
     )
@@ -37,6 +37,15 @@ class PinyinEngineTest {
         assertTrue(words.contains("你"))
         assertTrue(words.contains("泥"))
         assertEquals("你", candidates.first().word)
+    }
+
+    @Test
+    fun oneLetterParticleSuffixCompletesPhrase() {
+        val engine = engine()
+        assertEquals("你好吗", engine.search("nihaom").first().word)
+        assertEquals("怎么了", engine.search("zenml").first().word)
+        assertTrue(engine.search("nihaob").map { it.word }.contains("你好吧"))
+        assertTrue(engine.search("nihaon").map { it.word }.contains("你好呢"))
     }
 
     @Test

@@ -4,7 +4,7 @@
 
 已实现65,999词条的本地拼音候选、简拼/轻量纠错、英文/数字/符号、候选学习、设置与独立键盘主题。可选 `.litertlm` 模型只在点击 `✦ AI` 时补充拼音候选，不参与每次按键；应用无网络权限。改写/润色没有生产入口。
 
-最新进度：D00–D03基础工程完成；D04完成宿主与同词表实验，Android PoC未完成；D05完成跨来源dev、候选展示与词内统计权重实验及小样本设备验证。当前重点是候选选择成本、长输入预算、召回/排序、纠错和连续混排。最近一批工作树改动已完成P0候选面板按可见行分页、页脚固定、分段候选标识/入口，以及>64字符长输入的前缀分段查询（JVM测试 + 22021211RC/Android16单机竖屏验证；字体放大、横屏、多ROM未测）。长输入边界诊断进一步表明：64附近音节/词回退未优于固定64，短词边界分段可提高候选召回但操作成本上升，暂不切换生产默认；partial排序实验固定候选池/切点并冻结入选候选后，Top64命中不变；LONGEST_FIRST变差，SHORTEST_FIRST仅小幅提高前缀Top8、整句完成仍为1/33，未带来可用净收益，默认仍为SCORE；详见[进度](docs/PROGRESS.md)第8–9节。
+最新进度：D00–D03基础工程完成；D04完成宿主与同词表实验，Android PoC未完成；D05完成跨来源dev、候选展示与词内统计权重实验及小样本设备验证。当前重点是候选选择成本、长输入预算、召回/排序、纠错和连续混排。最近一批工作树改动已完成P0候选面板按可见行分页、页脚固定、分段候选标识/入口，以及>64字符长输入的前缀分段查询（JVM测试 + 22021211RC/Android16单机竖屏验证；字体放大、横屏、多ROM未测）。长输入边界诊断进一步表明：64附近音节/词回退未优于固定64，短词边界分段可提高候选召回但操作成本上升，暂不切换生产默认；partial排序实验固定候选池/切点并冻结入选候选后，Top64命中不变；LONGEST_FIRST变差，SHORTEST_FIRST仅小幅提高前缀Top8、整句完成仍为1/33，未带来可用净收益，默认仍为SCORE；详见[进度](docs/PROGRESS.md)第8–9节。本轮新增[市场对照](docs/MARKET_COMPARISON.md)：用公开资料对照搜狗/百度/讯飞/微信键盘/Gboard/SwiftKey，明确 Bitap 的离线隐私定位与优先差距；编辑工具补齐全选/复制/剪切/粘贴/按词删除，编辑入口放在候选条 AI 与设置之间并打开独立编辑键盘页；光标左右键按反馈改为空格下方留白处长按滑动（16dp/步）；新增本地英文补全与用户 bigram 下一词联想（候选条“联想”chip，可清除学习）。22021211RC 上编辑脚本 14 PASS/0 FAIL、英文联想脚本 4 PASS/0 FAIL、smoke 10 PASS/0 FAIL，详见[进度](docs/PROGRESS.md)第18–19节。 本轮完成仓库审查 P1 修复（编辑正确性/学习删除不复活/许可证）与 D07 连续中英数字混排基础版；22021211RC 上 mixed_input 8 PASS/0 FAIL、editing_tools 14 PASS/0 FAIL（重跑）、english_prediction 4 PASS/0 FAIL、smoke 10 PASS/0 FAIL，详见[进度](docs/PROGRESS.md)第20–22节；主键盘“中/英”旁的撤销/重做键已移除，撤销/重做移到编辑工具页。 已补齐句末语气词首字母简拼（nihaom→你好吗、zenml→怎么了），mixed_input 真机 8 PASS/0 FAIL。
 
 ## 文档
 
@@ -12,6 +12,7 @@
 - [项目需求](docs/PRODUCT_REQUIREMENTS.md)
 - [当前进度与已知问题](docs/PROGRESS.md)
 - [架构](docs/ARCHITECTURE.md)、[开发指南](docs/DEVELOPMENT.md)、[评测规范](docs/EVALUATION.md)、[路线图](docs/ROADMAP.md)
+- [市场对照：主流 Android 输入法能力矩阵](docs/MARKET_COMPARISON.md)
 - [本轮仓库审查与清理](docs/REPOSITORY_AUDIT.md)
 
 ## 构建与检查

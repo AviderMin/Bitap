@@ -69,6 +69,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bitap.keyboard.ai.AiModelInfo
 import com.bitap.keyboard.ai.AiRewriteService
+import com.bitap.keyboard.core.UserLexiconEntry
+import com.bitap.keyboard.core.EnglishPredictionStore
 import com.bitap.keyboard.core.UserLexiconStore
 import com.bitap.keyboard.ai.AiRuntimeState
 import com.bitap.keyboard.settings.BitapSettings
@@ -78,7 +80,9 @@ import com.bitap.keyboard.settings.SettingsRepository
 import com.bitap.keyboard.settings.ThemeFamily
 import com.bitap.keyboard.ui.theme.BitapTheme
 import com.bitap.keyboard.ui.theme.keyboardPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -112,6 +116,13 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showClearLexiconDialog by remember { mutableStateOf(false) }
     var lexiconNotice by remember { mutableStateOf<String?>(null) }
+    var lexiconEntries by remember { mutableStateOf<List<UserLexiconEntry>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        lexiconEntries = withContext(Dispatchers.IO) {
+            runCatching { UserLexiconStore.create(context).loadEntries() }.getOrDefault(emptyList())
+        }
+    }
 
     // Keep system bar icons readable when the in-app theme differs from the system theme.
     SideEffect {
@@ -223,6 +234,35 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
 
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    LexiconSection(
+                        entries = lexiconEntries,
+                        onDeleteEntry = { entry ->
+                            scope.launch {
+                                // The visible list may be stale; filter against the
+                                // store's current entries so deleting one entry never
+                                // drops entries written after this screen loaded.
+                                val remaining = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val store = UserLexiconStore.create(context)
+                                        val updated = store.loadEntries().filterNot {
+                                            it.pinyin == entry.pinyin && it.word == entry.word
+                                        }
+                                        store.saveEntries(updated)
+                                        updated
+                                    }.getOrNull()
+                                }
+                                if (remaining != null) {
+                                    lexiconEntries = remaining
+                                    lexiconNotice = "已删除本地词条：" + entry.word
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+
+            item {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     ModelSection(
                         modelInfo = modelInfo,
                         runtimeState = runtimeState,
@@ -254,12 +294,14 @@ fun BitapApp(repository: SettingsRepository, aiService: AiRewriteService) {
         AlertDialog(
             onDismissRequest = { showClearLexiconDialog = false },
             title = { Text("清除本地学习词库？") },
-            text = { Text("将删除本机保存的候选选择记录与拼音映射；内置拼音词库和本地模型不受影响。重新打开键盘后生效。") },
+            text = { Text("将删除本机保存的候选选择记录、拼音映射与英文联想学习；内置拼音词库和本地模型不受影响。重新打开键盘后生效。") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showClearLexiconDialog = false
                         UserLexiconStore.create(context).clear()
+                        EnglishPredictionStore.create(context).clear()
+                        lexiconEntries = emptyList()
                         lexiconNotice = "本地学习词库已清除"
                     },
                 ) {
@@ -694,6 +736,43 @@ private fun InputSection(
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 6.dp),
         )
+    }
+}
+
+@Composable
+private fun LexiconSection(
+    entries: List<UserLexiconEntry>,
+    onDeleteEntry: (UserLexiconEntry) -> Unit,
+) {
+    val palette = BitapTheme.palette
+    BitapSectionTitle(
+        title = "本地学习词条",
+        subtitle = "仅列出本机保存的候选词与拼音；删除后重新打开键盘生效",
+    )
+    BitapCard {
+        if (entries.isEmpty()) {
+            Text(
+                text = "暂无本地学习词条",
+                color = palette.textSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+        } else {
+            entries.forEachIndexed { index, entry ->
+                BitapSettingRow(
+                    title = entry.word,
+                    description = (entry.pinyin.ifBlank { "—" }) + " · 选择 " + entry.count + " 次",
+                    trailing = {
+                        BitapTextButton(
+                            text = "删除",
+                            danger = true,
+                            onClick = { onDeleteEntry(entry) },
+                        )
+                    },
+                )
+                if (index < entries.lastIndex) BitapDivider()
+            }
+        }
     }
 }
 

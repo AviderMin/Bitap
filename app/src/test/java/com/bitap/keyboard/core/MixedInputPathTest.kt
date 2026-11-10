@@ -5,11 +5,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * P2: testable mixed Chinese/English input path and predictable Space /
- * punctuation / Enter behaviour. The supported path is explicit raw commit:
- * toggle to English (or 上屏原文) for names/abbreviations, then switch back.
- * Continuous no-switch mixed composition (English letters embedded directly in
- * pinyin composing) is intentionally not supported and documented as such.
+ * P2/D07: testable mixed Chinese/English input path and predictable Space /
+ * punctuation / Enter behaviour. Explicit raw commit (toggle to English or
+ * 上屏原文) remains the always-available fallback for arbitrary names and
+ * abbreviations. D07 adds Shift-started literal English runs and mixed
+ * pinyin-prefix/English-suffix candidates; those are covered by
+ * KeyboardMixedInputTest and MixedInputResolverTest.
  */
 class MixedInputPathTest {
 

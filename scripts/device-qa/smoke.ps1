@@ -6,6 +6,7 @@ param(
   [string]$Serial = "fe4ab855",
   [string]$EvidenceDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.tmp/device-qa/smoke'),
   [string]$Tag = "smoke",
+  [string]$BaseUrl = "http://127.0.0.1:8769",
   [switch]$SkipSettings,
   [switch]$SkipPassword
 )
@@ -17,7 +18,11 @@ $KEY = @{
   a="106 1841"; s="215 1841"; d="324 1841"; f="433 1841"; g="541 1841"; h="650 1841"; j="757 1841"; k="866 1841"; l="974 1841";
   z="222 2017"; x="328 2017"; c="434 2017"; v="540 2017"; b="646 2017"; n="752 2017"; m="858 2017";
   shift="88 2017"; backspace="991 2017";
-  comma="293 2196"; space="590 2196"; period="887 2196"; enter="1004 2196";
+  # Bottom function row includes the transient "编辑" key when composing is empty;
+  # these centers were re-measured on 22021211RC/1080x2400 after that key was added.
+  # Re-measured after moving the edit entry to the candidate bar and removing
+  # the undo/redo keys from the function row, comma/space/period/enter sit here.
+  comma="295 2196"; space="589 2196"; period="883 2196"; enter="1004 2196";
   first_candidate="85 1494"; ai="871 1494"; gear="1004 1494"; expand="740 1494"
 }
 $results = @()
@@ -85,7 +90,7 @@ adb -s $Serial shell settings put system accelerometer_rotation 0 | Out-Null
 adb -s $Serial shell settings put system user_rotation 0 | Out-Null
 
 # 1) keyboard show + nihao candidates + commit
-Open-Page "http://127.0.0.1:8769/p0.html"
+Open-Page "$BaseUrl/p0.html"
 $s = Save-Step "01-keyboard"
 Add-Result "keyboard-show" ($null -ne $s.Text -and $s.Status -like 'len=0*') "status=$($s.Status)"
 Invoke-Taps @("n","i","h","a","o")
@@ -169,7 +174,7 @@ if (-not $SkipSettings) {
 
 if (-not $SkipPassword) {
   # 5) password field: open page, locate the password EditText by attribute, tap it, type nihao, select first candidate
-  Open-Page "http://127.0.0.1:8770/password.html"
+  Open-Page "$BaseUrl/password.html"
   $edit = $null
   for ($i = 0; $i -lt 8; $i++) {
     $doc = Get-Ui (Join-Path $EvidenceDir "$Tag-08-password-focus-$i.xml")

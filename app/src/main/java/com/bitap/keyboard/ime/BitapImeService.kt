@@ -25,12 +25,17 @@ import androidx.savedstate.SavedStateRegistryOwner
 import com.bitap.keyboard.BitapApplication
 import com.bitap.keyboard.MainActivity
 import com.bitap.keyboard.core.AndroidTextSession
+import com.bitap.keyboard.core.DictionaryLoadState
 import com.bitap.keyboard.core.EditorInputInfo
+import com.bitap.keyboard.core.EnglishPredictionStore
+import com.bitap.keyboard.core.KeyboardReducer
 import com.bitap.keyboard.core.PinyinEngine
 import com.bitap.keyboard.settings.DarkMode
 import com.bitap.keyboard.ui.theme.BitapKeyboardTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
@@ -54,6 +59,8 @@ class BitapImeService :
 
     private lateinit var app: BitapApplication
     private lateinit var controller: KeyboardController
+    /** P0-B: the single in-flight dictionary load; cancelled on destroy/retry. */
+    private var dictionaryLoadJob: Job? = null
     private var inputView: ComposeView? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     /** Set when a rotation happened while the IME window was visible. */
@@ -82,6 +89,8 @@ class BitapImeService :
             textSession = AndroidTextSession(this),
             pinyinEngine = pinyinEngine,
             aiService = app.aiService,
+            onDictionaryRetry = ::loadPinyinDictionary,
+            englishPredictionStore = EnglishPredictionStore.create(this),
         )
 
         serviceScope.launch {
@@ -90,9 +99,32 @@ class BitapImeService :
         serviceScope.launch {
             app.aiService.runtimeState.collect { runtime -> controller.onAiRuntimeChanged(runtime) }
         }
-        serviceScope.launch {
-            runCatching { pinyinEngine.loadFromAssets(this@BitapImeService) }
-                .onSuccess { controller.onPinyinReady() }
+        loadPinyinDictionary()
+    }
+
+    /**
+     * P0-B: explicit, observable dictionary load. Loading is published before
+     * the coroutine starts, so an initial load and every retry show progress;
+     * success publishes Ready and wakes a pending query through
+     * [KeyboardController.onPinyinReady]. Cancellation is rethrown unchanged so
+     * service teardown / a superseding retry is never reported as a failure.
+     */
+    private fun loadPinyinDictionary() {
+        dictionaryLoadJob?.cancel()
+        controller.onDictionaryStateChanged(DictionaryLoadState.Loading)
+        dictionaryLoadJob = serviceScope.launch {
+            try {
+                pinyinEngine.loadFromAssets(this@BitapImeService)
+                controller.onDictionaryStateChanged(DictionaryLoadState.Ready)
+                controller.onPinyinReady()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                controller.onDictionaryStateChanged(
+                    DictionaryLoadState.Failed,
+                    KeyboardReducer.DICTIONARY_LOAD_FAILED_MESSAGE,
+                )
+            }
         }
     }
 
@@ -220,6 +252,8 @@ class BitapImeService :
 
     override fun onDestroy() {
         inputView = null
+        dictionaryLoadJob?.cancel()
+        dictionaryLoadJob = null
         if (this::controller.isInitialized) controller.dispose()
         serviceScope.cancel()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED

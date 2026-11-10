@@ -2,6 +2,7 @@ package com.bitap.keyboard.core
 
 import android.content.Context
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /** One persisted user-lexicon entry: pronunciation -> word plus a selection count. */
@@ -45,6 +46,14 @@ interface UserLexiconStore {
 
     fun clear()
 
+    /**
+     * Monotonic revision of this store's persisted content. Implementations
+     * that can be replaced by another instance for the same backing storage
+     * bump it on every save/clear so a running engine can detect external
+     * edits instead of writing a stale snapshot back.
+     */
+    fun currentRevision(): Long = 0L
+
     companion object {
         private val clearGeneration = AtomicLong(0L)
 
@@ -59,8 +68,21 @@ interface UserLexiconStore {
         internal const val KEY_WEIGHTS = "weights"
         internal const val KEY_ENTRIES = "entries"
 
-        fun create(context: Context): UserLexiconStore =
-            SharedPreferencesUserLexiconStore(context.applicationContext)
+        /** Cached shared instance so settings and the IME observe one store. */
+        private val instances = ConcurrentHashMap<String, UserLexiconStore>()
+
+        /** Process/name-scoped revision counters for SharedPreferences stores. */
+        private val sharedPreferenceRevisions = ConcurrentHashMap<String, AtomicLong>()
+
+        fun create(context: Context): UserLexiconStore {
+            val appContext = context.applicationContext ?: context
+            return instances.computeIfAbsent(PREFERENCES_NAME) {
+                SharedPreferencesUserLexiconStore(appContext)
+            }
+        }
+
+        internal fun sharedPreferencesRevision(name: String): AtomicLong =
+            sharedPreferenceRevisions.computeIfAbsent(name) { AtomicLong(0L) }
 
         internal fun encode(weights: Map<String, Int>): String = weights.entries
             .asSequence()
@@ -130,6 +152,9 @@ interface UserLexiconStore {
 class FileUserLexiconStore(private val file: File) : UserLexiconStore {
 
     private val lock = Any()
+    private val canonicalPath = runCatching { file.canonicalPath }.getOrDefault(file.absolutePath)
+
+    override fun currentRevision(): Long = revisionCounter(canonicalPath).get()
 
     override fun load(): Map<String, Int> = loadEntries().associate { it.word to it.count }
 
@@ -149,7 +174,7 @@ class FileUserLexiconStore(private val file: File) : UserLexiconStore {
     }
 
     private fun saveRaw(raw: String) {
-        synchronized(lock) {
+        val written = synchronized(lock) {
             runCatching {
                 file.parentFile?.mkdirs()
                 val temp = File(file.parentFile, file.name + ".tmp")
@@ -158,8 +183,10 @@ class FileUserLexiconStore(private val file: File) : UserLexiconStore {
                     file.writeText(temp.readText(Charsets.UTF_8), Charsets.UTF_8)
                     temp.delete()
                 }
-            }
+                true
+            }.getOrDefault(false)
         }
+        if (written) revisionCounter(canonicalPath).incrementAndGet()
     }
 
     override fun clear() {
@@ -167,6 +194,15 @@ class FileUserLexiconStore(private val file: File) : UserLexiconStore {
         synchronized(lock) {
             runCatching { file.delete() }
         }
+        revisionCounter(canonicalPath).incrementAndGet()
+    }
+
+    companion object {
+        /** Revision counters shared by every store instance for one canonical path. */
+        private val revisions = ConcurrentHashMap<String, AtomicLong>()
+
+        internal fun revisionCounter(canonicalPath: String): AtomicLong =
+            revisions.computeIfAbsent(canonicalPath) { AtomicLong(0L) }
     }
 }
 
@@ -175,6 +211,11 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
         UserLexiconStore.PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
+    private val revision = UserLexiconStore.sharedPreferencesRevision(
+        UserLexiconStore.PREFERENCES_NAME,
+    )
+
+    override fun currentRevision(): Long = revision.get()
 
     override fun load(): Map<String, Int> = loadEntries().associate { it.word to it.count }
 
@@ -182,6 +223,7 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
         preferences.edit()
             .putString(UserLexiconStore.KEY_WEIGHTS, UserLexiconStore.encode(weights))
             .apply()
+        revision.incrementAndGet()
     }
 
     override fun loadEntries(): List<UserLexiconEntry> {
@@ -198,6 +240,7 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
             .putString(UserLexiconStore.KEY_ENTRIES, UserLexiconStore.encodeEntries(entries))
             .remove(UserLexiconStore.KEY_WEIGHTS)
             .apply()
+        revision.incrementAndGet()
     }
 
     override fun clear() {
@@ -206,5 +249,6 @@ private class SharedPreferencesUserLexiconStore(context: Context) : UserLexiconS
             .remove(UserLexiconStore.KEY_ENTRIES)
             .remove(UserLexiconStore.KEY_WEIGHTS)
             .apply()
+        revision.incrementAndGet()
     }
 }

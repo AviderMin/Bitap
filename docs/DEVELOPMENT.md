@@ -63,6 +63,12 @@ python eval/v3/audit_training_overlap.py
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinLongInputBoundaryEvalTest --rerun-tasks --console=plain
 # Partial排序诊断：输出 build/d05/partial-ranking.txt
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinPartialRankingEvalTest --rerun-tasks --console=plain
+# D05 natural_long 路径丢失诊断：输出 build/d05/long-sentence-path-loss.txt 与 -detail.tsv
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongSentencePathLossTest --rerun-tasks --console=plain
+# 长输入 lattice 预算消融：输出 build/d05/long-budget-ablation.txt（默认关闭实验）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongBudgetAblationTest --rerun-tasks --console=plain
+# 长输入局部纠错窗口诊断：输出 build/d05/local-correction.txt（默认关闭实验）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LocalCorrectionEvalTest --rerun-tasks --console=plain
 python eval/d05/dev/check_d05_dev.py
 
 # 宿主Rime实验，非Android集成
@@ -86,7 +92,16 @@ adb -s <serial> reverse tcp:8770 tcp:8770
 
 `scripts/device-qa/` 为设备基线/AI资源/smoke/D05操作工具；`scripts/p0-device/` 为历史正确性回归工具。多数脚本带具体机型坐标/默认serial，换设备必须传参并重新测量，不能当通用自动验收。部分脚本会改变默认IME、旋转、开关或安装包，执行前读脚本并记录/恢复设备状态。
 
-本次清理没有连接手机或执行设备操作；当前设备结论为历史记录。
+编辑工具与空格手势的设备脚本：`scripts/device-qa/editing_tools.ps1`；D07 连续混排设备脚本：`scripts/device-qa/mixed_input.ps1`。两者都需要本机 HTTP 服务、`adb reverse` 与目标机安装本轮 APK。它用 `uiautomator dump --compressed` 读取页面状态，键盘按键坐标按 22021211RC/1080×2400@440 测量；换机型/字体/横屏需重新测量，不能当通用矩阵。
+
+```powershell
+# 在 8769 起服务并 adb reverse 后；如端口被占用可用 -BaseUrl 指向实际端口
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/device-qa/editing_tools.ps1 -Serial <serial> -Tag editing
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/device-qa/english_prediction.ps1 -Serial <serial> -Tag english
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/device-qa/smoke.ps1 -Serial <serial> -BaseUrl http://127.0.0.1:8769 -Tag smoke
+```
+
+2026-11-09 本轮已连接 22021211RC 执行 `editing_tools.ps1`（14 PASS/0 FAIL）和 `smoke.ps1`（10 PASS/0 FAIL）；历史其他设备结论仍为历史记录，不并成本轮新测。
 
 ## 6. 工作区整理
 
