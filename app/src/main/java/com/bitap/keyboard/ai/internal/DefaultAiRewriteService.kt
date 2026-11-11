@@ -46,8 +46,20 @@ import kotlinx.coroutines.withContext
  *    kept for that request instead of being pulled from under it. A later
  *    teardown releases it.
  *  - [engine.release] is therefore never called while a generation is running.
+ *  - Concurrent teardown bodies are serialised by [teardownMutex] so a second
+ *    cancel/unload/close waits for the first join+release instead of releasing
+ *    the engine under the job the first teardown is still unwinding.
  *  - Repeated [close] is a no-op; [requestUnload] schedules the same serialised
  *    teardown on the service-owned scope so an IME onDestroy cannot orphan it.
+ *
+ * Model-maintenance contract:
+ *  - Import and delete are serialised by [modelMutex], a second lock that is
+ *    always acquired OUTSIDE [lifecycleMutex]. It must never be acquired while
+ *    [lifecycleMutex] is held (Kotlin's [Mutex] is not reentrant).
+ *  - A model generation is bumped under [modelMutex] by every completed
+ *    model-store transaction. A request snapshots the generation together with
+ *    its model path before registration; registration then rejects it while
+ *    holding [modelMutex] if the generation or the current path changed.
  */
 class DefaultAiRewriteService internal constructor(
     private val modelStore: AiModelStore,
@@ -72,6 +84,22 @@ class DefaultAiRewriteService internal constructor(
     )
 
     private val lifecycleMutex = Mutex()
+
+    /**
+     * Serialises model import/delete transactions with request registration.
+     * Always the OUTER lock: [lifecycleMutex] may be taken while holding it,
+     * never the other way around.
+     */
+    private val modelMutex = Mutex()
+
+    /**
+     * Serialises whole teardown bodies. Without it, two concurrent
+     * [cancelAndRelease] calls both observe "no active job" while the first is
+     * still joining the detached job, and the second could release the engine
+     * under a live generation. Lock order: [modelMutex] > this > [lifecycleMutex].
+     */
+    private val teardownMutex = Mutex()
+
     private val stateLock = Any()
     private val closed = AtomicBoolean(false)
 
@@ -80,6 +108,14 @@ class DefaultAiRewriteService internal constructor(
 
     /** Guarded by [stateLock]; bumped whenever a request starts or a teardown begins. */
     private var epoch = 0L
+
+    /**
+     * Bumped under [modelMutex] after every model-store transaction. Request
+     * flows read it before registration; a request whose captured generation no
+     * longer matches was prepared against a replaced or deleted model file.
+     */
+    @Volatile
+    private var modelGeneration = 0L
 
     /** Guarded by [lifecycleMutex]. */
     private var enabled = true
@@ -104,27 +140,39 @@ class DefaultAiRewriteService internal constructor(
 
     override suspend fun importModel(uri: Uri): Result<AiModelInfo> {
         if (closed.get()) return Result.failure(IllegalStateException("AI 服务已关闭"))
-        // A new model file must never replace the file a live engine has mapped.
-        cancelAndRelease()
-        _runtimeState.value = AiRuntimeState.Loading
-        val result = modelStore.importModel(uri)
-        val info = modelStore.modelInfo.value
-        _runtimeState.value = when {
-            !info.installed -> if (result.isSuccess) AiRuntimeState.Error else AiRuntimeState.NotInstalled
-            else -> AiRuntimeState.Ready
+        // Hold the model lock for the whole transaction so request registration
+        // can never slip in between releasing the old engine and publishing the
+        // new file. Requests prepared against the previous model are rejected by
+        // the generation check when they finally acquire the lock.
+        return modelMutex.withLock {
+            // A new model file must never replace the file a live engine has mapped.
+            cancelAndRelease()
+            _runtimeState.value = AiRuntimeState.Loading
+            val result = modelStore.importModel(uri)
+            modelGeneration++
+            val info = modelStore.modelInfo.value
+            _runtimeState.value = when {
+                !info.installed -> if (result.isSuccess) AiRuntimeState.Error else AiRuntimeState.NotInstalled
+                else -> AiRuntimeState.Ready
+            }
+            result
         }
-        return result
     }
 
     override fun deleteModel() {
         if (closed.get()) return
-        // Deletion and engine release are serialised on the service scope. The
-        // file is only removed after the active generation left native inference.
+        // Deletion, engine release and the generation bump are one transaction
+        // on the service scope. The file is only removed after the active
+        // generation left native inference and no new request can register in
+        // the middle of it.
         scope.launch {
             withContext(NonCancellable + Dispatchers.IO) {
-                runCatching { cancelAndRelease() }
-                modelStore.deleteModel()
-                _runtimeState.value = AiRuntimeState.NotInstalled
+                modelMutex.withLock {
+                    runCatching { cancelAndRelease() }
+                    modelStore.deleteModel()
+                    modelGeneration++
+                    _runtimeState.value = AiRuntimeState.NotInstalled
+                }
             }
         }
     }
@@ -139,8 +187,10 @@ class DefaultAiRewriteService internal constructor(
             emit(AiEvent.Failed("没有可改写的文本"))
             return@flow
         }
-        val modelPath = modelStore.currentModelPath()
-        if (modelPath == null) {
+        // Snapshot the model before registering: a concurrent import/delete must
+        // invalidate this request instead of letting it map a replaced file.
+        val model = snapshotModel()
+        if (model == null) {
             _runtimeState.value = AiRuntimeState.NotInstalled
             emit(AiEvent.Failed("未安装本地模型"))
             return@flow
@@ -148,12 +198,13 @@ class DefaultAiRewriteService internal constructor(
 
         val events = Channel<AiEvent>(Channel.BUFFERED)
         val request = scope.launch(start = CoroutineStart.LAZY) {
-            runRewrite(modelPath, input, tone, events)
+            runRewrite(model.path, input, tone, events)
         }
-        if (!registerRequest(request)) {
+        val rejection = registerRequest(request, model)
+        if (rejection != null) {
             request.cancel()
             events.close()
-            emit(AiEvent.Failed("AI 已关闭"))
+            emit(AiEvent.Failed(rejection))
             return@flow
         }
         try {
@@ -176,8 +227,10 @@ class DefaultAiRewriteService internal constructor(
             return@flow
         }
         // Critical D02 invariant: without a model no native engine is created.
-        val modelPath = modelStore.currentModelPath()
-        if (modelPath == null) {
+        // The snapshot also pins the generation so a concurrent import/delete
+        // rejects this request before it can reach the native engine.
+        val model = snapshotModel()
+        if (model == null) {
             _runtimeState.value = AiRuntimeState.NotInstalled
             emit(AiEvent.Failed("未安装本地模型"))
             return@flow
@@ -185,12 +238,13 @@ class DefaultAiRewriteService internal constructor(
 
         val events = Channel<AiEvent>(Channel.BUFFERED)
         val request = scope.launch(start = CoroutineStart.LAZY) {
-            runLexicon(modelPath, query, context.trim().take(160), events)
+            runLexicon(model.path, query, context.trim().take(160), events)
         }
-        if (!registerRequest(request)) {
+        val rejection = registerRequest(request, model)
+        if (rejection != null) {
             request.cancel()
             events.close()
-            emit(AiEvent.Failed("AI 已关闭"))
+            emit(AiEvent.Failed(rejection))
             return@flow
         }
         try {
@@ -254,31 +308,51 @@ class DefaultAiRewriteService internal constructor(
         }
     }
 
+    /** Model file and model generation a request was prepared against. */
+    private data class ModelSnapshot(val generation: Long, val path: String)
+
+    private fun snapshotModel(): ModelSnapshot? {
+        val generation = modelGeneration
+        val path = modelStore.currentModelPath() ?: return null
+        return ModelSnapshot(generation, path)
+    }
+
     /**
-     * Register [request] as the single active request and start it. Returns
-     * false when the service is closed or AI was disabled, in which case the
-     * caller must not start native work.
+     * Register [request] as the single active request and start it.
+     *
+     * Returns null when accepted, or a user-facing failure message when the
+     * request must not start. The whole check-and-start runs under [modelMutex]
+     * (the outer lock) so an import/delete can never swap the model file between
+     * validating [snapshot] and the first native call; [lifecycleMutex] stays the
+     * inner lock and [cancelAndRelease] is never called while it is held.
      */
-    private suspend fun registerRequest(request: Job): Boolean {
-        var previous: Job? = null
-        val accepted = lifecycleMutex.withLock {
-            if (closed.get() || !enabled) {
-                false
-            } else {
-                synchronized(stateLock) {
-                    epoch++
-                    previous = activeJob
-                    activeJob = request
+    private suspend fun registerRequest(request: Job, snapshot: ModelSnapshot): String? =
+        modelMutex.withLock {
+            var previous: Job? = null
+            val rejection = lifecycleMutex.withLock {
+                when {
+                    closed.get() || !enabled -> "AI 已关闭"
+                    snapshot.generation != modelGeneration ||
+                        modelStore.currentModelPath() != snapshot.path -> MODEL_CHANGED_MESSAGE
+                    else -> {
+                        synchronized(stateLock) {
+                            epoch++
+                            previous = activeJob
+                            activeJob = request
+                        }
+                        null
+                    }
                 }
-                true
+            }
+            if (rejection != null) {
+                rejection
+            } else {
+                previous?.cancel()
+                engine.cancel()
+                request.start()
+                null
             }
         }
-        if (!accepted) return false
-        previous?.cancel()
-        engine.cancel()
-        request.start()
-        return true
-    }
 
     private fun unregisterRequest(request: Job) {
         synchronized(stateLock) {
@@ -291,26 +365,28 @@ class DefaultAiRewriteService internal constructor(
      * lock, then release only if no newer request needs the engine.
      */
     private suspend fun cancelAndRelease() = withContext(NonCancellable + Dispatchers.IO) {
-        var job: Job? = null
-        var token = 0L
-        lifecycleMutex.withLock {
-            synchronized(stateLock) {
-                epoch++
-                token = epoch
-                job = activeJob
-                activeJob = null
+        teardownMutex.withLock {
+            var job: Job? = null
+            var token = 0L
+            lifecycleMutex.withLock {
+                synchronized(stateLock) {
+                    epoch++
+                    token = epoch
+                    job = activeJob
+                    activeJob = null
+                }
             }
-        }
-        job?.cancel()
-        engine.cancel()
-        job?.join()
-        lifecycleMutex.withLock {
-            val releaseNow = synchronized(stateLock) { epoch == token }
-            if (releaseNow && engine.isLoaded) {
-                engine.release()
-                if (_runtimeState.value == AiRuntimeState.Busy || _runtimeState.value == AiRuntimeState.Loading) {
-                    _runtimeState.value =
-                        if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
+            job?.cancel()
+            engine.cancel()
+            job?.join()
+            lifecycleMutex.withLock {
+                val releaseNow = synchronized(stateLock) { epoch == token }
+                if (releaseNow && engine.isLoaded) {
+                    engine.release()
+                    if (_runtimeState.value == AiRuntimeState.Busy || _runtimeState.value == AiRuntimeState.Loading) {
+                        _runtimeState.value =
+                            if (modelStore.isInstalled()) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
+                    }
                 }
             }
         }
@@ -436,5 +512,6 @@ class DefaultAiRewriteService internal constructor(
 
     private companion object {
         const val PINYIN_DICT_ASSET = "pinyin_dict.tsv"
+        const val MODEL_CHANGED_MESSAGE = "模型已更新，请重试"
     }
 }

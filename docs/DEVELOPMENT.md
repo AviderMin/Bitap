@@ -94,6 +94,8 @@ adb -s <serial> reverse tcp:8770 tcp:8770
 
 编辑工具与空格手势的设备脚本：`scripts/device-qa/editing_tools.ps1`；D07 连续混排设备脚本：`scripts/device-qa/mixed_input.ps1`。两者都需要本机 HTTP 服务、`adb reverse` 与目标机安装本轮 APK。它用 `uiautomator dump --compressed` 读取页面状态，键盘按键坐标按 22021211RC/1080×2400@440 测量；换机型/字体/横屏需重新测量，不能当通用矩阵。
 
+编辑正确性回归脚本：`scripts/device-qa/regression_fixes.ps1`，使用 debug-only `QaEditorActivity` 的“结束组合”按钮与 `selectall` 宿主字段；需要安装本轮 debug APK，不需要 HTTP 服务。该宿主不进入 release。
+
 ```powershell
 # 在 8769 起服务并 adb reverse 后；如端口被占用可用 -BaseUrl 指向实际端口
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/device-qa/editing_tools.ps1 -Serial <serial> -Tag editing

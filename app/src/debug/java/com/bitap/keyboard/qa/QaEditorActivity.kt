@@ -1,5 +1,6 @@
 package com.bitap.keyboard.qa
 
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -9,9 +10,16 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedText
+import android.view.inputmethod.ExtractedTextRequest
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputConnectionWrapper
+import android.view.inputmethod.InputMethodManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -44,6 +52,7 @@ import androidx.compose.ui.unit.sp
  * Launch examples:
  *   adb shell am start -n com.bitap.keyboard/.qa.QaEditorActivity --es field native --es preset emoji
  *   adb shell am start -n com.bitap.keyboard/.qa.QaEditorActivity --es field compose --es preset hel
+ *   adb shell am start -n com.bitap.keyboard/.qa.QaEditorActivity --es field selectall --es preset hello
  *   adb shell am start -n com.bitap.keyboard/.qa.QaEditorActivity --es field web --es preset selection
  */
 class QaEditorActivity : ComponentActivity() {
@@ -72,6 +81,7 @@ class QaEditorActivity : ComponentActivity() {
         when (field) {
             "compose" -> addComposeEditor(root, preset)
             "web" -> addWebEditor(root, preset)
+            "selectall" -> addSelectAllEditor(root, preset)
             else -> addNativeEditor(root, preset)
         }
         setContentView(root)
@@ -106,6 +116,75 @@ class QaEditorActivity : ComponentActivity() {
             })
         }
         root.addView(nativeEditor, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(180)))
+        // Debug-only trigger for the host ending its composing region. It must not
+        // take focus: a focus change would detach the IME and invalidate the
+        // keyboard coordinates the device scripts inject afterwards.
+        root.addView(Button(this).apply {
+            text = "结束组合"
+            isAllCaps = false
+            isFocusable = false
+            isFocusableInTouchMode = false
+            setOnClickListener { endNativeComposing() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+    }
+
+    /**
+     * Simulates the host editor ending composing without moving the caret: the
+     * Editable's composing spans are cleared and updateSelection(-1, -1) tells the
+     * IME that no composing region remains. Text and caret stay untouched.
+     */
+    private fun endNativeComposing() {
+        val edit = nativeEditor ?: return
+        val editable = edit.text ?: return
+        val selectionStart = edit.selectionStart
+        val selectionEnd = edit.selectionEnd
+        BaseInputConnection.removeComposingSpans(editable)
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.updateSelection(edit, selectionStart, selectionEnd, -1, -1)
+        statusView.text = currentStatus("native")
+    }
+
+    private fun addSelectAllEditor(root: LinearLayout, preset: String) {
+        val initial = initialText(preset)
+        val edit = SelectAllFallbackEditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION
+            setSingleLine(false)
+            setText(initial)
+            setSelection(initialSelection(initial).start, initialSelection(initial).end)
+            textSize = 24f
+            requestFocus()
+        }
+        nativeEditor = edit
+        root.addView(edit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(180)))
+    }
+
+    /**
+     * Host editor that rejects the selectAll context-menu action and exposes only
+     * a bogus local ExtractedText window ("middle" at absolute offset 3). A correct
+     * IME must refuse to select that partial window instead of trusting it.
+     */
+    private class SelectAllFallbackEditText(context: Context) : EditText(context) {
+        override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
+            val real = super.onCreateInputConnection(outAttrs) ?: return null
+            return object : InputConnectionWrapper(real, true) {
+                override fun performContextMenuAction(id: Int): Boolean {
+                    if (id == android.R.id.selectAll) return false
+                    return super.performContextMenuAction(id)
+                }
+
+                override fun getExtractedText(request: ExtractedTextRequest?, flags: Int): ExtractedText {
+                    return ExtractedText().apply {
+                        text = "middle"
+                        startOffset = 3
+                        partialStartOffset = -1
+                        partialEndOffset = -1
+                        selectionStart = 0
+                        selectionEnd = 0
+                    }
+                }
+            }
+        }
     }
 
     private fun addComposeEditor(root: LinearLayout, preset: String) {
@@ -180,6 +259,7 @@ class QaEditorActivity : ComponentActivity() {
     private fun initialText(preset: String): String = when (preset) {
         "empty" -> ""
         "hel" -> "hel"
+        "hello" -> "hello world"
         "selection" -> "abcd"
         else -> "A😀B"
     }

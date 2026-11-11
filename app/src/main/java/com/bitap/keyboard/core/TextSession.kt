@@ -452,14 +452,45 @@ class AndroidTextSession internal constructor(
             invalidateSelectionCache()
             return true
         }
-        // Fallback for editors that do not implement the context-menu action:
-        // ExtractedText carries the absolute start offset of the read range, so
-        // startOffset..startOffset+length selects everything without a whole-document read.
-        val extracted = runCatching {
-            input.getExtractedText(ExtractedTextRequest(), 0)
-        }.getOrNull() ?: return false
+        // Fallback for editors that do not implement the context-menu action.
+        // ExtractedText may describe only a local window around the caret, so the
+        // returned range is accepted only after it is confirmed to cover the whole
+        // document reconstructed from selection-relative reads. Otherwise claiming
+        // success would select an arbitrary window instead of everything.
+        val request = ExtractedTextRequest().apply {
+            hintMaxChars = MAX_SELECT_ALL_READ
+            hintMaxLines = Int.MAX_VALUE
+        }
+        val extracted = runCatching { input.getExtractedText(request, 0) }.getOrNull() ?: return false
         val text = extracted.text ?: return false
-        return applySelection(input, extracted.startOffset, extracted.startOffset + text.length)
+        if (extracted.startOffset != 0) return false
+        // Host editors may throw from context reads; an explicit selectAll must
+        // never crash the IME, so every read is guarded.
+        val before = runCatching {
+            input.getTextBeforeCursor(MAX_SELECT_ALL_READ, 0)?.toString()
+        }.getOrNull() ?: return false
+        // A collapsed caret is the normal pre-selectAll state, and Android returns
+        // null from getSelectedText() when there is no selection: treat it as empty,
+        // but a throwing host read is a hard failure.
+        val selectedResult = runCatching {
+            input.getSelectedText(0)?.toString()
+        }
+        if (selectedResult.isFailure) return false
+        val selected = selectedResult.getOrNull().orEmpty()
+        val after = runCatching {
+            input.getTextAfterCursor(MAX_SELECT_ALL_READ, 0)?.toString()
+        }.getOrNull() ?: return false
+        if (before.length >= MAX_SELECT_ALL_READ ||
+            selected.length >= MAX_SELECT_ALL_READ ||
+            after.length >= MAX_SELECT_ALL_READ
+        ) {
+            // A full read window may be truncated, so completeness is unknown.
+            return false
+        }
+        val documentLength = before.length + selected.length + after.length
+        if (documentLength == 0) return false
+        if (text.length != documentLength) return false
+        return applySelection(input, 0, documentLength)
     }
 
     override fun copySelection(): Boolean {
@@ -693,6 +724,8 @@ class AndroidTextSession internal constructor(
         const val MAX_CONTEXT_READ = 4_096
         /** 64 UTF-16 units cover even long ZWJ/tag sequences for one grapheme. */
         const val MAX_GRAPHEME_READ = 64
+        /** Bounded full-document read for the selectAll fallback. */
+        const val MAX_SELECT_ALL_READ = 1_000_000
         const val CLIP_LABEL = "Bitap"
     }
 }

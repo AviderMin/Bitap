@@ -498,14 +498,10 @@ class KeyboardController(
         // every callback, including repeated/composing-end ones that return early.
         runCatching { textSession.updateSelection(selectionStart, selectionEnd) }
         val snapshot = SelectionSnapshot(selectionStart, selectionEnd, candidatesStart, candidatesEnd)
-        val samePosition = oldSelectionStart >= 0 && oldSelectionEnd >= 0 &&
-            oldSelectionStart == selectionStart && oldSelectionEnd == selectionEnd
-        val repeated = samePosition || lastSelectionSnapshot == snapshot ||
-            (oldSelectionStart >= 0 && oldSelectionEnd >= 0 &&
-                oldSelectionStart == selectionStart && oldSelectionEnd == selectionEnd &&
-                lastSelectionSnapshot?.let {
-                    it.candidatesStart == candidatesStart && it.candidatesEnd == candidatesEnd
-                } == true)
+        // Dedupe only on the complete snapshot: the host can end composing
+        // without moving the caret, so equal old/new cursor positions are not
+        // enough to prove the callback carries no new candidate-region data.
+        val repeated = lastSelectionSnapshot == snapshot
         if (repeated) {
             // Even a repeated callback is authoritative for our virtual selection
             // when nothing else has been observed yet.

@@ -476,3 +476,34 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 - `scripts/verify.ps1`（2026-11-10）：**RESULT PASS**。单测539项 / 0 failures / 0 errors / 4 skipped（87个测试XML）；lint 0 errors / 29 warnings / 1 hint；debug APK 108,854,202B，SHA-256 `15986CC67B239EE4A349B0AAD6B5E1BADE51E05894E527148D6A9AB7072E4A47`；语料、Python契约、文档192文件0断链、无网络权限均通过。
 - 本轮未做真机验证；上述为 JVM 与适配器 fake 回归，长句质量优化仍暂缓。
 - 设备范围仍限22021211RC / LineageOS23.2 / Android16 / 1080×2400@440 / 竖屏默认字体与键盘高度；不是多ROM、多机型、TalkBack、横屏或长字素极端序列的产品验收。长句解码质量优化保持暂缓。
+## 28. 审查 P1/P2 修复与真机回归（2026-11-11）
+
+审查基线：`2c34971`。本轮只处理审查发现的编辑正确性与模型维护问题，并补事件序列和设备回归；未改拼音排序、词库、评测资产或冻结验收集。
+
+### 28.1 P1 编辑器组合结束后的重复提交
+
+- [KeyboardController.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardController.kt) 的 `onSelectionChanged` 去重改为比较完整 `SelectionSnapshot`（selectionStart/selectionEnd/candidatesStart/candidatesEnd），不再把“old/current 光标位置相同”直接视为重复回调。宿主在光标不动时清除 composing 区域会正常进入 reducer 的结束组合路径，后续 `CommitRaw` 不会把原文再追加一次。
+- 新增 [KeyboardControllerComposingEndTest.kt](app/src/test/java/com/bitap/keyboard/core/KeyboardControllerComposingEndTest.kt) 5项：复现 `ni` → 宿主 `finishComposingText()` → `onSelectionChanged(2,2,-1,-1, old 2,2)` → `CommitRaw` 最终文本 `ni`（修复前 `nini`）；另覆盖全同快照 no-op、组合结束×粘贴、组合结束×光标移动、组合结束×剪切选区事件序列。
+
+### 28.2 P2 全选回退范围不完整
+
+- [TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt) 的 `AndroidTextSession.selectAll()` fallback 不再把 `ExtractedText.startOffset..+length` 直接当作全文：请求最大 hint，要求 `startOffset == 0`，用 selection-relative 的 `getTextBeforeCursor + getSelectedText + getTextAfterCursor` 重建文档长度；任一读取为 null/抛错、读取达到 `MAX_SELECT_ALL_READ=1,000,000` 上限、空文档或长度不一致时返回 false 且不调用 `setSelection`；只有完整确认后才选中 `0..documentLength`。`performContextMenuAction(android.R.id.selectAll)` 快路径保留。
+- [AndroidTextSessionTest.kt](app/src/test/java/com/bitap/keyboard/core/AndroidTextSessionTest.kt) 新增5项（共15项）：局部 ExtractedText 窗口拒绝、空文档拒绝、折叠光标完整文档通过、宿主读取抛错安全失败、context-menu 快路径不读取 ExtractedText。
+
+### 28.3 P2 模型导入/删除与新推理注册竞态
+
+- [DefaultAiRewriteService.kt](app/src/main/java/com/bitap/keyboard/ai/internal/DefaultAiRewriteService.kt) 增加 `modelMutex` 与 `modelGeneration`：`importModel`/`deleteModel` 在整个 cancel→文件事务→状态发布期间持有 modelMutex；`rewrite`/`suggestCandidates` 在注册前快照 model path 与 generation，`registerRequest` 在 modelMutex 内校验 generation/path，模型已变化时拒绝为“模型已更新，请重试”。
+- 同时增加 `teardownMutex` 串行化并发 `cancelAndRelease()`，保证第二个 teardown 不会在第一个仍在 join 旧 generation 时 release engine；此回归由既有 `AiServiceLifecycleTest.deleteModelAndCloseConcurrentlyReleaseEngineExactlyOnce` 覆盖。
+- 新增 [AiModelMaintenanceTest.kt](app/src/test/java/com/bitap/keyboard/ai/AiModelMaintenanceTest.kt) 3项：导入阻塞期间请求不进入 native engine；删除阻塞期间请求不启动且被拒绝；维护完成后正常请求可运行。`AiServiceLifecycleTest` 继续全通过。
+
+### 28.4 工程验证（2026-11-11）
+
+- `scripts/verify.ps1`：**RESULT PASS**。单测 **552项 / 0 failures / 0 errors / 4 skipped**（89个测试XML）；lint **0 errors / 29 warnings / 1 hint**；debug APK 108,946,126B，SHA-256 `160CCDC5BCA2A48BEB01E15B71D0155BE67E8541D636E28F00963619515F1AC5`。
+- v1/v2/v3/D05语料、D04/v3 Python契约、文档引用195文件0断链、APK无INTERNET/ACCESS_NETWORK_STATE权限均通过；日志 `.tmp/verify-round-20261111.log`。
+
+### 28.5 真机回归（22021211RC / LineageOS23.2 / Android16 / 1080×2400@440）
+
+- debug-only [QaEditorActivity.kt](app/src/debug/java/com/bitap/keyboard/qa/QaEditorActivity.kt) 增加 `结束组合` 按钮（`BaseInputConnection.removeComposingSpans` + `InputMethodManager.updateSelection(edit, selStart, selEnd, -1, -1)`，不改文本/光标）和 `selectall` 宿主字段（`InputConnectionWrapper` 拒绝 context-menu selectAll，并返回 `startOffset=3/text="middle"` 的局部 `ExtractedText`），不进入 release。
+- 新增 [regression_fixes.ps1](scripts/device-qa/regression_fixes.ps1)：**8 PASS / 0 FAIL**。`ni` → 结束组合 → 空格得到 `ni `（不是 `nini`）；普通 native 全选对照 `0..11`；`selectall` fallback 保持 `11-11` 不选中局部窗口。证据目录 `.tmp/device-qa/regression-fixes/`，含 `results.json`、`environment.json` 与截图；设备读取 APK hash 与本地一致。
+- 同一 APK 其余真机回归：`smoke.ps1 -Tag r28-smoke` **10 PASS / 0 FAIL**；`editing_tools.ps1 -Tag r28-editing2` **14 PASS / 0 FAIL**（首次调用有一次 `uiautomator dump` 工具瞬时失败，重跑通过）；`editor_correctness.ps1` **36 PASS / 0 FAIL**；`mixed_input.ps1 -Tag r28-mixed` **8 PASS / 0 FAIL**。
+- 限制：单机、单ROM、竖屏、默认字体、ADB单指；P1 的设备触发是 debug-only 宿主/控制器模拟，不是第三方编辑器自行结束 composing 的真实样本；未做多ROM、TalkBack、横屏、真实双拇指和完整操作成本矩阵，长句候选质量本轮未变更。
