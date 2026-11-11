@@ -507,3 +507,65 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 - 新增 [regression_fixes.ps1](scripts/device-qa/regression_fixes.ps1)：**8 PASS / 0 FAIL**。`ni` → 结束组合 → 空格得到 `ni `（不是 `nini`）；普通 native 全选对照 `0..11`；`selectall` fallback 保持 `11-11` 不选中局部窗口。证据目录 `.tmp/device-qa/regression-fixes/`，含 `results.json`、`environment.json` 与截图；设备读取 APK hash 与本地一致。
 - 同一 APK 其余真机回归：`smoke.ps1 -Tag r28-smoke` **10 PASS / 0 FAIL**；`editing_tools.ps1 -Tag r28-editing2` **14 PASS / 0 FAIL**（首次调用有一次 `uiautomator dump` 工具瞬时失败，重跑通过）；`editor_correctness.ps1` **36 PASS / 0 FAIL**；`mixed_input.ps1 -Tag r28-mixed` **8 PASS / 0 FAIL**。
 - 限制：单机、单ROM、竖屏、默认字体、ADB单指；P1 的设备触发是 debug-only 宿主/控制器模拟，不是第三方编辑器自行结束 composing 的真实样本；未做多ROM、TalkBack、横屏、真实双拇指和完整操作成本矩阵，长句候选质量本轮未变更。
+## 29. 模型导入取消恢复与 D05 质量门禁（2026-11-11）
+
+审查基线：`3894643`。本轮处理模型取消状态、D05 质量回退门禁和自然长句句级 rerank 单机制诊断；未改拼音排序生产默认、词库、评测资产或冻结验收集。
+
+### 29.1 P2 取消模型导入后状态停在 Loading
+
+- [DefaultAiRewriteService.kt](app/src/main/java/com/bitap/keyboard/ai/internal/DefaultAiRewriteService.kt) 的 `importModel` 在发布 `Loading` 后用 try/catch 包住 model-store 事务：`CancellationException` 会调用 `recoverAfterImportFailure()`（`modelStore.refresh()` 重新扫描，安装则 Ready、否则 NotInstalled，并递增 modelGeneration）后原样抛出；其他 Throwable 同样恢复状态并返回 `Result.failure`。这覆盖“文件已原子替换、结果尚未发布时取消”的边界。
+- [ModelStore.kt](app/src/main/java/com/bitap/keyboard/ai/internal/ModelStore.kt) 的复制循环增加 `currentCoroutineContext().ensureActive()`，取消后按缓冲区停止复制；`.part` 清理和普通失败语义不变。
+- [AiModelMaintenanceTest.kt](app/src/test/java/com/bitap/keyboard/ai/AiModelMaintenanceTest.kt) 新增3项（共6项）：取消导入恢复 Ready 且后续请求可用；取消时替换文件已发布则恢复 Ready 且 modelInfo 指向替换文件；取消后绝不残留 Loading。`AiServiceLifecycleTest` 8项继续通过。
+
+### 29.2 P1 D05 各类别质量回退门禁
+
+- [PinyinD05DevEvalTest.kt](app/src/test/java/com/bitap/keyboard/core/PinyinD05DevEvalTest.kt) 在报表写出后增加硬门禁，固定 `3894643` 的 8 个桶基线（engineScored、6类、naturalOnly），允许 top1/top5/fullCoverage 每个桶最多 `max(1, floor(n*0.01))` 个案例退化（1%窗口），rankCost.avg 最多上升 0.10；桶集合必须与基线键完全一致，新增/改名类别不能静默跳过。当前基线：engineScored 470/1000、635/1000、rankCost 4.22；naturalOnly 234/700、366/700、rankCost 5.18；natural_long 3/123、14/123、rankCost 8.24、fullCoverage 90/123。门禁先用临时错误 baseline 做过失败注入验证，再恢复为 470 通过。
+
+### 29.3 P1 natural_long 句级 rerank 消融（只读诊断）
+
+- 新增 [PinyinD05LongSentenceRerankAblationTest.kt](app/src/test/java/com/bitap/keyboard/core/PinyinD05LongSentenceRerankAblationTest.kt) 与报告 `build/d05/long-sentence-rerank-ablation.txt`。分母为 natural_long `queryLength<=64` 的90条，33条65–70字符超预算句排除并报告。
+- 基线（生产默认）Top1 3/90（3.3%）、Top5 14/90（15.6%）、rankCost 7.956、oracle64 22/90、fullCoverage 90/90。`longSentenceCorpusWeight`/`longSentenceDictionaryWeight` 各 0.05/0.10/0.20/0.40 的单机制变体及组合 cell 全部 Top1/Top5/oracle64 零提升；corpus 0.20/0.40 仅出现 `d05-natural_long-077` r3→r4 的轻微 rank 回退（仍 Top5，rankCost +0.011）。结论：拒绝句级 rerank 作为下一生产候选，生产默认保持 0.0/0.0。
+- 机制上限：固定候选池内 oracle64 22/90、Top5 14/90，理论 Top5 上限仅 +8（14→22）；其余 68/90 的 Top5 miss 在 top-64 池中没有正确 full candidate，与 path-loss 报告的 59/90 not-generated 一致。下一步优先 L1 lattice/候选生成（59/90）与 L3 候选收集/池 cap（2/90），不是继续调句级权重。
+
+### 29.4 工程与设备验证
+
+- `scripts/verify.ps1`：**RESULT PASS**。单测 **556项 / 0 failures / 0 errors / 4 skipped**（90个测试XML）；lint **0 errors / 29 warnings / 1 hint**；debug APK 109,083,706B，SHA-256 `22852F0CD17200B6A68F84778AF2B69C9E30BD82CDE006544656DCCE23E4072D`；语料、Python契约、文档196文件0断链、无网络权限均通过。日志 `.tmp/verify-round2-20261111.log`。
+- 22021211RC（LineageOS23.2/Android16/1080×2400@440）安装同 hash APK：`regression_fixes.ps1` **8 PASS / 0 FAIL**（上一轮编辑回归保持），`smoke.ps1 -Tag r29-smoke` **10 PASS / 0 FAIL**（键盘、候选、退格、标点、连续输入、设置、AI开关、密码）。
+- 限制：本轮未做真实输入成本（整句完成率/选词次数/修正次数/任务耗时）矩阵；未覆盖多ROM、大字体、横屏、TalkBack、真实双拇指。D05 指标均为开发集诊断，不是冻结验收。
+## 30. 编辑路径性能与 Unicode 边界修复（2026-11-11）
+
+审查基线：当前工作树（HEAD `3894643` 加上一轮模型取消/D05 质量门禁改动）。本轮只处理编辑路径的性能与字素窗口问题；未改拼音排序、词库、评测资产或冻结验收集。
+
+### 30.1 P1 按词移动/删除的平方级计算
+
+- [TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt) 的 `WordBoundary.previousWordStart/nextWordEnd` 改为每次操作只构建一次 `UnicodeGrapheme.clusterBoundaries(text)`，再用边界表二分遍历；不再对每个字素调用会重建整张表的 `previousBoundary/nextBoundary`。新增边界表重载保持 CJK、连续字母数字、空白、符号/ZWJ/旗帜/组合簇语义不变。
+- 性能对比（4096字符连续英文单词，JVM）：修复前探针单次 `previousWordStart` 约 **76.520ms / 256.31MiB** 分配；修复后 `previousWordStart + nextWordEnd` 一对调用约 **2.352ms / 0.13MiB**（测试 `longWordBoundaryScanAllocatesBoundedMemory`，阈值8MiB）。
+- 测试：`UnicodeGraphemeTest` 新增4项（长 ASCII 单词/长标识符精确边界、长 CJK/符号簇语义、分配回归、surrogate/ZWJ/旗帜边界），共20项通过。
+
+### 30.2 P2 超长字素簇退格残留
+
+- [TextSession.kt](app/src/main/java/com/bitap/keyboard/core/TextSession.kt) 的 `AndroidTextSession.deleteBackward()` 改为读取 `window+1` 个 UTF-16 单元：用 `UnicodeGrapheme.isClusterBoundary` 检查读取窗口起点；若窗口起点在字素簇内部，按 64→128→…→4096 扩大窗口重试；预算耗尽或上下文不可用时发送宿主 `KEYCODE_DEL`，不再删除猜测的部分簇。
+- `isClusterBoundary` 覆盖代理对切分、孤立低代理、ZWJ、扩展标记和 regional-indicator 连续段奇偶；`A + e + 70个组合重音符`（72单位）一次退格后为 `A`（删除71单位），长单词一次退格仍只删除1个 UTF-16 单元。
+- 测试：`AndroidTextSessionTest` 新增2项（超长组合簇、>64字符单词），共17项通过；`UnicodeGraphemeTest` 20项、`AndroidTextSessionTest` 17项合计37项通过。
+
+### 30.3 工程与设备验证（2026-11-11）
+
+- `scripts/verify.ps1`：**RESULT PASS**。单测 **562项 / 0 failures / 0 errors / 4 skipped**（90个测试XML）；lint **0 errors / 29 warnings / 1 hint**；debug APK 109,573,786B，SHA-256 `D56D57D4254EE9DC4831B8DC871AC1947C51B216391080A6C553CCC51B2E6C73`；语料、Python契约、文档196文件0断链、无网络权限均通过。日志 `.tmp/verify-round3-20261111.log`。
+- 22021211RC（LineageOS23.2/Android16/1080×2400@440）安装同 hash APK：`regression_fixes.ps1` **8 PASS / 0 FAIL**、`editing_tools.ps1 -Tag r30-editing` **14 PASS / 0 FAIL**、`smoke.ps1 -Tag r30-smoke` **10 PASS / 0 FAIL**。
+- 限制：性能数据为 JVM 单进程诊断，不是设备帧时延；未做真实整句输入成本（完成率、选词/修正次数、任务耗时）矩阵，未覆盖多ROM、大字体、横屏、TalkBack、真实双拇指。
+## 31. 组合输入与编辑操作一致性（2026-11-11）
+
+审查基线：当前工作树（HEAD `3894643` + 上两轮未提交改动）。本轮只处理组合输入与编辑工具的同步事务，不改拼音排序、词库、评测资产或冻结验收集。
+
+### 31.1 P1 组合中编辑导致内容复活
+
+- [KeyboardController.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardController.kt) 新增 `finishCompositionBeforeEdit()`：`MoveCursor`、`SelectAll`、`CutSelection`、`Paste`、`MoveCursorByWord`、`DeleteWord` 在触碰 TextSession 前统一调用；`composing` 非空时先取消 pinyinJob 和 AI 请求，用 `KeyboardAction.SelectionChanged(-1,-1,-1,-1)` 走 reducer 的 `endComposition` 语义（递增 compositionVersion、清除 candidates/pendingConfirmation/queuedActions，并执行 `ImeCommand.FinishComposing`），再清除 virtual composing/pending replacement/旧 selection expectation。`composing` 为空时严格 no-op；`CopySelection` 保持只读，普通 Backspace/候选路径不变。
+- 规则：编辑操作开始前先结束当前组合；组合文本保留为普通文本后由编辑操作删除/替换，不以候选方式重新提交。
+- 新增 [KeyboardControllerComposingEditTest.kt](app/src/test/java/com/bitap/keyboard/core/KeyboardControllerComposingEditTest.kt) 6项：`ni`→DeleteWord→CommitRaw 不复活；`ni`+Paste 得 `niXY` 不重复；组合中 MoveCursor 结束组合；SelectAll→Cut→Paste 后延迟旧回调不恢复；无编辑器回调仍结束；完全相同回调重放不复活。
+
+### 31.2 工程与设备验证（2026-11-11）
+
+- 本轮专项：`KeyboardControllerComposingEditTest` 6项、`KeyboardControllerEditingTest` 9项、`KeyboardControllerUndoTest` 11项，共26项全部通过。
+- `scripts/verify.ps1`：**RESULT PASS**。单测 **568项 / 0 failures / 0 errors / 4 skipped**（91个测试XML）；lint **0 errors / 29 warnings / 1 hint**；debug APK 109,573,786B，SHA-256 `228B7DB1E44952286B46914A31406535D469F24E82C7BC97AC3FFBFC5161EAD6`；语料、Python契约、文档197文件0断链、无网络权限均通过。日志 `.tmp/verify-round4-20261111.log`。
+- 22021211RC（LineageOS23.2/Android16/1080×2400@440）安装同 hash APK：`regression_fixes.ps1` **8 PASS / 0 FAIL**、`editing_tools.ps1 -Tag r31-editing` **14 PASS / 0 FAIL**、`smoke.ps1 -Tag r31-smoke` **10 PASS / 0 FAIL**。
+- 限制：组合中编辑的复现和回归为 JVM 测试宿主，本轮未做真机组合中编辑注入；未做真实整句输入成本矩阵，未覆盖多ROM、大字体、横屏、TalkBack、真实双拇指。

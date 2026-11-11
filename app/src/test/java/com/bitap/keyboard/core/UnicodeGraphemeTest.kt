@@ -1,6 +1,9 @@
 package com.bitap.keyboard.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /** T07: one backspace must remove one visible Unicode character, not one code unit. */
@@ -156,5 +159,97 @@ class UnicodeGraphemeTest {
         assertEquals(5, WordBoundary.backwardDeletionLength(sentence, 5))
         assertEquals(1, WordBoundary.previousWordStart("你好", 2))
         assertEquals(1, WordBoundary.nextWordEnd("你好", 0))
+    }
+
+    @Test
+    fun longAsciiWordAndIdentifierBoundariesStayExact() {
+        val word = "a".repeat(4096)
+        assertEquals(0, WordBoundary.previousWordStart(word, word.length))
+        assertEquals(word.length, WordBoundary.nextWordEnd(word, 0))
+        assertEquals(word.length, WordBoundary.backwardDeletionLength(word, word.length))
+
+        val identifier = "a1".repeat(2048)
+        assertEquals(0, WordBoundary.previousWordStart(identifier, identifier.length))
+        assertEquals(identifier.length, WordBoundary.nextWordEnd(identifier, 0))
+    }
+
+    @Test
+    fun longCjkAndSymbolRunsKeepExistingSemantics() {
+        val cjk = "你".repeat(100)
+        assertEquals(99, WordBoundary.previousWordStart(cjk, cjk.length))
+        assertEquals(1, WordBoundary.nextWordEnd(cjk, 0))
+
+        val emoji = "😀".repeat(100)
+        assertEquals(emoji.length - 2, WordBoundary.previousWordStart(emoji, emoji.length))
+        assertEquals(2, WordBoundary.nextWordEnd(emoji, 0))
+    }
+
+    @Test
+    fun longWordBoundaryScanAllocatesBoundedMemory() {
+        // java.lang.management is not on the Android unit-test compile classpath,
+        // so probe the JVM's allocation counter reflectively and skip the test
+        // when the metrics are unavailable.
+        val allocationProbe = runCatching {
+            val bean = Class.forName("java.lang.management.ManagementFactory")
+                .getMethod("getThreadMXBean")
+                .invoke(null)!!
+            val threadMxBean = Class.forName("com.sun.management.ThreadMXBean")
+            check(threadMxBean.isInstance(bean)) { "JDK thread bean lacks allocation metrics" }
+            check(threadMxBean.getMethod("isThreadAllocatedMemorySupported").invoke(bean) == true)
+            if (threadMxBean.getMethod("isThreadAllocatedMemoryEnabled").invoke(bean) != true) {
+                threadMxBean
+                    .getMethod("setThreadAllocatedMemoryEnabled", Boolean::class.javaPrimitiveType!!)
+                    .invoke(bean, true)
+            }
+            check(threadMxBean.getMethod("isThreadAllocatedMemoryEnabled").invoke(bean) == true)
+            val bytesMethod = threadMxBean
+                .getMethod("getThreadAllocatedBytes", Long::class.javaPrimitiveType!!)
+            bean to bytesMethod
+        }.getOrNull()
+        assumeTrue("thread allocation metrics unavailable", allocationProbe != null)
+        val (bean, allocatedBytesMethod) = allocationProbe!!
+
+        // Warm up on a short word so the measured call exercises steady state.
+        val warmup = "a".repeat(256)
+        repeat(3) {
+            WordBoundary.previousWordStart(warmup, warmup.length)
+            WordBoundary.nextWordEnd(warmup, 0)
+        }
+        val word = "a".repeat(4096)
+        val threadId = Thread.currentThread().id
+        val allocatedBefore = allocatedBytesMethod.invoke(bean, threadId) as Long
+        val startedAt = System.nanoTime()
+        val start = WordBoundary.previousWordStart(word, word.length)
+        val end = WordBoundary.nextWordEnd(word, 0)
+        val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000.0
+        val allocatedBytes = (allocatedBytesMethod.invoke(bean, threadId) as Long) - allocatedBefore
+
+        assertEquals(0, start)
+        assertEquals(word.length, end)
+        val allocatedMiB = allocatedBytes / (1024.0 * 1024.0)
+        println(
+            "long-word boundary scan: n=${word.length} elapsedMs=%.3f allocatedMiB=%.2f"
+                .format(elapsedMs, allocatedMiB),
+        )
+        assertTrue(
+            "one 4096-char word scan should allocate far below 8 MiB, was %.2f MiB".format(allocatedMiB),
+            allocatedBytes < 8L * 1024 * 1024,
+        )
+    }
+
+    @Test
+    fun clusterBoundaryPredicateHandlesSurrogatesZwjAndFlags() {
+        assertTrue(UnicodeGrapheme.isClusterBoundary("abc", 0))
+        assertTrue(UnicodeGrapheme.isClusterBoundary("abc", 1))
+        assertTrue(UnicodeGrapheme.isClusterBoundary("abc", 3))
+        assertFalse(UnicodeGrapheme.isClusterBoundary("e\u0301", 1))
+        assertTrue(UnicodeGrapheme.isClusterBoundary("e\u0301", 2))
+        assertFalse("an offset inside a surrogate pair is never a boundary", UnicodeGrapheme.isClusterBoundary("A😀B", 2))
+        assertTrue(UnicodeGrapheme.isClusterBoundary("A😀B", 1))
+        assertTrue(UnicodeGrapheme.isClusterBoundary("A😀B", 3))
+        assertFalse("ZWJ keeps the family cluster whole", UnicodeGrapheme.isClusterBoundary("👨‍👩‍👧‍👦", 2))
+        assertFalse("a flag pair has no internal boundary", UnicodeGrapheme.isClusterBoundary("🇨🇳", 2))
+        assertTrue("the boundary between two flag pairs is real", UnicodeGrapheme.isClusterBoundary("🇨🇳🇺🇸", 4))
+        assertFalse("the second flag of a pair joins its predecessor", UnicodeGrapheme.isClusterBoundary("🇨🇳🇺🇸", 6))
     }
 }

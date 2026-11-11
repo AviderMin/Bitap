@@ -78,6 +78,32 @@ class PinyinD05DevEvalTest {
         "mixed_en" to "中英混输交互项",
     )
 
+    private data class QualityMetrics(
+        val n: Int,
+        val top1: Int,
+        val top5: Int,
+        val rankCostAvg: Double,
+        val fullCoverage: Int,
+    )
+
+    /**
+     * 2026-11-11 baseline at commit 3894643, taken from build/d05/dev-baseline.txt
+     * (1000 engine-scored D05 dev cases). The quality gate below treats these as
+     * the pinned diagnostic reference and allows 1% (floor(n * 0.01), minimum 1
+     * case) of top1/top5/fullCoverage loss per bucket and at most 0.10 rankCost.avg
+     * rise; v3 validation remains the only frozen acceptance set.
+     */
+    private val qualityGateBaselines: Map<String, QualityMetrics> = linkedMapOf(
+        "engineScored" to QualityMetrics(n = 1000, top1 = 470, top5 = 635, rankCostAvg = 4.22, fullCoverage = 967),
+        "natural_short" to QualityMetrics(n = 300, top1 = 142, top5 = 200, rankCostAvg = 4.06, fullCoverage = 300),
+        "natural_medium" to QualityMetrics(n = 277, top1 = 89, top5 = 152, rankCostAvg = 5.05, fullCoverage = 277),
+        "natural_long" to QualityMetrics(n = 123, top1 = 3, top5 = 14, rankCostAvg = 8.24, fullCoverage = 90),
+        "typo" to QualityMetrics(n = 100, top1 = 73, top5 = 79, rankCostAvg = 2.75, fullCoverage = 100),
+        "shorthand" to QualityMetrics(n = 100, top1 = 79, top5 = 97, rankCostAvg = 1.52, fullCoverage = 100),
+        "mixed_pinyin" to QualityMetrics(n = 100, top1 = 84, top5 = 93, rankCostAvg = 1.69, fullCoverage = 100),
+        "naturalOnly" to QualityMetrics(n = 700, top1 = 234, top5 = 366, rankCostAvg = 5.18, fullCoverage = 667),
+    )
+
     @Test
     fun evaluateD05Dev() {
         val root = findRepoRoot()
@@ -121,6 +147,9 @@ class PinyinD05DevEvalTest {
         println(baseline)
         println("wrote " + baselineFile.absolutePath)
         println("wrote " + failureFile.absolutePath + " (" + failures.size + " Top5 misses)")
+
+        // Gate after the report is written so the report still exists on failure.
+        assertD05QualityGate(scored)
     }
 
     private fun evaluateCase(engine: PinyinEngine, case: EvalCase): CaseOutcome {
@@ -424,9 +453,73 @@ class PinyinD05DevEvalTest {
 
     private fun clean(value: String): String = value.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ')
 
+    /**
+     * Deterministic D05 dev quality gate. Every expected category/aggregate must
+     * have a pinned baseline entry, so a new or renamed bucket fails the gate
+     * instead of silently skipping it. The report is already on disk when this
+     * runs, so a regression still leaves build/d05/dev-baseline.txt for diagnosis.
+     */
+    private fun assertD05QualityGate(scored: List<CaseOutcome>) {
+        val expectedBuckets = listOf("engineScored") + categoryOrder + listOf("naturalOnly")
+        assertEquals(
+            "D05 quality gate baseline entries must match expected categories/aggregates",
+            expectedBuckets.toSet(),
+            qualityGateBaselines.keys,
+        )
+
+        val actualByBucket = LinkedHashMap<String, QualityMetrics>()
+        actualByBucket["engineScored"] = qualityMetrics(scored)
+        categoryOrder.forEach { category ->
+            actualByBucket[category] = qualityMetrics(scored.filter { it.case.category == category })
+        }
+        actualByBucket["naturalOnly"] = qualityMetrics(scored.filter { it.case.category.startsWith("natural_") })
+
+        val violations = mutableListOf<String>()
+        expectedBuckets.forEach { bucket ->
+            val baseline = qualityGateBaselines.getValue(bucket)
+            val actual = actualByBucket.getValue(bucket)
+            val allowedLoss = maxOf(1, baseline.n / 100)
+            if (actual.n != baseline.n) {
+                violations += bucket + ": n actual=" + actual.n + " baseline=" + baseline.n +
+                    " allowed==" + baseline.n + " (baseline windows are pinned to this case count)"
+            }
+            fun checkCount(metric: String, actualValue: Int, baselineValue: Int) {
+                if (actualValue < baselineValue - allowedLoss) {
+                    violations += bucket + ": " + metric + " actual=" + actualValue + " baseline=" + baselineValue +
+                        " allowed>=" + (baselineValue - allowedLoss) + " (max loss " + allowedLoss + " case(s))"
+                }
+            }
+            checkCount("top1", actual.top1, baseline.top1)
+            checkCount("top5", actual.top5, baseline.top5)
+            checkCount("fullCoverage", actual.fullCoverage, baseline.fullCoverage)
+            val actualRankCost = formatAverage(actual.rankCostAvg).toDouble()
+            val maxRankCost = baseline.rankCostAvg + RANK_COST_MAX_RISE
+            if (actualRankCost > maxRankCost + 1e-9) {
+                violations += bucket + ": rankCost.avg actual=" + formatAverage(actual.rankCostAvg) +
+                    " baseline=" + formatAverage(baseline.rankCostAvg) +
+                    " allowed<=" + formatAverage(maxRankCost) + " (max rise " + formatAverage(RANK_COST_MAX_RISE) + ")"
+            }
+        }
+        assertTrue(
+            "D05 dev quality regression against 2026-11-11 3894643 baseline:\n" + violations.joinToString("\n"),
+            violations.isEmpty(),
+        )
+    }
+
+    private fun qualityMetrics(results: List<CaseOutcome>): QualityMetrics = QualityMetrics(
+        n = results.size,
+        top1 = results.count { it.top1 },
+        top5 = results.count { it.top5 },
+        rankCostAvg = if (results.isEmpty()) 0.0 else results.sumOf { it.rankCost }.toDouble() / results.size,
+        fullCoverage = results.count { it.fullCoverage },
+    )
+
+    private fun formatAverage(value: Double): String = String.format(Locale.ROOT, "%.2f", value)
+
     companion object {
         private const val SEARCH_LIMIT = 8
         private const val FULL_LIMIT = 64
         private const val MISS_RANK_COST = 9
+        private const val RANK_COST_MAX_RISE = 0.10
     }
 }

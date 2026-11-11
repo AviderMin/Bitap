@@ -67,6 +67,10 @@ python eval/v3/audit_training_overlap.py
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongSentencePathLossTest --rerun-tasks --console=plain
 # 长输入 lattice 预算消融：输出 build/d05/long-budget-ablation.txt（默认关闭实验）
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongBudgetAblationTest --rerun-tasks --console=plain
+# D05 各类别质量门禁：写 dev-baseline.txt，低于 3894643 基线允许窗口即测试失败
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05DevEvalTest --rerun-tasks --console=plain
+# natural_long 句级 rerank 单机制消融：输出 build/d05/long-sentence-rerank-ablation.txt（只读诊断）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongSentenceRerankAblationTest --rerun-tasks --console=plain
 # 长输入局部纠错窗口诊断：输出 build/d05/local-correction.txt（默认关闭实验）
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LocalCorrectionEvalTest --rerun-tasks --console=plain
 python eval/d05/dev/check_d05_dev.py

@@ -91,7 +91,7 @@ internal object UnicodeGrapheme {
     }
 
     /** UTF-16 offsets of every grapheme-cluster boundary in [text]. */
-    private fun clusterBoundaries(text: String): IntArray {
+    internal fun clusterBoundaries(text: String): IntArray {
         val codePoints = toCodePoints(text)
         val boundaries = IntArray(codePoints.size + 1)
         var boundaryCount = 0
@@ -121,6 +121,73 @@ internal object UnicodeGrapheme {
             }
         }
         return low
+    }
+
+    /**
+     * Offset of the first cluster boundary before [offset], using a boundary
+     * table already built for the full text. An offset inside a cluster resolves
+     * to that cluster's start, matching [previousBoundary] on a String.
+     */
+    internal fun previousBoundary(boundaries: IntArray, offset: Int): Int {
+        val index = boundaryIndexAtOrBefore(boundaries, offset)
+        return if (boundaries[index] == offset) {
+            boundaries[(index - 1).coerceAtLeast(0)]
+        } else {
+            boundaries[index]
+        }
+    }
+
+    /**
+     * Offset of the first cluster boundary after [offset], using a boundary
+     * table already built for the full text.
+     */
+    internal fun nextBoundary(boundaries: IntArray, offset: Int): Int {
+        val index = boundaryIndexAtOrBefore(boundaries, offset)
+        return boundaries[(index + 1).coerceAtMost(boundaries.size - 1)]
+    }
+
+    /**
+     * True when [offset] is a grapheme-cluster boundary in [text].
+     *
+     * This only inspects the code points around [offset] instead of building a
+     * full boundary table, so a bounded host read window can be validated
+     * cheaply. Handles split surrogate pairs, ZWJ sequences, extend marks and
+     * regional-indicator run parity.
+     */
+    internal fun isClusterBoundary(text: String, offset: Int): Boolean {
+        val safe = offset.coerceIn(0, text.length)
+        if (safe == 0 || safe == text.length) return true
+        // A boundary never splits a surrogate pair.
+        if (Character.isHighSurrogate(text[safe - 1]) && Character.isLowSurrogate(text[safe])) {
+            return false
+        }
+        // A low surrogate at the window edge may be the second half of a pair
+        // whose high surrogate lies before the buffer; that boundary is unknown,
+        // so widen rather than risk splitting the pair.
+        if (Character.isLowSurrogate(text[safe - 1]) &&
+            (safe < 2 || !Character.isHighSurrogate(text[safe - 2]))
+        ) {
+            return false
+        }
+        val previous = text.codePointBefore(safe)
+        val current = text.codePointAt(safe)
+        if (previous == ZWJ || current == ZWJ) return false
+        if (isExtend(current)) return false
+        if (isRegionalIndicator(previous) && isRegionalIndicator(current)) {
+            // Regional indicators pair from the start of their run: every second
+            // indicator joins its predecessor, so an odd run length ends on a
+            // boundary and an even one does not.
+            var runLength = 1 // [current] itself
+            var index = safe
+            while (index > 0) {
+                val codePoint = text.codePointBefore(index)
+                if (!isRegionalIndicator(codePoint)) break
+                runLength++
+                index -= Character.charCount(codePoint)
+            }
+            return runLength % 2 != 0
+        }
+        return true
     }
 
     private fun toCodePoints(text: String): IntArray {
@@ -186,14 +253,18 @@ internal object WordBoundary {
         }
         if (index <= 0) return 0
         val codePoint = text.codePointBefore(index)
+        // Build the boundary table once per call; asking UnicodeGrapheme for a
+        // boundary inside the loop would rebuild it for every grapheme and make
+        // long words O(n^2).
+        val boundaries = UnicodeGrapheme.clusterBoundaries(text)
         if (isCjk(codePoint)) {
             // Include any grapheme extensions (e.g. variation selectors) with
             // the CJK character instead of splitting the cluster.
-            return UnicodeGrapheme.previousBoundary(text, index)
+            return UnicodeGrapheme.previousBoundary(boundaries, index)
         }
         if (isWordChar(codePoint)) {
             while (index > 0) {
-                val previousStart = UnicodeGrapheme.previousBoundary(text, index)
+                val previousStart = UnicodeGrapheme.previousBoundary(boundaries, index)
                 if (previousStart >= index) break
                 val previous = text.codePointAt(previousStart)
                 if (!isWordChar(previous)) break
@@ -203,7 +274,7 @@ internal object WordBoundary {
         }
         // Symbols (including ZWJ emoji, flags, skin-tone sequences and combining
         // marks) move as whole grapheme clusters, never as single code points.
-        return UnicodeGrapheme.previousBoundary(text, index)
+        return UnicodeGrapheme.previousBoundary(boundaries, index)
     }
 
     /** End offset of the word after [from], skipping leading whitespace. */
@@ -216,18 +287,20 @@ internal object WordBoundary {
         }
         if (index >= text.length) return text.length
         val codePoint = text.codePointAt(index)
-        if (isCjk(codePoint)) return UnicodeGrapheme.nextBoundary(text, index)
+        // Build the boundary table once per call; see [previousWordStart].
+        val boundaries = UnicodeGrapheme.clusterBoundaries(text)
+        if (isCjk(codePoint)) return UnicodeGrapheme.nextBoundary(boundaries, index)
         if (isWordChar(codePoint)) {
             while (index < text.length) {
                 val current = text.codePointAt(index)
                 if (!isWordChar(current)) break
-                val next = UnicodeGrapheme.nextBoundary(text, index)
+                val next = UnicodeGrapheme.nextBoundary(boundaries, index)
                 if (next <= index) break
                 index = next
             }
             return index
         }
-        return UnicodeGrapheme.nextBoundary(text, index)
+        return UnicodeGrapheme.nextBoundary(boundaries, index)
     }
 
     /** Number of UTF-16 units one backward word deletion removes before [from]. */
@@ -390,18 +463,52 @@ class AndroidTextSession internal constructor(
             return
         }
         // Read a bounded suffix only; grapheme segmentation below never scans
-        // the whole editor. 64 UTF-16 units cover even long ZWJ/tag sequences.
-        val before = input.getTextBeforeCursor(MAX_GRAPHEME_READ, 0)?.toString()
-        if (before == null) {
-            // Unavailable context is not an empty field. Let the host handle
-            // backspace rather than blindly deleting half of a surrogate pair.
-            input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-            input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-            return
+        // the whole editor. One extra UTF-16 unit past the window reveals
+        // whether the window itself starts inside a grapheme cluster (a long
+        // combining/ZWJ/tag run can exceed the initial 64-unit window).
+        var window = MAX_GRAPHEME_READ
+        while (true) {
+            val read = input.getTextBeforeCursor(window + 1, 0)?.toString()
+            if (read == null) {
+                // Unavailable context is not an empty field. Let the host handle
+                // backspace rather than blindly deleting half of a surrogate pair.
+                sendHostDelete(input)
+                return
+            }
+            if (read.length <= window) {
+                // The whole prefix before the caret was returned, so it starts
+                // at the document boundary and can be segmented safely.
+                deleteLastGrapheme(input, read)
+                return
+            }
+            if (UnicodeGrapheme.isClusterBoundary(read, offset = 1)) {
+                // The read window starts on a boundary; drop the extra unit and
+                // delete exactly one complete grapheme cluster before the caret.
+                deleteLastGrapheme(input, read.substring(1))
+                return
+            }
+            if (window >= MAX_GRAPHEME_READ_BUDGET) {
+                // The cluster starts before our bounded read window. Deleting a
+                // guessed partial cluster would corrupt text, so defer to the
+                // host's own backspace handling.
+                sendHostDelete(input)
+                return
+            }
+            window = (window * 2).coerceAtMost(MAX_GRAPHEME_READ_BUDGET)
         }
-        val deleteCount = UnicodeGrapheme.lastGraphemeLength(before)
+    }
+
+    /** Deletes exactly one trailing grapheme cluster from a validated window. */
+    private fun deleteLastGrapheme(input: InputConnection, window: String) {
+        val deleteCount = UnicodeGrapheme.lastGraphemeLength(window)
         if (deleteCount == 0) return
         input.deleteSurroundingText(deleteCount, 0)
+    }
+
+    /** Host-level backspace fallback used when context cannot be trusted. */
+    private fun sendHostDelete(input: InputConnection) {
+        input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+        input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
     }
 
     override fun deleteBackward(count: Int) {
@@ -722,8 +829,10 @@ class AndroidTextSession internal constructor(
     private companion object {
         /** Upper bound for every cursor/word context read; keeps moves O(1). */
         const val MAX_CONTEXT_READ = 4_096
-        /** 64 UTF-16 units cover even long ZWJ/tag sequences for one grapheme. */
+        /** Initial suffix read for one backspace; widened when it starts mid-cluster. */
         const val MAX_GRAPHEME_READ = 64
+        /** Hard cap for the widened suffix read before deferring to the host. */
+        const val MAX_GRAPHEME_READ_BUDGET = 4_096
         /** Bounded full-document read for the selectAll fallback. */
         const val MAX_SELECT_ALL_READ = 1_000_000
         const val CLIP_LABEL = "Bitap"

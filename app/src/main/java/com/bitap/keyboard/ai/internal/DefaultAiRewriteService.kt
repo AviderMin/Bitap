@@ -60,6 +60,9 @@ import kotlinx.coroutines.withContext
  *    model-store transaction. A request snapshots the generation together with
  *    its model path before registration; registration then rejects it while
  *    holding [modelMutex] if the generation or the current path changed.
+ *  - A cancelled or failed import re-scans the store and publishes a terminal
+ *    runtime state (never leaves [AiRuntimeState.Loading]), bumping the
+ *    generation because the replacement file may already be in place.
  */
 class DefaultAiRewriteService internal constructor(
     private val modelStore: AiModelStore,
@@ -148,15 +151,39 @@ class DefaultAiRewriteService internal constructor(
             // A new model file must never replace the file a live engine has mapped.
             cancelAndRelease()
             _runtimeState.value = AiRuntimeState.Loading
-            val result = modelStore.importModel(uri)
-            modelGeneration++
-            val info = modelStore.modelInfo.value
-            _runtimeState.value = when {
-                !info.installed -> if (result.isSuccess) AiRuntimeState.Error else AiRuntimeState.NotInstalled
-                else -> AiRuntimeState.Ready
+            try {
+                val result = modelStore.importModel(uri)
+                modelGeneration++
+                val info = modelStore.modelInfo.value
+                _runtimeState.value = when {
+                    !info.installed -> if (result.isSuccess) AiRuntimeState.Error else AiRuntimeState.NotInstalled
+                    else -> AiRuntimeState.Ready
+                }
+                result
+            } catch (cancelled: CancellationException) {
+                // The store may have moved the replacement into place right
+                // before cancellation landed; re-scan instead of leaving Loading.
+                recoverAfterImportFailure()
+                throw cancelled
+            } catch (error: Throwable) {
+                recoverAfterImportFailure()
+                Result.failure(IllegalStateException("模型导入失败", error))
             }
-            result
         }
+    }
+
+    /**
+     * Restores a terminal [runtimeState] after an import transaction did not
+     * publish its result (cancellation or unexpected failure). Must be called
+     * while holding [modelMutex]. The store may already contain the replacement
+     * file, so re-scan the disk and bump the generation so requests prepared
+     * against the previous model are invalidated.
+     */
+    private fun recoverAfterImportFailure() {
+        modelGeneration++
+        val installed = runCatching { modelStore.refresh().installed }
+            .getOrElse { modelStore.isInstalled() }
+        _runtimeState.value = if (installed) AiRuntimeState.Ready else AiRuntimeState.NotInstalled
     }
 
     override fun deleteModel() {

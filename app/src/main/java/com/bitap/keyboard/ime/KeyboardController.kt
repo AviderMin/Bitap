@@ -223,6 +223,7 @@ class KeyboardController(
             return
         }
         if (action is KeyboardAction.MoveCursor) {
+            finishCompositionBeforeEdit()
             if (textSession.moveCursorBy(action.delta)) {
                 adoptEditorSelection()
                 clearUndoState()
@@ -238,6 +239,7 @@ class KeyboardController(
             return
         }
         if (action == KeyboardAction.SelectAll) {
+            finishCompositionBeforeEdit()
             if (runCatching { textSession.selectAll() }.getOrDefault(false)) {
                 adoptEditorSelection()
                 _state.value = _state.value.copy(hasSelection = true)
@@ -249,6 +251,7 @@ class KeyboardController(
             return
         }
         if (action == KeyboardAction.CutSelection) {
+            finishCompositionBeforeEdit()
             if (runCatching { textSession.cutSelection() }.getOrDefault(false)) {
                 adoptEditorSelection()
                 clearUndoState()
@@ -258,6 +261,7 @@ class KeyboardController(
             return
         }
         if (action == KeyboardAction.Paste) {
+            finishCompositionBeforeEdit()
             if (runCatching { textSession.paste() }.getOrDefault(false)) {
                 adoptEditorSelection()
                 clearUndoState()
@@ -267,6 +271,7 @@ class KeyboardController(
             return
         }
         if (action is KeyboardAction.MoveCursorByWord) {
+            finishCompositionBeforeEdit()
             if (runCatching { textSession.moveCursorByWord(action.delta) }.getOrDefault(false)) {
                 adoptEditorSelection()
                 clearUndoState()
@@ -276,6 +281,7 @@ class KeyboardController(
             return
         }
         if (action == KeyboardAction.DeleteWord) {
+            finishCompositionBeforeEdit()
             if (runCatching { textSession.deleteBackwardWord() }.getOrDefault(false)) {
                 adoptEditorSelection()
                 clearUndoState()
@@ -818,6 +824,40 @@ class KeyboardController(
     /** Forgets all absolute editor knowledge for a new/finished input connection. */
     private fun resetVirtualEditorTracking() {
         virtualSelection = runCatching { textSession.getSelection() }.getOrNull()
+        virtualComposingStart = null
+        pendingCompositionReplacement = null
+        expectedSelectionChanges.clear()
+    }
+
+    /**
+     * Finishes an active composition in controller state before a direct editor
+     * edit (paste/cut/word-delete/cursor/select-all).
+     *
+     * Editing tools operate on raw editor text. Leaving a composing region in
+     * the reducer would let a later CommitRaw resurrect text the editor no
+     * longer has and would leave stale candidates or a pending confirmation
+     * visible. The reducer's SelectionChanged(-1, -1, -1, -1) path is exactly
+     * its composing-end semantics, so use it instead of hand-editing state.
+     * No-op when nothing is composing, so unrelated AI/query state is untouched.
+     */
+    private fun finishCompositionBeforeEdit() {
+        if (_state.value.composing.isEmpty()) return
+        pinyinJob?.cancel()
+        cancelAi()
+        val reduction = KeyboardReducer.reduce(
+            _state.value,
+            KeyboardAction.SelectionChanged(
+                selectionStart = -1,
+                selectionEnd = -1,
+                candidatesStart = -1,
+                candidatesEnd = -1,
+            ),
+        )
+        _state.value = reduction.state
+        reduction.commands.forEach(::execute)
+        // The direct editor edit replaces this composition; never let its
+        // virtual range or queued host-selection expectations leak into the
+        // edit's callback handling.
         virtualComposingStart = null
         pendingCompositionReplacement = null
         expectedSelectionChanges.clear()

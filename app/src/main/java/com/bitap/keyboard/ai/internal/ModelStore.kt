@@ -11,6 +11,8 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -93,6 +95,9 @@ class ModelStore(context: Context) : AiModelStore {
                     val buffer = ByteArray(COPY_BUFFER_BYTES)
                     var total = 0L
                     while (true) {
+                        // Stop between buffers when the import coroutine is
+                        // cancelled instead of copying the whole model file.
+                        currentCoroutineContext().ensureActive()
                         val read = input.read(buffer)
                         if (read < 0) break
                         if (read == 0) continue

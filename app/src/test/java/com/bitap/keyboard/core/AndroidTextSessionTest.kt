@@ -182,6 +182,29 @@ class AndroidTextSessionTest {
         assertEquals("the host context-menu action applies the selection", 0, host.setSelectionCalls)
     }
 
+    @Test
+    fun backspaceDeletesLongCombiningClusterInOneHostOperation() {
+        val text = "A" + "e" + "\u0301".repeat(70)
+        val host = Host(text)
+
+        host.session.deleteBackward()
+
+        assertEquals("A", host.text)
+        assertEquals(listOf(71), host.deletions)
+    }
+
+    @Test
+    fun backspaceInLongWordDeletesExactlyOneUnitInOneHostCall() {
+        val text = "a".repeat(100)
+        val host = Host(text)
+
+        host.session.deleteBackward()
+
+        assertEquals("a".repeat(99), host.text)
+        assertEquals(1, host.deletions.size)
+        assertEquals(1, host.deletions.single())
+    }
+
     private class Host(
         var text: String,
         var start: Int = text.length,

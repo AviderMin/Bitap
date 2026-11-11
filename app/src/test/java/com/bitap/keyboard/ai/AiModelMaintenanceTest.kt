@@ -145,13 +145,94 @@ class AiModelMaintenanceTest {
         }
     }
 
+    @Test
+    fun cancelledImportRestoresReadyStateAndKeepsServiceUsable() = runBlocking {
+        val harness = MaintenanceHarness(blockImport = true)
+        try {
+            val importJob = async(Dispatchers.Default) {
+                harness.service.importModel(unusedUri())
+            }
+            withTimeout(TIMEOUT_MS) { harness.store.importStarted.receive() }
+            assertEquals(AiRuntimeState.Loading, harness.service.runtimeState.value)
+
+            importJob.cancelAndJoin()
+
+            assertEquals(
+                "cancelled import must publish the still-installed model, not stay Loading",
+                AiRuntimeState.Ready,
+                harness.service.runtimeState.value,
+            )
+
+            // The service must remain usable after the cancelled maintenance.
+            val collector = launch {
+                harness.service.suggestCandidates("nihao", "wo").collect { }
+            }
+            withTimeout(TIMEOUT_MS) { harness.engine.loads.receive() }
+            assertEquals(1, harness.engine.rewriteCalls)
+            collector.cancelAndJoin()
+        } finally {
+            harness.store.releaseImport()
+            harness.shutdown()
+        }
+    }
+
+    @Test
+    fun cancelledImportAfterStoreReplacementPublishesReplacementModel() = runBlocking {
+        val harness = MaintenanceHarness(blockImport = true, installBeforeBlock = true)
+        try {
+            val importJob = async(Dispatchers.Default) {
+                harness.service.importModel(unusedUri())
+            }
+            withTimeout(TIMEOUT_MS) { harness.store.importStarted.receive() }
+            assertEquals(AiRuntimeState.Loading, harness.service.runtimeState.value)
+
+            // The fake has already atomically replaced the file and published
+            // the new modelInfo before it blocks; cancellation lands right after.
+            assertEquals(REPLACED_MODEL_PATH, harness.store.modelInfo.value.path)
+            importJob.cancelAndJoin()
+
+            assertEquals(
+                "cancellation after the atomic move must publish Ready, not NotInstalled",
+                AiRuntimeState.Ready,
+                harness.service.runtimeState.value,
+            )
+            assertEquals(REPLACED_MODEL_PATH, harness.service.modelInfo.value.path)
+        } finally {
+            harness.store.releaseImport()
+            harness.shutdown()
+        }
+    }
+
+    @Test
+    fun cancelledImportNeverLeavesRuntimeStateLoading() = runBlocking {
+        val harness = MaintenanceHarness(blockImport = true)
+        try {
+            val importJob = async(Dispatchers.Default) {
+                harness.service.importModel(unusedUri())
+            }
+            withTimeout(TIMEOUT_MS) { harness.store.importStarted.receive() }
+            assertEquals(AiRuntimeState.Loading, harness.service.runtimeState.value)
+
+            importJob.cancelAndJoin()
+
+            assertTrue(
+                "runtimeState must be terminal after cancellation but was " + harness.service.runtimeState.value,
+                harness.service.runtimeState.value != AiRuntimeState.Loading,
+            )
+        } finally {
+            harness.store.releaseImport()
+            harness.shutdown()
+        }
+    }
+
     private class MaintenanceHarness(
         initialPath: String? = DEFAULT_MODEL_PATH,
         blockImport: Boolean = false,
         blockDelete: Boolean = false,
+        installBeforeBlock: Boolean = false,
     ) {
         val engine = MaintenanceFakeEngine()
-        val store = MaintenanceFakeModelStore(initialPath, blockImport, blockDelete)
+        val store = MaintenanceFakeModelStore(initialPath, blockImport, blockDelete, installBeforeBlock)
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val service = DefaultAiRewriteService(store, engine, scope)
 
@@ -185,10 +266,13 @@ class AiModelMaintenanceTest {
 @Suppress("UNCHECKED_CAST")
 private fun <T> unusedUri(): T = null as T
 
+private const val REPLACED_MODEL_PATH = "/models/replaced-model.litertlm"
+
 private class MaintenanceFakeModelStore(
     initialPath: String?,
     private val blockImport: Boolean,
     private val blockDelete: Boolean,
+    private val installBeforeBlock: Boolean = false,
 ) : AiModelStore {
     private val _modelInfo = MutableStateFlow(
         if (initialPath == null) {
@@ -232,14 +316,22 @@ private class MaintenanceFakeModelStore(
 
     override suspend fun importModel(uri: Uri): Result<AiModelInfo> {
         importStarted.trySend(Unit)
+        if (installBeforeBlock) {
+            installReplacementModel()
+        }
         if (blockImport) {
             importGate.receive()
         }
-        path = IMPORTED_MODEL_PATH
-        val info = AiModelInfo(installed = true, sizeBytes = 64L, path = IMPORTED_MODEL_PATH)
-        _modelInfo.value = info
+        if (!installBeforeBlock) {
+            installReplacementModel()
+        }
         importedSignal.trySend(Unit)
-        return Result.success(info)
+        return Result.success(_modelInfo.value)
+    }
+
+    private fun installReplacementModel() {
+        path = REPLACED_MODEL_PATH
+        _modelInfo.value = AiModelInfo(installed = true, sizeBytes = 64L, path = REPLACED_MODEL_PATH)
     }
 
     override fun deleteModel() {
@@ -258,10 +350,6 @@ private class MaintenanceFakeModelStore(
     }
 
     override fun isInstalled(): Boolean = path != null
-
-    private companion object {
-        const val IMPORTED_MODEL_PATH = "/models/imported-model.litertlm"
-    }
 }
 
 private class MaintenanceFakeEngine : AiEngine {
