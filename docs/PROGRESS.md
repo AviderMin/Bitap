@@ -569,3 +569,30 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 - `scripts/verify.ps1`：**RESULT PASS**。单测 **568项 / 0 failures / 0 errors / 4 skipped**（91个测试XML）；lint **0 errors / 29 warnings / 1 hint**；debug APK 109,573,786B，SHA-256 `228B7DB1E44952286B46914A31406535D469F24E82C7BC97AC3FFBFC5161EAD6`；语料、Python契约、文档197文件0断链、无网络权限均通过。日志 `.tmp/verify-round4-20261111.log`。
 - 22021211RC（LineageOS23.2/Android16/1080×2400@440）安装同 hash APK：`regression_fixes.ps1` **8 PASS / 0 FAIL**、`editing_tools.ps1 -Tag r31-editing` **14 PASS / 0 FAIL**、`smoke.ps1 -Tag r31-smoke` **10 PASS / 0 FAIL**。
 - 限制：组合中编辑的复现和回归为 JVM 测试宿主，本轮未做真机组合中编辑注入；未做真实整句输入成本矩阵，未覆盖多ROM、大字体、横屏、TalkBack、真实双拇指。
+## 32. 发布脚本验签门禁（2026-11-11）
+
+审查基线：`9144266` 干净工作树。问题：`scripts/build-release.ps1` 对 `apksigner verify` 不检查退出码，验签失败后仍写 `dist/SHA256SUMS.txt` 和 APK 摘要。
+
+### 32.1 修复
+
+- [build-release.ps1](scripts/build-release.ps1) 现在：从 `ANDROID_SDK_ROOT`/`ANDROID_HOME`/`local.properties`/`%LOCALAPPDATA%\Android\Sdk` 依次解析 SDK，不再硬编码本机路径；临时 aligned/signed APK 使用 GUID 唯一名称；`apksigner verify` 的 stdout+stderr 完整捕获并立即检查 `$LASTEXITCODE`，失败时抛出包含验签输出的错误；只有验签通过后才复制 APK 到 `dist/`、写 `SHA256SUMS.txt` 并打印 SHA256/大小/commit 摘要。
+- 新增 [test-build-release-verify-gate.ps1](scripts/test-build-release-verify-gate.ps1)：用临时 fake repo/SDK 和可配置 `FAKE_APKSIGNER_VERIFY_EXIT` 驱动真实构建脚本；失败注入（verify=1）必须非零退出、无 SHA256SUMS、无发布 APK、无摘要输出；成功注入（verify=0）必须发布 APK、写正确 SHA256SUMS 且只显示前4行证书。
+
+### 32.2 验证（2026-11-11）
+
+- `scripts/test-build-release-verify-gate.ps1`：**RESULT PASS**（失败/成功两分支均通过）。
+- 实际 `scripts/build-release.ps1`：成功生成 `dist/bitap-0.1.0-demo.apk` 28,416,343B，SHA-256 `8BDD5C8749C517A058125E32E36879B15D942AD7DB0BA602704AFB66FDB547B9`；`apksigner verify --print-certs` 退出0，`dist/SHA256SUMS.txt` 与 APK hash 一致。
+- 当前应用源码未变（本轮只改发布脚本）；最终工程门禁 **568项 / 0 failures / 0 errors / 4 skipped / RESULT PASS**（91个测试XML，lint 0 errors/29 warnings/1 hint），日志 `.tmp/verify-round5-20261111.log`。
+- 限制：release 构建只验证了签名/摘要门禁，未做混淆后运行、安装运行、权限矩阵或多环境并行构建；真实输入成本仍未覆盖。
+## 33. P1 长句候选生成单机制探测（2026-11-11，未改生产默认）
+
+围绕 D05 `natural_long`（预算内90条，基线 Top1 3/90、Top5 14/90、oracle64 22/90）做只读单机制探测；所有变体只通过 `EngineTuning`/`withTuning` 视图运行，生产默认、词典和语料未改。
+
+| 机制 | 变体 | natural_long Top1/Top5 | natural_all Top1/Top5 | 结论 |
+|---|---|---:|---:|---|
+| wordInsertionCompensation | 12.5/13/14/16 | 3/14、4/14、6/11、7/12 | 234/368、236/366、235/357、227/352 | 13+ 提高 long Top1 但 Top5 下降；12.5 仅 +2 Top5 且 short Top1 -1 |
+| corpusWordNgramWeight | 0.55/0.60/0.65 | 3/14、4/14、5/14 | 234/368、236/368、238/367 | 0.60 总 Top1/Top5 +2/+2，但 oracle -3、short Top1 -2；保留 dev 观察，不作为生产默认 |
+| partialQuota | 0/8/24 | 3/14、3/14、3/14 | 234/366、234/366、234/366 | quota=0 仅 oracle +7（long +1），Top5 无变化，且牺牲 partial 可用性 |
+| word-count diversity beam | on / +beam128/+beam192 | 3/14、3/14、3/14 | — | long 无有效变化；不进入生产 |
+
+结论：本轮未找到可安全上线的长句候选生成改动，生产默认保持 `WORD_NGRAM_WEIGHT=0.50`、`wordInsertionCompensation=12.0`、`partialQuota=16`。下一轮应针对 lattice 路径保留（前向/后向 beam 或分层预算）做有界消融，并将 `oracle64` 与 Top5 一同报告；不能把 dev 上单个权重变化直接写成验收。

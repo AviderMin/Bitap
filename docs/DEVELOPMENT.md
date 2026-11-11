@@ -27,6 +27,10 @@ Python依赖清单为根目录 `requirements-dev.txt`，可用 `python -m pip in
 .\gradlew.bat :app:lintDebug :app:assembleDebug --console=plain
 .\gradlew.bat :app:assembleRelease --console=plain
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1
+# release 构建/签名/验签门禁：验签失败不会生成 dist 交付摘要
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1
+# 发布脚本验签门禁回归（fake SDK，不跑 Gradle）
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-build-release-verify-gate.ps1
 ```
 
 debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`；release 默认未签名，位于 `app/build/outputs/apk/release/`。开发包体包含调试/推理依赖，不应作为最终发布体积承诺。
