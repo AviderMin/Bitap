@@ -16,6 +16,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -130,6 +133,50 @@ internal fun candidatePanelVisibleRows(compact: Boolean): Int = if (compact) 2 e
  * when long words or an accessibility font increase the row count.
  */
 internal fun candidatePanelPageSize(compact: Boolean): Int = if (compact) 8 else 12
+
+/**
+ * Page capacity for a concrete candidate list. Chips flow by intrinsic width;
+ * a long sentence candidate occupies a whole row, so a fixed 12-item page hides
+ * items behind internal scrolling. Estimate chip width in display units
+ * (CJK/full-width = 2, other = 1, plus 2 padding units) and fit only what the
+ * visible rows can show, so the footer page count matches the visible items.
+ */
+internal fun candidatePanelPageSize(candidates: List<Candidate>, compact: Boolean): Int {
+    val defaultSize = candidatePanelPageSize(compact)
+    if (candidates.isEmpty()) return defaultSize
+    val capacityUnits = if (compact) 76 else 40
+    val widestUnits = candidates.maxOf { candidatePanelChipUnits(it.word) }
+    val chipsPerRow = (capacityUnits / widestUnits).coerceAtLeast(1)
+    val fits = candidatePanelVisibleRows(compact) * chipsPerRow
+    return fits.coerceIn(1, defaultSize)
+}
+
+private fun candidatePanelChipUnits(word: String): Int =
+    2 + word.sumOf { char -> if (char.code >= 0x2E80) 2 else 1 }
+
+/**
+ * Long sentence candidates cannot be meaningfully paginated by row count: a
+ * single chip may wrap to multiple lines and hide the rest of its page behind
+ * an internal scroll. In that case the expanded panel switches to a single
+ * scrollable list with a total-count footer instead of a false page counter.
+ */
+internal fun candidatePanelUsesScrollMode(
+    candidates: List<Candidate>,
+    fontScale: Float = 1f,
+    screenWidthDp: Int = 393,
+): Boolean {
+    // 20 display units is the 9-CJK-character boundary at the calibrated
+    // 393dp/default-font baseline. Scale the estimate for larger fonts and
+    // narrower windows so a chip that will wrap still switches to the scroll
+    // list instead of promising a false page count.
+    val effectiveScale = fontScale.coerceAtLeast(1f) *
+        (393f / screenWidthDp.coerceAtLeast(320).toFloat())
+    return candidates.any {
+        candidatePanelChipUnits(it.word) * effectiveScale >= CANDIDATE_PANEL_SCROLL_MODE_MIN_UNITS
+    }
+}
+
+internal const val CANDIDATE_PANEL_SCROLL_MODE_MIN_UNITS = 20f
 
 internal fun candidatePanelMaxHeightDp(compact: Boolean): Int =
     candidatePanelVisibleRows(compact) * CANDIDATE_PANEL_ROW_HEIGHT_DP +
@@ -561,7 +608,7 @@ private fun CandidateBar(
 ) {
     val palette = LocalBitapPalette.current
     val candidateScrollState = rememberScrollState()
-    val expandedPageSize = candidatePanelPageSize(compact)
+    val expandedPageSize = candidatePanelPageSize(displayCandidates, compact)
     val composingLength = displayComposingLength
     // R11: a new candidate result set starts at the first candidate instead of
     // leaving the previous scroll position at the end of the old result list.
@@ -893,6 +940,21 @@ private fun CandidateExpandedPanel(
     onDismiss: (() -> Unit)? = null,
 ) {
     val palette = LocalBitapPalette.current
+    val layoutDensity = LocalDensity.current
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    if (candidatePanelUsesScrollMode(candidates, layoutDensity.fontScale, screenWidthDp)) {
+        CandidateScrollPanel(
+            candidates = candidates,
+            composingLength = composingLength,
+            compact = compact,
+            enabled = enabled,
+            onCandidateClick = onCandidateClick,
+            haptic = haptic,
+            modifier = modifier,
+            onDismiss = onDismiss,
+        )
+        return
+    }
     val pageCount = candidatePanelPageCount(candidates.size, pageSize)
     val currentPage = page.coerceIn(0, pageCount - 1)
     val pageStart = currentPage * pageSize
@@ -935,7 +997,7 @@ private fun CandidateExpandedPanel(
                     label = candidate.word,
                     description = candidateChipContentDescription(candidate, composingLength),
                     accent = globalIndex == 0,
-                    maxLines = 3,
+                    maxLines = 2,
                     isCorrection = candidate.isCorrection,
                     isPartial = isPartialCandidate(candidate, composingLength),
                     enabled = enabled,
@@ -992,6 +1054,86 @@ private fun CandidateExpandedPanel(
     }
 }
 
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CandidateScrollPanel(
+    candidates: List<Candidate>,
+    composingLength: Int,
+    compact: Boolean,
+    enabled: Boolean,
+    onCandidateClick: (Int) -> Unit,
+    haptic: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
+) {
+    val palette = LocalBitapPalette.current
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val firstPartialIndex = firstPartialCandidateIndex(candidates, composingLength)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(palette.elevatedSurface)
+            .border(0.5.dp, palette.hairline, RoundedCornerShape(16.dp))
+            .then(if (compact) Modifier.clickable { } else Modifier)
+            .heightIn(max = candidatePanelMaxHeightDp(compact).dp)
+            .padding(8.dp),
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            itemsIndexed(candidates) { index, candidate ->
+                CandidateChip(
+                    label = candidate.word,
+                    description = candidateChipContentDescription(candidate, composingLength),
+                    accent = index == 0,
+                    maxLines = 3,
+                    isCorrection = candidate.isCorrection,
+                    isPartial = isPartialCandidate(candidate, composingLength),
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        haptic()
+                        onCandidateClick(index)
+                    },
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "共 " + candidates.size + " 项 · 上下滑动查看更多",
+                color = palette.textSecondary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (firstPartialIndex >= 0) {
+                PanelTextButton(text = "看分段", onClick = {
+                    haptic()
+                    scope.launch { listState.animateScrollToItem(firstPartialIndex) }
+                })
+            }
+            if (onDismiss != null) {
+                PanelTextButton(text = "收起候选", onClick = {
+                    haptic()
+                    onDismiss()
+                })
+            }
+        }
+    }
+}
+
 /**
  * P0 landscape overlay: fixed-height, scrollable candidate panel drawn above the
  * key area but below the candidate bar and above the bottom function row. Because
@@ -1021,7 +1163,7 @@ private fun CandidatePanelOverlay(
             candidates = displayCandidates,
             composingLength = displayComposingLength,
             page = page,
-            pageSize = candidatePanelPageSize(compact = true),
+            pageSize = candidatePanelPageSize(displayCandidates, compact = true),
             compact = true,
             enabled = candidatesInteractive,
             onPageChange = onPageChange,

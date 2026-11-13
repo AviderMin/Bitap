@@ -85,6 +85,26 @@ class PinyinEngine private constructor(
         val partialRankingMode: PartialRankingMode = PartialRankingMode.SCORE,
         /** Keep only the best path per last word before applying the beam. */
         val dedupeBeamByLastWord: Boolean = false,
+        /**
+         * Enables the backward completion estimate as an auxiliary beam
+         * ordering key. Production default false: disabled means the lattice
+         * executes exactly as before.
+         */
+        val backwardCompletionEnabled: Boolean = false,
+        /** Restrict the backward completion mechanism to queries >= [longInputThreshold]. */
+        val backwardCompletionLongInputOnly: Boolean = true,
+        /**
+         * Enables the adaptive score-window beam (production default false).
+         * The window always contains the baseline top-[beamSize] paths and may
+         * admit extra paths within [scoreWindowMargin] below the baseline cutoff.
+         */
+        val scoreWindowBeamEnabled: Boolean = false,
+        /** Extra score margin below the baseline beam cutoff admitted by the score window. */
+        val scoreWindowMargin: Double = 3.0,
+        /** Hard cap on the number of paths admitted by the score-window beam. */
+        val scoreWindowMaxBeam: Int = 256,
+        /** Restrict the score-window beam to queries >= [longInputThreshold]. */
+        val scoreWindowLongInputOnly: Boolean = true,
         /** Queries at least this long use the long-input rerank terms below. */
         val longInputThreshold: Int = LONG_INPUT_THRESHOLD,
         /** Sum of dictionary character-bigram word-internal scores over segments. */
@@ -97,6 +117,18 @@ class PinyinEngine private constructor(
 
     private val selectionLock = Any()
     private val selectionCounts = HashMap<String, Int>()
+
+    /** Diagnostic-only: number of queries where backward completion hit its hard cap. */
+    @Volatile
+    private var backwardCompletionCappedQueries = 0
+
+    /** Diagnostic-only score-window beam statistics (only counted while enabled). */
+    @Volatile
+    private var scoreWindowBeamQueries = 0
+    @Volatile
+    private var scoreWindowBeamTotalSize = 0L
+    @Volatile
+    private var scoreWindowBeamMaxSize = 0
     private val userEntries = LinkedHashMap<String, UserLexiconEntry>()
     private var lastClearGeneration = UserLexiconStore.currentClearGeneration()
 
@@ -229,6 +261,71 @@ class PinyinEngine private constructor(
         val partialPaths: List<DebugPath>,
     )
 
+    /** Diagnostic-only statistics of the optional score-window beam. */
+    internal data class ScoreWindowBeamStats(
+        val queries: Int,
+        val totalBeamSize: Long,
+        val maxBeamSize: Int,
+    )
+
+    /**
+     * One beam-bucket snapshot at one lattice position. Recorded only while
+     * [debugTraceTarget] runs; production decoding never allocates it.
+     */
+    internal data class DebugTargetBucket(
+        val position: Int,
+        val pathsBefore: Int,
+        val targetPathsBefore: Int,
+        /** 0-based rank of the best target path in score-descending bucket order. */
+        val targetBestRankBefore: Int,
+        val targetBestScoreBefore: Double,
+        val effectiveBeam: Int,
+        /** Score of the last path admitted to the beam (Double.NaN when no beam). */
+        val beamCutoffScore: Double,
+        val targetPathsInBeam: Int,
+        val targetBestRankInBeam: Int,
+    )
+
+    /** One (position, pinyin key) entries-per-key probe recorded by [debugTraceTarget]. */
+    internal data class DebugTargetKeyProbe(
+        val position: Int,
+        val key: String,
+        val entriesTotal: Int,
+        val entriesKept: Int,
+        /** Target continuations present in the dictionary but dropped by entriesPerKey. */
+        val truncatedTargetExtensions: Int,
+        /** Target continuations with no dictionary entry under this exact key. */
+        val missingTargetExtensions: Int,
+    )
+
+    /**
+     * Read-only result of [debugTraceTarget]; never used by production decoding.
+     *
+     * Attribution note: firstLossReason is a bucket-level existence attribution,
+     * not a per-path lineage proof. A shorter target prefix surviving in a later
+     * beam can keep [firstLossPosition] later than the exact point where the
+     * longest target prefix was pruned; use [fullTargetPaths] and the test-side
+     * production cross-check for validating outcomes.
+     */
+    internal data class DebugTargetTrace(
+        val input: String,
+        val target: String,
+        val targetTextLength: Int,
+        val buckets: List<DebugTargetBucket>,
+        val keyProbes: List<DebugTargetKeyProbe>,
+        /** -1 when the complete target survived (firstLossReason=NONE). */
+        val firstLossPosition: Int,
+        /** NONE / BEAM_PRUNED / ENTRY_TRUNCATED / NO_DICTIONARY_ENTRY / TRUNCATED_UNKNOWN. */
+        val firstLossReason: String,
+        /** Number of bucket[n] nodes whose targetPrefixLen equals the full target length. */
+        val fullTargetPaths: Int,
+        /** 0-based rank of the first full-target node in score-descending bucket[n] order. */
+        val fullTargetBestRank: Int,
+        /** 0-based distinct-text rank of the full target, or -1 when absent/scan-capped. */
+        val fullTargetDistinctTextRank: Int,
+        val notes: List<String>,
+    )
+
     /**
      * Runs the normal decoder with configurable beam/entry limits and returns
      * pre-ranking candidate pools. Test-only; production [search] behaviour is
@@ -283,12 +380,75 @@ class PinyinEngine private constructor(
         )
     }
 
+    /**
+     * Diagnostic-only: replays one continuous query through the production
+     * lattice and records how far the expected [targetText] prefix survives.
+     *
+     * Production behaviour is untouched: [search] never calls this method and
+     * [collectLattice] executes its original path when the optional trace
+     * builder is null. This exists to replace the capped debugSearch sink as an
+     * attribution tool for D05 long sentences.
+     */
+    internal fun debugTraceTarget(input: String, targetText: String): DebugTargetTrace {
+        val target = targetText.filter { isCjk(it) }
+        val parsed = parseQuery(input)
+        val current = index
+        if (current == null || parsed.segments.size != 1 || target.isEmpty()) {
+            val note = when {
+                current == null -> "engine-not-ready"
+                target.isEmpty() -> "empty-target"
+                else -> "non-continuous-query-not-traced"
+            }
+            return DebugTargetTrace(
+                input = input,
+                target = target,
+                targetTextLength = target.length,
+                buckets = emptyList(),
+                keyProbes = emptyList(),
+                firstLossPosition = 0,
+                firstLossReason = "TRUNCATED_UNKNOWN",
+                fullTargetPaths = 0,
+                fullTargetBestRank = -1,
+                fullTargetDistinctTextRank = -1,
+                notes = listOf(note),
+            )
+        }
+        val query = parsed.segments.single()
+        val builder = DebugTargetTraceBuilder(query, target)
+        collectContinuous(
+            query = query,
+            current = current,
+            userSnapshot = snapshotUserEntries(),
+            collector = CandidateCollector(),
+            shouldContinue = { true },
+            targetTrace = builder,
+        )
+        return builder.build(input)
+    }
+
     /** Aggregate corpus character n-gram statistics for one candidate text (diagnostics only). */
     internal fun debugNgramStats(text: String): DebugNgramStats? =
         index?.ngramModel?.sentenceStats(text)
 
     /** Frequency of a dictionary word, or null when absent (diagnostics only). */
     internal fun debugWordFrequency(word: String): Long? = index?.wordFrequency?.get(word)
+
+    /** Diagnostic-only: queries whose backward completion estimate hit its hard cap. */
+    internal fun backwardCompletionCappedQueryCount(): Int = backwardCompletionCappedQueries
+
+    /** Diagnostic-only: observed score-window beam sizes (only while the mechanism is enabled). */
+    internal fun scoreWindowBeamStats(): ScoreWindowBeamStats = ScoreWindowBeamStats(
+        queries = scoreWindowBeamQueries,
+        totalBeamSize = scoreWindowBeamTotalSize,
+        maxBeamSize = scoreWindowBeamMaxSize,
+    )
+
+    /** Diagnostic-only: clears the score-window beam counters. */
+    internal fun resetScoreWindowBeamStats() {
+        scoreWindowBeamQueries = 0
+        scoreWindowBeamTotalSize = 0L
+        scoreWindowBeamMaxSize = 0
+    }
 
     /**
      * Diagnostic-only: unpruned best full-cover segmentation for one continuous
@@ -567,6 +727,7 @@ class PinyinEngine private constructor(
         collector: CandidateCollector,
         shouldContinue: () -> Boolean,
         debug: DebugOptions? = null,
+        targetTrace: DebugTargetTraceBuilder? = null,
     ) {
         val n = query.length
         val lnTotal = current.lnTotalFrequency
@@ -623,6 +784,7 @@ class PinyinEngine private constructor(
                 entriesPerKey = debug?.entriesPerKey ?: -1,
                 fullPathSink = debug?.fullPathSink,
                 partialPathSink = debug?.partialPathSink,
+                targetTrace = targetTrace,
             )
         }
 
@@ -674,6 +836,24 @@ class PinyinEngine private constructor(
         char in '\u4E00'..'\u9FFF' ||
             char in '\u3400'..'\u4DBF' ||
             char in '\uF900'..'\uFAFF'
+
+    /**
+     * Diagnostic-only: target prefix length after appending [word] to a path
+     * whose current target prefix is [prefix]. Non-CJK characters are ignored,
+     * mirroring the test-side normalization of expected text. Returns -1 when
+     * the path diverges from the target.
+     */
+    private fun targetMatchLength(prefix: Int, word: String, target: String): Int {
+        if (prefix < 0 || word.isEmpty()) return -1
+        var matched = 0
+        for (char in word) {
+            if (!isCjk(char)) continue
+            val position = prefix + matched
+            if (position >= target.length || target[position] != char) return -1
+            matched++
+        }
+        return if (matched == 0) -1 else prefix + matched
+    }
 
     /**
      * D07 follow-up: complete sentence-final particles typed with a one-letter
@@ -791,6 +971,12 @@ class PinyinEngine private constructor(
         val previous: PathNode?,
         val score: Double,
         val wordCount: Int,
+        /**
+         * Diagnostic-only state for [debugTraceTarget]: number of target
+         * characters spelled by this path prefix, or -1 when the path diverged
+         * from the target. Production decoding never reads this value.
+         */
+        val targetPrefixLen: Int = -1,
     ) {
         fun segments(): List<String> {
             if (previous == null) return emptyList()
@@ -805,6 +991,355 @@ class PinyinEngine private constructor(
         }
 
         fun text(): String = segments().joinToString("")
+    }
+
+    /**
+     * Diagnostic-only recorder for [debugTraceTarget]. It observes the lattice
+     * produced by [collectLattice]; it never feeds candidates back into decoding.
+     */
+    private inner class DebugTargetTraceBuilder(
+        private val query: String,
+        val target: String,
+    ) {
+        val buckets = ArrayList<DebugTargetBucket>(query.length)
+        val keyProbes = ArrayList<DebugTargetKeyProbe>()
+        private val truncationAt = IntArray(query.length + 1)
+        private var maxTargetNodePosition = -1
+        private var fullTargetPaths = 0
+        private var fullTargetBestRank = -1
+        private var fullTargetDistinctTextRank = -1
+        private var distinctScanTruncated = false
+        private val notes = ArrayList<String>()
+
+        fun recordEmptyBucket(position: Int, effectiveBeam: Int) {
+            buckets += DebugTargetBucket(
+                position = position,
+                pathsBefore = 0,
+                targetPathsBefore = 0,
+                targetBestRankBefore = -1,
+                targetBestScoreBefore = Double.NaN,
+                effectiveBeam = effectiveBeam,
+                beamCutoffScore = Double.NaN,
+                targetPathsInBeam = 0,
+                targetBestRankInBeam = -1,
+            )
+        }
+
+        fun recordBucket(
+            position: Int,
+            paths: List<PathNode>,
+            beam: List<PathNode>,
+            effectiveBeam: Int,
+        ) {
+            val sorted = paths.sortedByDescending { it.score }
+            var targetPaths = 0
+            var bestRank = -1
+            var bestScore = Double.NaN
+            sorted.forEachIndexed { index, node ->
+                if (node.targetPrefixLen >= 0) {
+                    if (bestRank < 0) {
+                        bestRank = index
+                        bestScore = node.score
+                    }
+                    targetPaths++
+                }
+            }
+            var inBeam = 0
+            var bestRankInBeam = -1
+            beam.forEachIndexed { index, node ->
+                if (node.targetPrefixLen >= 0) {
+                    if (bestRankInBeam < 0) bestRankInBeam = index
+                    inBeam++
+                }
+            }
+            buckets += DebugTargetBucket(
+                position = position,
+                pathsBefore = paths.size,
+                targetPathsBefore = targetPaths,
+                targetBestRankBefore = bestRank,
+                targetBestScoreBefore = bestScore,
+                effectiveBeam = effectiveBeam,
+                beamCutoffScore = if (beam.isEmpty()) Double.NaN else beam.last().score,
+                targetPathsInBeam = inBeam,
+                targetBestRankInBeam = bestRankInBeam,
+            )
+            if (targetPaths > 0 && position > maxTargetNodePosition) {
+                maxTargetNodePosition = position
+            }
+        }
+
+        fun recordKeyProbe(
+            position: Int,
+            key: String,
+            entries: List<Entry>,
+            keptCount: Int,
+            beam: List<PathNode>,
+        ) {
+            var truncated = 0
+            var missing = 0
+            beam.forEach { path ->
+                val prefix = path.targetPrefixLen
+                if (prefix < 0) return@forEach
+                var matched = false
+                for (index in entries.indices) {
+                    val entry = entries[index]
+                    if (entry.pinyin != key) continue
+                    if (targetMatchLength(prefix, entry.word, target) < 0) continue
+                    matched = true
+                    if (index >= keptCount) truncated++
+                }
+                if (!matched) missing++
+            }
+            keyProbes += DebugTargetKeyProbe(
+                position = position,
+                key = key,
+                entriesTotal = entries.size,
+                entriesKept = keptCount,
+                truncatedTargetExtensions = truncated,
+                missingTargetExtensions = missing,
+            )
+            truncationAt[position] += truncated
+        }
+
+        fun recordFinalBucket(paths: List<PathNode>) {
+            val sorted = paths.sortedByDescending { it.score }
+            var count = 0
+            var bestRank = -1
+            sorted.forEachIndexed { index, node ->
+                if (node.targetPrefixLen == target.length) {
+                    if (bestRank < 0) bestRank = index
+                    count++
+                }
+            }
+            fullTargetPaths = count
+            fullTargetBestRank = bestRank
+            if (count > 0) {
+                val seen = HashSet<String>()
+                var distinct = 0
+                var scanned = 0
+                for (node in sorted) {
+                    if (scanned >= MAX_TARGET_DISTINCT_SCAN) {
+                        distinctScanTruncated = true
+                        break
+                    }
+                    scanned++
+                    if (node.wordCount == 0) continue
+                    val text = node.text()
+                    if (!seen.add(text)) continue
+                    if (node.targetPrefixLen == target.length) {
+                        fullTargetDistinctTextRank = distinct
+                        break
+                    }
+                    distinct++
+                }
+            }
+            if (sorted.any { it.targetPrefixLen >= 0 } && maxTargetNodePosition < query.length) {
+                maxTargetNodePosition = query.length
+            }
+        }
+
+        fun build(input: String): DebugTargetTrace {
+            val n = query.length
+            val firstLossPosition: Int
+            val firstLossReason: String
+            if (fullTargetPaths > 0) {
+                firstLossPosition = -1
+                firstLossReason = "NONE"
+            } else {
+                var lastAlive = -1
+                buckets.forEach { bucket ->
+                    if (bucket.targetPathsInBeam > 0 && bucket.position > lastAlive) {
+                        lastAlive = bucket.position
+                    }
+                }
+                // Target nodes can jump over positions (multi-character words).
+                // A beam-pruned bucket only becomes the fatal loss when no target
+                // path survives in any later beam.
+                val fatalBeamPrune = buckets.firstOrNull { bucket ->
+                    bucket.position > lastAlive &&
+                        bucket.targetPathsBefore > 0 &&
+                        bucket.targetPathsInBeam == 0
+                }
+                when {
+                    fatalBeamPrune != null -> {
+                        firstLossPosition = fatalBeamPrune.position
+                        firstLossReason = "BEAM_PRUNED"
+                    }
+                    maxTargetNodePosition >= n -> {
+                        firstLossPosition = n
+                        firstLossReason = "TRUNCATED_UNKNOWN"
+                        notes += "partial-target-at-final-position=true"
+                    }
+                    lastAlive < 0 -> {
+                        firstLossPosition = 0
+                        firstLossReason = "NO_DICTIONARY_ENTRY"
+                        notes += "no-target-bucket-observed=true"
+                    }
+                    else -> {
+                        firstLossPosition = lastAlive + 1
+                        firstLossReason = if (truncationAt[lastAlive] > 0) {
+                            "ENTRY_TRUNCATED"
+                        } else {
+                            "NO_DICTIONARY_ENTRY"
+                        }
+                    }
+                }
+            }
+            if (distinctScanTruncated) {
+                notes += "distinct-text-rank-scan-truncated-at=" + MAX_TARGET_DISTINCT_SCAN
+            }
+            return DebugTargetTrace(
+                input = input,
+                target = target,
+                targetTextLength = target.length,
+                buckets = buckets,
+                keyProbes = keyProbes,
+                firstLossPosition = firstLossPosition,
+                firstLossReason = firstLossReason,
+                fullTargetPaths = fullTargetPaths,
+                fullTargetBestRank = fullTargetBestRank,
+                fullTargetDistinctTextRank = fullTargetDistinctTextRank,
+                notes = notes,
+            )
+        }
+    }
+
+    /**
+     * Diagnostic/experimental: backward completion estimate used by the
+     * backwardCompletionEnabled ablation. completion[position][prevWord] is the
+     * best achievable total score from [position] to the end of the query when
+     * [prevWord] is the word ending exactly at [position]. Entries, entry caps
+     * and key-length limits match the forward lattice. Returns null when the
+     * query cannot be fully parsed or the hard operation/time cap is exceeded
+     * (the caller then falls back to the plain forward score).
+     */
+    private fun computeBackwardCompletion(
+        query: String,
+        index: Index,
+        userSnapshot: Map<String, List<Entry>>,
+        effectiveEntries: Int,
+        maxKeyLength: Int,
+        shouldContinue: () -> Boolean,
+    ): Array<HashMap<String, Double>?>? {
+        val n = query.length
+        if (n == 0) return null
+        val deadlineNanos = System.nanoTime() + MAX_BACKWARD_COMPLETION_NANOS
+        var operations = 0L
+        val entryCache = HashMap<String, List<Entry>>()
+        val wordsAt = Array(n + 1) { LinkedHashSet<String>() }
+        val reachable = BooleanArray(n + 1)
+        reachable[0] = true
+
+        // Forward reachability over the same entries/effectiveEntries budget:
+        // only words that can actually end at a position become DP states.
+        for (position in 0 until n) {
+            if (!reachable[position]) continue
+            if (!shouldContinue()) return null
+            val maxLength = min(maxKeyLength, n - position)
+            for (length in 1..maxLength) {
+                val key = query.substring(position, position + length)
+                val entries = entryCache.getOrPut(key) { entriesForPinyin(key, index, userSnapshot) }
+                if (entries.isEmpty()) continue
+                val kept = entries.take(effectiveEntries)
+                if (kept.isEmpty()) continue
+                operations += kept.size
+                if (operations > MAX_BACKWARD_COMPLETION_OPERATIONS) {
+                    backwardCompletionCappedQueries++
+                    return null
+                }
+                reachable[position + length] = true
+                val bucket = wordsAt[position + length]
+                kept.forEach { entry -> if (entry.word.isNotEmpty()) bucket += entry.word }
+            }
+        }
+        if (!reachable[n]) return null
+
+        // Key by reading + word + frequency: user lexicon entries can contain the
+        // same word under different pinyin readings with different counts, so a
+        // word-only cache would make the completion estimate disagree with the
+        // forward lattice score for those entries.
+        val wordScoreCache = HashMap<String, Double>()
+        val boundaryCache = HashMap<String, Double>()
+        val completion = arrayOfNulls<HashMap<String, Double>>(n + 1)
+
+        for (position in n - 1 downTo 0) {
+            if (!reachable[position]) continue
+            val previousWords = wordsAt[position]
+            if (previousWords.isEmpty()) continue
+            val maxLength = min(maxKeyLength, n - position)
+            val options = ArrayList<Pair<List<Entry>, Int>>()
+            for (length in 1..maxLength) {
+                val end = position + length
+                if (end < n && !reachable[end]) continue
+                val key = query.substring(position, end)
+                val entries = entryCache.getOrPut(key) { entriesForPinyin(key, index, userSnapshot) }
+                if (entries.isEmpty()) continue
+                val kept = entries.take(effectiveEntries).filter { it.word.isNotEmpty() }
+                if (kept.isNotEmpty()) {
+                    operations += kept.size
+                    if (operations > MAX_BACKWARD_COMPLETION_OPERATIONS) {
+                        backwardCompletionCappedQueries++
+                        return null
+                    }
+                    options += kept to end
+                }
+            }
+            if (options.isEmpty()) continue
+            val best = HashMap<String, Double>(previousWords.size)
+            for (previousWord in previousWords) {
+                var bestScore = Double.NEGATIVE_INFINITY
+                for ((entries, end) in options) {
+                    val child = if (end == n) null else completion[end] ?: continue
+                    for (entry in entries) {
+                        operations++
+                        if (operations > MAX_BACKWARD_COMPLETION_OPERATIONS) {
+                            backwardCompletionCappedQueries++
+                            return null
+                        }
+                        if (operations and 0x3FFL == 0L && System.nanoTime() > deadlineNanos) {
+                            backwardCompletionCappedQueries++
+                            return null
+                        }
+                        val childScore = if (end == n) 0.0 else child!![entry.word] ?: continue
+                        if (childScore == Double.NEGATIVE_INFINITY) continue
+                        val wordScoreKey = entry.pinyin + "\u0000" + entry.word + "\u0000" + entry.frequency
+                        val wordScore = wordScoreCache.getOrPut(wordScoreKey) {
+                            latticeWordScore(entry, index) + index.numeralExpressionBonus(entry.word)
+                        }
+                        val boundaryKey = previousWord + "\u0000" + entry.word
+                        val boundary = boundaryCache.getOrPut(boundaryKey) {
+                            boundaryBonus(index, previousWord, entry.word)
+                        }
+                        val candidate = wordScore + boundary + childScore
+                        if (candidate > bestScore) bestScore = candidate
+                    }
+                }
+                if (bestScore > Double.NEGATIVE_INFINITY) best[previousWord] = bestScore
+            }
+            completion[position] = best
+        }
+        return completion
+    }
+
+    /**
+     * Adaptive score-window beam: the baseline top-[effectiveBeam] paths by
+     * plain score plus any path whose score is within
+     * [EngineTuning.scoreWindowMargin] of the baseline cutoff, capped at
+     * [EngineTuning.scoreWindowMaxBeam]. The baseline beam is always retained;
+     * if the window yields fewer paths the baseline beam is used instead.
+     */
+    private fun scoreWindowBeam(candidates: List<PathNode>, effectiveBeam: Int): List<PathNode> {
+        if (effectiveBeam <= 0) return emptyList()
+        val baseline = candidates.sortedByDescending { it.score }
+        if (baseline.size <= effectiveBeam) return baseline
+        val cutoff = baseline[effectiveBeam - 1].score
+        val margin = tuning.scoreWindowMargin.coerceAtLeast(0.0)
+        val cap = tuning.scoreWindowMaxBeam.coerceAtLeast(effectiveBeam)
+        // Filter the plain-score order, not the caller's order: when another
+        // experimental ordering (e.g. backward completion) is also enabled the
+        // baseline top-effectiveBeam must remain a strict subset of the window.
+        val window = baseline.filter { it.score >= cutoff - margin }.take(cap)
+        return if (window.size < effectiveBeam) baseline.take(effectiveBeam) else window
     }
 
     /**
@@ -826,6 +1361,7 @@ class PinyinEngine private constructor(
         entriesPerKey: Int = -1,
         fullPathSink: MutableList<DebugPath>? = null,
         partialPathSink: MutableList<DebugPath>? = null,
+        targetTrace: DebugTargetTraceBuilder? = null,
     ) {
         val n = query.length
         val longInput = n >= tuning.longInputThreshold
@@ -840,13 +1376,27 @@ class PinyinEngine private constructor(
             else -> tuning.entriesPerKey
         }
         val buckets = Array(n + 1) { ArrayList<PathNode>() }
-        buckets[0].add(PathNode("", null, 0.0, 0))
+        buckets[0].add(PathNode("", null, 0.0, 0, if (targetTrace != null) 0 else -1))
         val maxKeyLength = min(index.maxKeyLength, MAX_LATTICE_KEY_LENGTH)
         val entryCache = HashMap<String, List<Entry>>()
+        val traceTarget = targetTrace?.target
+        val backwardCompletion = if (
+            tuning.backwardCompletionEnabled &&
+            (!tuning.backwardCompletionLongInputOnly || longInput)
+        ) {
+            computeBackwardCompletion(query, index, userSnapshot, effectiveEntries, maxKeyLength, shouldContinue)
+        } else {
+            null
+        }
+        val scoreWindowActive = tuning.scoreWindowBeamEnabled &&
+            (!tuning.scoreWindowLongInputOnly || longInput)
 
         for (position in 0 until n) {
             val paths = buckets[position]
-            if (paths.isEmpty()) continue
+            if (paths.isEmpty()) {
+                targetTrace?.recordEmptyBucket(position, effectiveBeam)
+                continue
+            }
             if (!shouldContinue()) return
             val candidates = if (tuning.dedupeBeamByLastWord && paths.size > effectiveBeam) {
                 val bestByWord = HashMap<String, PathNode>(paths.size)
@@ -854,11 +1404,34 @@ class PinyinEngine private constructor(
                     val previous = bestByWord[path.word]
                     if (previous == null || path.score > previous.score) bestByWord[path.word] = path
                 }
-                bestByWord.values.sortedByDescending { it.score }
+                if (backwardCompletion == null) {
+                    bestByWord.values.sortedByDescending { it.score }
+                } else {
+                    val completionAtPosition = backwardCompletion[position]
+                    bestByWord.values.sortedByDescending { path ->
+                        path.score + (completionAtPosition?.get(path.word) ?: 0.0)
+                    }
+                }
             } else {
-                paths.sortedByDescending { it.score }
+                if (backwardCompletion == null) {
+                    paths.sortedByDescending { it.score }
+                } else {
+                    val completionAtPosition = backwardCompletion[position]
+                    paths.sortedByDescending { path ->
+                        path.score + (completionAtPosition?.get(path.word) ?: 0.0)
+                    }
+                }
             }
-            val beam = candidates.take(effectiveBeam)
+            val beam = if (scoreWindowActive) {
+                val window = scoreWindowBeam(candidates, effectiveBeam)
+                scoreWindowBeamQueries++
+                scoreWindowBeamTotalSize += window.size
+                if (window.size > scoreWindowBeamMaxSize) scoreWindowBeamMaxSize = window.size
+                window
+            } else {
+                candidates.take(effectiveBeam)
+            }
+            targetTrace?.recordBucket(position, paths, beam, effectiveBeam)
             var length = 1
             val maxLength = min(maxKeyLength, n - position)
             while (length <= maxLength) {
@@ -866,9 +1439,11 @@ class PinyinEngine private constructor(
                 val key = query.substring(position, end)
                 val entries = entryCache.getOrPut(key) { entriesForPinyin(key, index, userSnapshot) }
                 if (entries.isNotEmpty()) {
+                    val keptEntries = entries.take(effectiveEntries)
+                    targetTrace?.recordKeyProbe(position, key, entries, keptEntries.size, beam)
                     val previousWord = beam.firstOrNull()?.word ?: ""
                     val wordScoreCache = HashMap<String, Double>()
-                    for (entry in entries.take(effectiveEntries)) {
+                    for (entry in keptEntries) {
                         if (entry.word.isEmpty()) continue
                         val base = wordScoreCache.getOrPut(entry.word) {
                             latticeWordScore(entry, index) + index.numeralExpressionBonus(entry.word)
@@ -883,14 +1458,22 @@ class PinyinEngine private constructor(
                                     previous = path,
                                     score = path.score + base + boundary,
                                     wordCount = path.wordCount + 1,
+                                    targetPrefixLen = if (traceTarget != null) {
+                                        targetMatchLength(path.targetPrefixLen, entry.word, traceTarget)
+                                    } else {
+                                        -1
+                                    },
                                 ),
                             )
                         }
                     }
+                } else {
+                    targetTrace?.recordKeyProbe(position, key, entries, 0, beam)
                 }
                 length++
             }
         }
+        targetTrace?.recordFinalBucket(buckets[n])
 
         // Diagnostic-only: expose every full path that survived the lattice
         // before the production candidate cap, so tests can separate "not
@@ -2027,6 +2610,12 @@ class PinyinEngine private constructor(
         private const val MAX_LATTICE_KEY_LENGTH = 32
         private const val MAX_LATTICE_PATHS = 64
         private const val MAX_DEBUG_FULL_PATHS = 4_000
+        /** Safety bound for the distinct-text rank scan of [debugTraceTarget]. */
+        private const val MAX_TARGET_DISTINCT_SCAN = 20_000
+        /** Hard operation cap for the optional backward completion estimate. */
+        private const val MAX_BACKWARD_COMPLETION_OPERATIONS = 5_000_000L
+        /** Wall-clock safety budget for the optional backward completion estimate. */
+        private const val MAX_BACKWARD_COMPLETION_NANOS = 50_000_000L
         private const val MAX_ENTRIES_PER_KEY = 8
         private const val MAX_FULL_CANDIDATES = 96
         private const val MAX_PARTIAL_PATHS_PER_POSITION = 4

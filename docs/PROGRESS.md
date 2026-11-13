@@ -596,3 +596,146 @@ Rime最小方案自然句通常只有一个完整句候选，Top5口径无法代
 | word-count diversity beam | on / +beam128/+beam192 | 3/14、3/14、3/14 | — | long 无有效变化；不进入生产 |
 
 结论：本轮未找到可安全上线的长句候选生成改动，生产默认保持 `WORD_NGRAM_WEIGHT=0.50`、`wordInsertionCompensation=12.0`、`partialQuota=16`。下一轮应针对 lattice 路径保留（前向/后向 beam 或分层预算）做有界消融，并将 `oracle64` 与 Top5 一同报告；不能把 dev 上单个权重变化直接写成验收。
+
+## 34. 2026-11-13 当前基线与开发批次
+
+本轮对应审查建议的“批次 0 当前基线与文档”（审查 §6）：只做证据记录与文档状态同步，未修改源码、词库、评测资产或构建配置；**本轮没有重跑 `scripts/verify.ps1`，也没有连接设备或做真机测试**。以下“审查证据”来自 2026-11-13 审查快照（基线 `80de879`），“历史设备证据”来自此前第 7–31 节的单机记录，均不代表本轮重新执行。
+
+### 34.1 审查证据：当前工程门禁（审查 §8；与第31节同一组数字）
+
+- 代码基线 `80de879`（2026-11-13 审查开始时的快照，不是验收基线）。
+- 审查轮 `scripts/verify.ps1` 结果 **PASS**：单测 **568 项 / 0 failures / 0 errors / 4 skipped**（91 个测试 XML）。4 项跳过为显式 opt-in 的 D04 导出、旧 sealed、v2 validation 与 v3 acceptance，不是 568 项全部执行通过。
+- lint **0 errors / 29 warnings / 1 hint**（AGP/Kotlin DSL 与测试代码编译警告仍在）。
+- debug APK **109,573,786B**，SHA-256 `228B7DB1E44952286B46914A31406535D469F24E82C7BC97AC3FFBFC5161EAD6`。
+- APK 权限检查通过：无 `INTERNET` / `ACCESS_NETWORK_STATE`。
+- 同轮记录：v1/v2/v3/D05 数据检查与 D04/v3 Python 合同测试通过；文档检查 198 文件、0 断链（报告与索引定稿后复跑为 199 文件、0 断链）；`git diff --check` 通过。未使用 StrictSources；生产 detailed 压缩原件缺失，普通检查通过不等于严格溯源完成（审查 §8）。
+
+### 34.2 审查证据：D05 分类质量（审查 §2.1）
+
+D05 dev 共 1,050 条：纯引擎 1,000 条，混排交互 50 条另报。默认参数基线如下：
+
+| 分组 | Top1 | Top5 | 说明 |
+|---|---:|---:|---|
+| 纯引擎全部 1,000 条 | 470/1,000，47.0% | 635/1,000，63.5% | 含简拼等相对容易专项，不宜代表自然句体验 |
+| 自然句全部 700 条 | 234/700，33.4% | 366/700，52.3% | 包含 33 条超过查询预算的长句 |
+| 自然句预算内 667 条 | 234/667，35.1% | 366/667，54.9% | 用于定位排序/生成问题，不可替代全量分母 |
+| 短句 300 条 | 142/300，47.3% | 200/300，66.7% | 短句也有较大改进空间 |
+| 中句 277 条 | 89/277，32.1% | 152/277，54.9% | 不能只把问题归为极长输入 |
+| 长句预算内 90 条 | 3/90，3.3% | 14/90，15.6% | 优先级最高的算法问题之一 |
+| 长句全部 123 条 | 3/123，2.4% | 14/123，11.4% | 控制器前缀分段可继续输入，但不等于完整句已命中 |
+
+边界：D05 是开发集诊断，不是独立产品验收，也不是与竞品同条件对测；查询时延为宿主 JVM 指标，不能写成手机按键到呈现时延（审查 §2.1）。
+
+### 34.3 历史设备任务集（既有 `scripts/device-qa/`，非本轮真机）
+
+| 脚本 | 覆盖范围 | 历史记录 |
+|---|---|---|
+| `smoke.ps1` | 键盘显示、nihao 候选与提交、退格、标点、连续输入、设置页、AI 开关、密码字段 | 10 PASS / 0 FAIL |
+| `editing_tools.ps1` | 候选条 AI 与设置之间的编辑入口、全选/复制/剪切/粘贴、按词移动/删除、空格下方长按滑动光标 | 14 PASS / 0 FAIL |
+| `mixed_input.ps1` | literal English run、纯拼音不回归、中英混排（Sonar 等）、句末语气词简拼 | 8 PASS / 0 FAIL |
+| `english_prediction.ps1` | hel→hello 补全、thank→you 用户 bigram、重启后持久化 | 4 PASS / 0 FAIL |
+| `regression_fixes.ps1` | 宿主结束组合后不重复提交、拒绝 context-menu selectAll 时局部窗口回退安全 | 8 PASS / 0 FAIL |
+| `editor_correctness.ps1` | WebView/Compose BasicTextField/原生 EditText 的退格、光标移动、英文补全撤销/重做 | 36 PASS / 0 FAIL |
+| `learning_deletion.ps1` | 学习词条删除后继续输入、重开设置、force-stop 重启不复活 | 11 PASS / 0 FAIL |
+
+历史设备环境：22021211RC / LineageOS23.2 / Android16 / 1080×2400@440dpi / 竖屏 / 默认字体，ADB 单指注入。各行 PASS/FAIL 均为此前批次的历史设备记录，具体见第18.3、19.2、21.2、26.2、28.5、29.4、31.2节等对应章节；上述均为单机单 ROM 抽测，不是多机型、多 ROM、TalkBack、横屏/紧凑模式或真实双拇指验收，本轮没有重新执行这些脚本。
+
+### 34.4 审查证据：资源表（审查 §4G）
+
+| 产物 | 大小 | 口径 |
+|---|---:|---|
+| debug APK（审查门禁产物） | 109,573,786B | 审查 §8 验证构建读数（同第31节） |
+| 未签名 release APK | 28,400,044B | 2026-11-11 本地产物结构观察 |
+| release 内 `liblitertlm_jni.so` | 22,692,856B，约占 release 79.9% | 同上 |
+
+说明：release 与 `liblitertlm_jni.so` 数字来自审查读取本地已有 APK，**不是当前源码的 release 重建**，旧产物的提交归属未重新认证，不据此宣称当前正式发布体积；仅取消模型权重分发并不能消除 AI 运行时包体（审查 §4G）。
+
+### 34.5 本轮新事实：文档同步与自查
+
+- `README.md`：把过时的“全量 518 项单测通过”修正为当前基线 **568 项**（来源：审查 §8、第31节），并把逐批罗列的长段落收束为“功能概览 + 当前验证摘要 + 指向本节/第31节”，保留既有功能说明。
+- `docs/README.md`：更新时间 2026-11-13、最新审查基线 `80de879` 已同步（本轮核对，工作树既有改动）。
+- `docs/MARKET_COMPARISON.md`：顶部已有 2026-11-13 历史口径提示并指向审查快照（本轮核对，工作树既有改动）。
+- `docs/ROADMAP.md`：在“当前优先级”状态段末追加 2026-11-13 状态。
+- `docs/PROGRESS.md`：新增本节。
+- 本轮自查：`git diff --check` 通过；文档链接按 `scripts/check_repo_links.py` 自查通过：`brokenReferences=0`（不是全量 `verify.ps1`；文件数随本轮新增文件变化，以最终 `verify.ps1` 输出为准）。未改源码/评测资产，未 commit。
+
+### 34.6 下一批：批次1 长句候选生成诊断（生产默认不变；实际结果见 §35）
+
+依据审查 §4A/§6，批次1 聚焦 D05 `natural_long` 的候选生成问题：先用仅开发可用的路径计数、剪枝前后排名、词条截断与候选收集原因统计建立“目标追踪”，debug 满额时明确报告“未知/截断”；再对允许答案做只读受约束路径追踪，回答边是否存在、何处首次失活。机制实验采用“后向剩余代价估计辅助前向搜索”等不同于简单加宽 beam/调权重的路径保留方法，每次只试一个机制并保留时间/分配上限（审查 §4A）。
+
+- 研发目标：预算内长句 Top5 从 14/90 争取到至少 24/90，同时报告全部自然句、33 条超预算输入、成功→失败转换与时延；这是研发目标，不是预测或验收标准（审查 §4A）。
+- 边界：生产默认（排序、词库、参数）不变；不读取冻结 v3 验收句、不按验收句写规则；dev 涨分不替代独立验收（审查 §4A/§6）。
+
+## 35. 2026-11-13 长句候选生成诊断与两项路径保留机制消融（工作树未提交）
+
+审查基线：`80de879`（工作树另含审查文档与第34节文档同步）。本轮只做 D05 dev 诊断与默认关闭的实验机制；未改生产默认排序、词库、评测资产或冻结验收集，未按验收句写任何规则。
+
+### 35.1 目标路径追踪（批次1A）
+
+- 新增只读诊断 API `PinyinEngine.debugTraceTarget(input, targetText): DebugTargetTrace`：[PinyinEngine.kt](app/src/main/java/com/bitap/keyboard/core/PinyinEngine.kt) 的 `collectLattice` 增加可选 `targetTrace`（null 时保持原生产路径），`PathNode` 增加仅诊断用的 `targetPrefixLen`；不读取生产 search，不参与候选生成。
+- 覆盖 D05 `natural_long` 且 queryLength≤64 共 **90/90** 条。firstLossReason 分布：**NONE=24、BEAM_PRUNED=43、ENTRY_TRUNCATED=22、NO_DICTIONARY_ENTRY=1、TRUNCATED_UNKNOWN=0**。
+- 旧报告的 **59 条 not-generated** 全部可归因：**BEAM_PRUNED=37、ENTRY_TRUNCATED=21、NO_DICTIONARY_ENTRY=1**；旧 debug sink 4000 上限导致无法归因的 42 条 sink-saturated 样本，本轮不再落入“未知”。其中旧 58 条 `lattice-wide-not-found` 对应 BEAM_PRUNED=37、ENTRY_TRUNCATED=21。
+- 完整 target 路径：trace NONE=24/90，production `search(limit=64)` 命中=22/90；差的 2 条是 trace 已在 bucket[n] 生成、但被候选收集/最终池 cap 过滤：`d05-natural_long-025`（collection bestRank=63，被 final full budget=48 挤出）、`d05-natural_long-055`（distinct-text rank=170 > MAX_FULL_CANDIDATES=96）。prod-has-trace-lost 不一致=0。
+- 产物：`build/d05/long-sentence-target-trace.txt`、`build/d05/long-sentence-target-trace-detail.tsv`（90 数据行×17 列）；测试 [PinyinD05LongSentenceTargetTraceTest.kt](app/src/test/java/com/bitap/keyboard/core/PinyinD05LongSentenceTargetTraceTest.kt)。JVM trace p50≈6–7ms、p95≈9–10ms（单次运行样本，以 `build/d05` 当前报告为准；单进程诊断，非真机）。
+- 诊断含义：长句候选问题按层拆分为 **43 条 beam 剪枝 + 22 条 entriesPerKey 截断 + 1 条词库缺口 + 24 条已生成但受收集/排序限制**；后续机制必须按层验证，不能再用“not-generated”笼统归因。
+- 归因边界：`firstLossReason` 是 bucket 级“存在性”归因，不是逐条路径谱系证明；较短 target 前缀若在更后的 beam 中存活，可能把 `firstLossPosition` 推后，不能把分类当作单条扩展的因果证明。当前 90 条的 production 交叉校验不一致=0，`fullTargetPaths`/`fullTargetDistinctTextRank` 是主要正确性证据；进一步细化应记录每 bucket 的最大 target 前缀长度与死亡路径标识（审查复核建议）。
+
+### 35.2 后向补全估计辅助 beam（批次1B，默认关闭，已淘汰）
+
+- [PinyinEngine.kt](app/src/main/java/com/bitap/keyboard/core/PinyinEngine.kt) 新增 `backwardCompletionEnabled=false`、`backwardCompletionLongInputOnly=true`；开启时先做后向 DP `completion[position][prevWord]`（同一 entries/effectiveEntries/maxKeyLength，含 wordScore、numeral bonus、boundaryBonus 与后续），仅作为前向 beam 排序键 `path.score + completion[position][path.word]`；最终候选评分、收集与排序不变。硬上限 5,000,000 次操作 / 50ms 每 query，dev 全量 capped=0。
+- D05 dev（long=natural_long≤64，n=90；natRank=固定 667）：baseline long Top1/Top5/rankCost/oracle = **3/90、14/90、7.96、22/90**；backward@beam64-long = **3/90、14/90、7.96、23/90**（仅 oracle +1），natRank oracle 479→482；short/medium Top1/Top5 不变。
+- 分层效果：BEAM_PRUNED=43 仅 oracle +1、Top5 +0；ENTRY_TRUNCATED=22 全部 0；NONE=24 全部 0。JVM long p95：baseline 约 7.7–8.2ms → backward 约 9.4–10.2ms（约 +15%~33%，单次运行样本，以 `build/d05` 当前报告为准）。
+- 结论：未达到审查 §4A 的 long Top5≥24/90；仅 oracle +1 且时延上升，**默认保持 `backwardCompletionEnabled=false`，机制淘汰为实验**。产物 `build/d05/backward-completion-ablation.txt`、[PinyinD05BackwardCompletionAblationTest.kt](app/src/test/java/com/bitap/keyboard/core/PinyinD05BackwardCompletionAblationTest.kt)。
+
+### 35.3 自适应分数窗 beam（批次1C，默认关闭，已淘汰）
+
+- 新增 `scoreWindowBeamEnabled=false`、`scoreWindowMargin=3.0`、`scoreWindowMaxBeam=256`、`scoreWindowLongInputOnly=true`：baseline top-effectiveBeam 按 path.score 的 cutoff，再纳入 `path.score >= cutoff - margin` 的路径（不超过 maxBeam，且始终包含 baseline beam）；bucket/candidate 评分与收集不变。
+- 结果（long n=90）：baseline long Top1/Top5/oracle = 3/90、14/90、22/90；margin1=3/14/22，margin2/4/8=3/14/23（仅 oracle +1），natRank oracle 479→484；short/medium Top1/Top5 不变。实际 beam 平均从 64 升到 75.4（margin1）/101.1（margin2）/156.1（margin4）/203.6（margin8），max 多次触顶 256；JVM long p95 从 8.618ms 升到 11.575/17.788/26.461/29.181ms。
+- 分层效果：BEAM_PRUNED 仅 oracle +1、Top5 0；ENTRY_TRUNCATED 与 NONE 全 0。结论：无 long Top5 收益、时延成本明显，**默认保持全关，机制淘汰为实验**。产物 `build/d05/score-window-beam-ablation.txt`、[PinyinD05ScoreWindowBeamAblationTest.kt](app/src/test/java/com/bitap/keyboard/core/PinyinD05ScoreWindowBeamAblationTest.kt)。
+
+### 35.4 综合判断与下一批
+
+- 审查 §4A 的预算内 long Top5 从 14/90 提升到至少 24/90 **本轮未达到**；两个新机制（后向补全排序、自适应分数窗）都只提高 oracle 1 条、Top5 0 条，证明“仅改 beam 保留/排序”不足以解决长句 Top5。生产默认排序、词库、参数均未改。
+- 依据诊断分层，下一步应优先做 **entriesPerKey 截断层（22 条）的机制诊断**：现有 long-budget 消融的 entries16/32 单独扩大无 Top5 收益，需要回答“截断条目是否真的无替代路径、还是扩 entry 后被评分/收集吞掉”，再转向候选身份/收集规则（消费范围与完整/分段去重）与固定候选池的轻量重排；不能把本轮的 oracle +1 当作可用收益。
+- 工程记录：本轮新增 3 个测试类；最终 `scripts/verify.ps1` 结果见 35.5；未做真机测试，未 commit。
+
+### 35.5 工程验证（本轮）
+
+- `scripts/verify.ps1`（2026-11-13）：**RESULT PASS**。单测 **571 项 / 0 failures / 0 errors / 4 skipped**（4 项仍是显式 opt-in 的 D04 导出、旧 sealed、v2 validation、v3 acceptance）；lint **0 errors / 29 warnings / 1 hint**；debug APK **109,613,058B**，SHA-256 `D0E89168B14B27FACB63AA62D83BB7CC299A7EE214847E6CC708D0C9ADB8DDF0`；v1/v2/v3/D05 语料检查与 D04/v3 Python 合同测试通过；文档引用 `checkedFiles=202 brokenReferences=0`；APK 权限检查无 `INTERNET` / `ACCESS_NETWORK_STATE`。日志 `.tmp/verify-batch-20261113-final.log`。
+- 与审查基线的差异：审查快照 568 项 + 本轮新增 3 个诊断测试类（各 1 项）= 571 项；lint warning 数与审查相同的 29+1；APK 大小因新增诊断代码与构建状态不同为 109,613,058B（与审查的 109,573,786B 不同，不能混用 hash）。
+- 未做真机/Android 设备测试；所有机制时延为 JVM 单进程诊断，不是设备输入延迟；本轮未改生产默认参数，dev 涨分不替代独立验收。
+
+## 36. 2026-11-13 真机抽样实测与下一步定位
+
+- 设备环境：22021211RC / LineageOS23.2 / Android16 / 1080×2400@440 / 竖屏默认字体；本轮安装当前 debug APK（SHA-256 `D0E89168B14B27FACB63AA62D83BB7CC299A7EE214847E6CC708D0C9ADB8DDF0`，109,613,058B），并设置 Bitap 为默认输入法。
+- 设备回归：`smoke.ps1` **10 PASS / 0 FAIL**（首次执行 9/10：ADB 快速连续点击漏掉一个字母 i，重跑通过；不是产品失败）、`mixed_input.ps1` **8 PASS / 0 FAIL**、`editing_tools.ps1` **14 PASS / 0 FAIL**（首次执行受前一轮页面/焦点状态影响 7/14，重跑通过）。证据目录 `.tmp/device-qa/smoke`、`.tmp/device-qa/mixed-input`、`.tmp/device-qa/editing-tools`（本轮 tag：r35-smoke2、r35-mixed、r35-editing2）。
+- 长句抽样：用 `scripts/device-qa/d05_case.ps1` 在 P0 测试页逐字输入 5 条 D05 natural_long 并保存折叠/展开截图（证据目录 `.tmp/device-qa/d05`）：
+
+| 用例 | 期望句 | 首屏是否精确 | 实际观察 |
+|---|---|---|---|
+| d05-natural_long-027（ok-top1） | 努力不一定会成功，可是不努力一定很轻松 | 是 | 折叠/展开首候选即精确句；展开第1/6页、64项 |
+| d05-natural_long-008（collected-ranked-low，rank64=15） | 它们包括色素，例如在甜菜中发现的色素。 | 否 | 首屏4个候选均为近音错字；翻到第2页第4行才出现精确句（“它们包括色素例如在甜菜中发现的色素”，仅缺标点） |
+| d05-natural_long-003（BEAM_PRUNED） | 坡山是现时广州市老城区唯一残存的天然岩石。 | 否 | 首候选“破山是现实广州市老城区唯一残存的天然岩石”近义近音但错误；64项内未见精确句 |
+| d05-natural_long-004（ENTRY_TRUNCATED） | 他的兄弟希南帕夏是鄂图曼帝国海军的卡普丹帕夏。 | 否 | 首候选“他的兄弟西南趴下是恶徒满地过海军的卡扑但趴下”；专名被普通词替换，64项内未见精确句 |
+| d05-natural_long-025（trace NONE，但 final-pool cap） | 该党曾派代表出席欧洲反资本主义左翼的会议。 | 否 | 首候选“该当曾牌代表出席欧洲反资本主义做一的会议”；精确句未进入最终64项 |
+
+- 面板观察：展开面板页脚显示“第 1/6 页 · 共 64 项”，但长候选每项占 1–2 行，首屏实际只能看到 4 项；每页 pageSize=12 的其余项需要面板内部滚动才能看到，页脚页码与可见行不一致。用户若不先滚动/翻页，很可能误以为只有 4 个候选。该问题已在 §37 修复（长句按可见行容量分页）。
+- 设备结论（单机抽样，不代替总体验收）：
+  1. 真机表现与宿主诊断一致：003/004 的精确句确实不可得，008 的精确句在 rank15（第2页第4行），025 被最终池 cap 过滤；不是“屏幕未刷新”或“宿主假象”。
+  2. 首屏精确候选仅 1/5；翻一页可得 2/5；其余 3/5 在最终64项内不可得。主要矛盾仍是**候选生成/排序**，单纯放大 beam（设备上 003/004 的候选均为流利近音错句）不能解决。
+  3. **候选面板分页与可见行不一致** 是独立且具体的 UX 缺陷：页脚 6 页/64 项，但长候选每页只显示 4 个可见项，余项藏在内部滚动；需要在下一批候选面板任务中一起修。
+- 下一步建议（按优先级）：
+  1. **P0 候选面板长候选可见性**：让“每页可见项=页脚计数项”，或在长候选时切换为单列/紧凑列表；在 1080×2400 默认字体、130%/150% 字体、竖横屏下各测 5 条长句，记录首屏精确/可接受候选、翻页/内部滚动次数和误选恢复成本。
+  2. **P1 长句候选生成/排序**：设备抽样支持先做候选身份/收集规则（消费范围+完整/分段去重）与专名/低频词排序诊断；entriesPerKey 单独扩 8→16/32 在 dev 无 Top5 收益，先不把它作为默认改动。
+  3. 继续保留 `debugTraceTarget` 的 bucket 级归因边界说明；后续路径追踪细化到“最长 target 前缀链断点”后再声称逐路径因果。
+- 限制：单机、单 ROM、竖屏默认字体、ADB 单指；未覆盖 TalkBack、横屏、字体放大、多 ROM 和真实双拇指；所有截图/时延为抽样，不是产品验收。
+
+## 37. 2026-11-13 候选面板长候选分页修复（工作树未提交）
+
+- 问题（真机 §36 观察）：展开候选面板页脚显示“第 1/6 页 · 共 64 项”，但长句候选每项占 1–2 行，首屏仅 4 项可见；每页 pageSize=12 的剩余 8 项藏在面板内部滚动里，页码与实际可见项不一致，违反 [需求](PRODUCT_REQUIREMENTS.md) FR-02“显示页数与实际视口一致，避免必要候选被隐藏”。
+- 实现（第一版）：[KeyboardScreen.kt](app/src/main/java/com/bitap/keyboard/ime/KeyboardScreen.kt) 新增 `candidatePanelPageSize(candidates, compact)` 与 `candidatePanelUsesScrollMode(candidates, fontScale, screenWidthDp)`。短/中候选仍按 pageSize 分页（12/8 项/页）；达到长候选阈值时，展开面板改用 `CandidateScrollPanel` 单列 `LazyColumn`，页脚只显示“共 N 项 · 上下滑动查看更多”，提供“看分段”滚到首个 partial；compact/横屏 overlay 也走同一候选感知路径。
+- 效果：长候选不再显示会与实际可见项矛盾的分页页码，也不再出现页内隐藏项；混合长短、字体放大和窄屏会按有效显示单位提前切到滚动列表。短候选保持原分页行为。测试 `CandidatePanelGeometryTest` 新增长候选 scroll-mode/短候选 pageSize 断言；`KeyboardScreenEditingTest`、`KeyboardScreenSpaceCursorTest`、`KeyboardScreenCandidateRetentionTest` 通过。
+- 真机复核（同 §36 环境、当前 debug APK）：`d05-natural_long-008` 展开面板显示“共 64 项 · 上下滑动查看更多”，首屏 4 个长候选；上滑后可见后续候选与“分段”badge，滚动正常。证据 `.tmp/device-qa/d05/r35e-d05-008-02-expanded.png`（及 r35d 中间截图）。
+- 代价与后续：长句改为滚动列表，页脚不再提供翻页数；短/中候选分页保留。130%/150%/200% 字体、横屏、360dp、TalkBack、第2页/最后一页/看分段实际跳转仍需补设备矩阵；不得只凭本修复宣布候选体验提升。
+- 工程验证：`scripts/verify.ps1`（2026-11-13）**RESULT PASS**；单测 **574 项 / 0 failures / 0 errors / 4 skipped**（571 + 3 个新增分页/滚动测试）；lint **0 errors / 30 warnings / 1 hint**；debug APK **109,613,058B**，SHA-256 `F01D237505139C8AB4939357EF3C9F3A3530189CDC95FB065524263BD1DA1F00`；v1/v2/v3/D05、Python 合同、文档引用 203/0、无网络权限检查通过。日志 `.tmp/verify-scroll-20261113.log`。
+- 复核边界（2026-11-13 后续独立审查）：第一版仅覆盖竖屏 inline；后续 `CandidateScrollPanel` 已同时用于 `CandidatePanelOverlay`（compact/横屏），但字体缩放/窄屏/混合候选/TalkBack/长文本截断仍需设备矩阵；详见 [复核报告](REVIEW_2026-11-13-FOLLOWUP.md) 的修复记录。

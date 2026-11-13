@@ -4,7 +4,7 @@
 
 已实现65,999词条的本地拼音候选、简拼/轻量纠错、英文/数字/符号、候选学习、设置与独立键盘主题。可选 `.litertlm` 模型只在点击 `✦ AI` 时补充拼音候选，不参与每次按键；应用无网络权限。改写/润色没有生产入口。
 
-最新进度：D00–D03基础工程完成；D04完成宿主与同词表实验，Android PoC未完成；D05完成跨来源dev、候选展示与词内统计权重实验及小样本设备验证。当前重点是候选选择成本、长输入预算、召回/排序、纠错和连续混排。最近一批工作树改动已完成P0候选面板按可见行分页、页脚固定、分段候选标识/入口，以及>64字符长输入的前缀分段查询（JVM测试 + 22021211RC/Android16单机竖屏验证；字体放大、横屏、多ROM未测）。长输入边界诊断进一步表明：64附近音节/词回退未优于固定64，短词边界分段可提高候选召回但操作成本上升，暂不切换生产默认；partial排序实验固定候选池/切点并冻结入选候选后，Top64命中不变；LONGEST_FIRST变差，SHORTEST_FIRST仅小幅提高前缀Top8、整句完成仍为1/33，未带来可用净收益，默认仍为SCORE；详见[进度](docs/PROGRESS.md)第8–9节。本轮新增[市场对照](docs/MARKET_COMPARISON.md)：用公开资料对照搜狗/百度/讯飞/微信键盘/Gboard/SwiftKey，明确 Bitap 的离线隐私定位与优先差距；编辑工具补齐全选/复制/剪切/粘贴/按词删除，编辑入口放在候选条 AI 与设置之间并打开独立编辑键盘页；光标左右键按反馈改为空格下方留白处长按滑动（16dp/步）；新增本地英文补全与用户 bigram 下一词联想（候选条“联想”chip，可清除学习）。22021211RC 上编辑脚本 14 PASS/0 FAIL、英文联想脚本 4 PASS/0 FAIL、smoke 10 PASS/0 FAIL，详见[进度](docs/PROGRESS.md)第18–19节。 本轮完成仓库审查 P1 修复（编辑正确性/学习删除不复活/许可证）与 D07 连续中英数字混排基础版；22021211RC 上 mixed_input 8 PASS/0 FAIL、editing_tools 14 PASS/0 FAIL（重跑）、english_prediction 4 PASS/0 FAIL、smoke 10 PASS/0 FAIL，详见[进度](docs/PROGRESS.md)第20–22节；主键盘“中/英”旁的撤销/重做键已移除，撤销/重做移到编辑工具页。 已补齐句末语气词首字母简拼（nihaom→你好吗、zenml→怎么了），mixed_input 真机 8 PASS/0 FAIL。 本轮还修复学习词条删除与延迟保存的原子性、字素簇光标移动和英文补全撤销恢复原前缀；全量 518 项单测通过。
+最新进度：D00–D03基础工程完成；D04完成宿主与同词表实验，Android PoC未完成；D05完成跨来源dev、候选展示与词内统计权重实验及小样本设备验证。当前重点是候选选择成本、长输入预算、召回/排序、纠错和连续混排。已实现：P0候选面板按可见行分页与页脚固定、分段候选标识/“看分段”入口、>64字符长输入前缀分段查询；编辑工具（全选/复制/剪切/粘贴/按词删除、撤销/重做、空格下方长按滑动光标）；本地英文补全与用户bigram下一词联想；D07连续中英数字混排基础版与句末语气词首字母简拼（nihaom→你好吗、zenml→怎么了）。长输入边界诊断与partial排序实验均未切换生产默认（64附近音节/词回退无收益；`LONGEST_FIRST`变差、`SHORTEST_FIRST`整句完成仍为1/33）。历史设备验证仅覆盖22021211RC/LineageOS23.2/Android16单机竖屏，字体放大、横屏、多ROM未测；市场对照见[市场对照](docs/MARKET_COMPARISON.md)。当前基线（审查快照`80de879`）工程门禁：568项单测（0 failures/0 errors/4 skipped）、lint 0 errors/29 warnings/1 hint、debug APK 109,573,786B、SHA-256 `228B7DB1E44952286B46914A31406535D469F24E82C7BC97AC3FFBFC5161EAD6`；这是审查 §8 / [进度](docs/PROGRESS.md)第31节的验证记录，不是本轮重跑，详见[进度](docs/PROGRESS.md)第34节。2026-11-13 批次1 完成长句目标追踪与两项默认关闭机制消融（详见[进度](docs/PROGRESS.md)第35节）：natural_long≤64 的 90 条分层为 NONE=24、BEAM_PRUNED=43、ENTRY_TRUNCATED=22、NO_DICTIONARY_ENTRY=1；两项机制均只带来 long oracle +1、Top5 仍 14/90，未达研发目标，生产默认未变；批次1新增 3 个诊断测试类、验证 571 项；随后按真机发现修复候选面板长候选展示（§37：长列表改为滚动模式、页脚显示总项数并支持上下滑动），最终 `scripts/verify.ps1` 为 574 项 / 0 failures / 0 errors / 4 skipped。22021211RC 真机抽样 5 条 natural_long（修复前）：首屏精确候选 1/5、第2页可得 2/5，其余 3/5 在最终64项内不可得；展开面板页脚“1/6页·64项”但长候选仅4项可见、余项藏在内部滚动（详见[进度](docs/PROGRESS.md)第36节）；该分页问题已在第37节改为长列表滚动模式（页脚显示总项数、上下滑动查看），不再显示虚假页码。
 
 ## 文档
 
@@ -13,6 +13,8 @@
 - [当前进度与已知问题](docs/PROGRESS.md)
 - [架构](docs/ARCHITECTURE.md)、[开发指南](docs/DEVELOPMENT.md)、[评测规范](docs/EVALUATION.md)、[路线图](docs/ROADMAP.md)
 - [市场对照：主流 Android 输入法能力矩阵](docs/MARKET_COMPARISON.md)
+- [2026-11-13 项目审查、市场对照与详细改进建议](docs/REVIEW_2026-11-13.md)
+- [2026-11-13 当前工作树复核：不足与改进建议](docs/REVIEW_2026-11-13-FOLLOWUP.md)
 - [本轮仓库审查与清理](docs/REPOSITORY_AUDIT.md)
 
 ## 构建与检查

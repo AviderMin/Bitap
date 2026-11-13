@@ -908,7 +908,7 @@ private fun PrivacyCard() {
             )
         }
         Text(
-            text = "Bitap 不申请 INTERNET 权限，不接入分析或广告 SDK，不读取剪贴板。输入内容与模型都留在本机，AI 只在你在键盘上点击 ✦ 时运行。",
+            text = "Bitap 不申请 INTERNET 权限，不接入分析或广告 SDK，不后台读取剪贴板；仅在用户点击复制、剪切或粘贴时访问系统剪贴板。输入内容与模型都留在本机，AI 只在你在键盘上点击 ✦ 时运行。",
             color = palette.textSecondary,
             fontSize = 12.sp,
             lineHeight = 18.sp,

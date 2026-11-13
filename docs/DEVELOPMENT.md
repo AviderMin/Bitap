@@ -75,6 +75,12 @@ python eval/v3/audit_training_overlap.py
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05DevEvalTest --rerun-tasks --console=plain
 # natural_long 句级 rerank 单机制消融：输出 build/d05/long-sentence-rerank-ablation.txt（只读诊断）
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongSentenceRerankAblationTest --rerun-tasks --console=plain
+# D05 natural_long 目标路径追踪：输出 build/d05/long-sentence-target-trace.txt 与 -detail.tsv（只读诊断）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LongSentenceTargetTraceTest --rerun-tasks --console=plain
+# 后向补全估计辅助 beam 单机制消融：输出 build/d05/backward-completion-ablation.txt（默认关闭实验）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05BackwardCompletionAblationTest --rerun-tasks --console=plain
+# 自适应分数窗 beam 单机制消融：输出 build/d05/score-window-beam-ablation.txt（默认关闭实验）
+.\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05ScoreWindowBeamAblationTest --rerun-tasks --console=plain
 # 长输入局部纠错窗口诊断：输出 build/d05/local-correction.txt（默认关闭实验）
 .\gradlew.bat :app:testDebugUnitTest --tests com.bitap.keyboard.core.PinyinD05LocalCorrectionEvalTest --rerun-tasks --console=plain
 python eval/d05/dev/check_d05_dev.py

@@ -40,6 +40,8 @@
 
 2026-11-10 D07 连续中英数字混排基础版（工作树，未提交）：中文模式 Shift+首字母启动 literal English run（保留大小写，字母/数字/`_`/`-` 连续追加，空格/回车/标点/退格/语言切换有确定语义，不触发拼音查询）；新增 `EnglishLexicon`/`MixedInputResolver`，`PinyinInputEngine` 在纯拼音无完整覆盖时补充“中文前缀+规范英文/数字后缀”候选（最多3项，Source=Other，纯拼音结果不变）。JVM `KeyboardMixedInputTest` 18项 + `MixedInputResolverTest` 16项通过，生产 `pinyin_dict.tsv` 实测 `daimajianchayongsonar -> 代码检查用Sonar`、`jiage123 -> 价格123`、`yongpython -> 用Python`；22021211RC 单机 `mixed_input.ps1` 8 PASS/0 FAIL（literal Android16、literal+空格、纯拼音 fangan、混排 Sonar、整词 Android、nihaom→你好吗、zenml→怎么了、nihaob→你好吧），smoke 10/10、editing_tools 14/14（重跑）、english_prediction 4/4；小写开头 identifier 与任意专名覆盖仍需后续交互设计。详见[进度](PROGRESS.md)第21节。
 
+2026-11-13 当前状态：代码基线 `80de879`（审查快照，非验收）。审查文档 [2026-11-13 项目审查与改进建议](REVIEW_2026-11-13.md) 已记录当前工程门禁（568 项单测 / 0 failures / 0 errors / 4 skipped、lint 0 errors / 29 warnings / 1 hint、debug APK 109,573,786B、SHA-256 `228B7DB1E44952286B46914A31406535D469F24E82C7BC97AC3FFBFC5161EAD6`）、D05 分类质量、设备任务集与资源表；批次 0 的文档同步见[进度](PROGRESS.md)第34节。批次1 已完成目标追踪与两项路径保留机制消融（详见[进度](PROGRESS.md)第35节）：natural_long≤64 的 90 条分层为 NONE=24、BEAM_PRUNED=43、ENTRY_TRUNCATED=22、NO_DICTIONARY_ENTRY=1、TRUNCATED_UNKNOWN=0；后向补全与自适应分数窗两个默认关闭机制均只带来 long oracle 22→23、Top5 仍 14/90，未达 §4A 的 ≥24/90 研发目标，均已按实验淘汰。2026-11-13 真机抽样（5 条 natural_long，见[进度](PROGRESS.md)第36节）显示：首屏精确候选 1/5，第2页可得 2/5，其余 3/5 在最终 64 项内不可得；展开面板页脚“1/6 页·64 项”但长候选仅 4 项可见，余项藏在内部滚动。候选面板长候选分页已按“可见行容量”修复（见[进度](PROGRESS.md)第37节：长句 4 项/页、页脚与可见项一致，代价是页数变多）。下一步在真机测 130%/150% 字体、横屏与更高密度布局，再评估 entriesPerKey 截断层（22 条）机制诊断与候选收集/固定池重排；排序、词库、参数等生产默认不变。
+
 ## 2. 阶段退出条件
 
 ### 可继续内测

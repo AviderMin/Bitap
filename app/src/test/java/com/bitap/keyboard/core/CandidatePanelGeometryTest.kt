@@ -8,6 +8,7 @@ import com.bitap.keyboard.ime.candidateChipContentDescription
 import com.bitap.keyboard.ime.candidatePanelMaxHeightDp
 import com.bitap.keyboard.ime.candidatePanelPageCount
 import com.bitap.keyboard.ime.candidatePanelPageSize
+import com.bitap.keyboard.ime.candidatePanelUsesScrollMode
 import com.bitap.keyboard.ime.candidatePanelVisibleRows
 import com.bitap.keyboard.ime.firstPartialCandidateIndex
 import com.bitap.keyboard.ime.pageForIndex
@@ -22,9 +23,11 @@ import org.junit.Test
  *
  * Device baseline: the expanded panel was configured for 6 rows per page but
  * only ~4 full rows were visible, and the page footer sat below the fold.
- * These tests lock the current flow layout arithmetic (12/8 candidates per page,
- * a 4/2 visible-row height budget plus fixed footer) and the pure helpers that
- * locate partial candidates without reordering the engine candidate list.
+ * These tests lock the short-candidate flow arithmetic (12/8 candidates per
+ * page, a 4/2 visible-row height budget plus fixed footer), the long-candidate
+ * adaptive capacity (a whole-row sentence chip reduces the page to the visible
+ * rows), and the pure helpers that locate partial candidates without
+ * reordering the engine candidate list.
  */
 class CandidatePanelGeometryTest {
 
@@ -49,6 +52,48 @@ class CandidatePanelGeometryTest {
         assertEquals(8, candidatePanelPageSize(compact = true))
         assertTrue(candidatePanelPageSize(false) > candidatePanelVisibleRows(false) * 2)
         assertTrue(candidatePanelPageSize(true) > candidatePanelVisibleRows(true) * 2)
+    }
+
+    @Test
+    fun longCandidatesPageSizeMatchesVisibleRows() {
+        // A long full-sentence candidate occupies a whole flow row. The page
+        // size must shrink to the 4/2 visible rows so the footer page count is
+        // truthful and no candidate hides in the panel's internal scroll.
+        val longCandidates = (1..20).map { index ->
+            candidate("这是一个很长很长的候选句子第" + index + "个")
+        }
+        assertTrue(longCandidates.all { it.word.length >= 14 })
+        assertEquals(4, candidatePanelPageSize(longCandidates, compact = false))
+        // Landscape is wide enough for two long chips per row, so two visible
+        // rows hold four candidates; the point is only that it is below the
+        // legacy 8-item compact page that would overflow the viewport.
+        assertEquals(4, candidatePanelPageSize(longCandidates, compact = true))
+    }
+
+    @Test
+    fun shortCandidatesKeepFullPageCapacity() {
+        val shortCandidates = (1..20).map { candidate("你") }
+        assertEquals(12, candidatePanelPageSize(shortCandidates, compact = false))
+        assertEquals(8, candidatePanelPageSize(shortCandidates, compact = true))
+        // Empty list keeps the legacy default used before candidates arrive.
+        assertEquals(12, candidatePanelPageSize(emptyList(), compact = false))
+        assertEquals(8, candidatePanelPageSize(emptyList(), compact = true))
+    }
+
+    @Test
+    fun longCandidatesUseScrollModeInsteadOfFalsePageCount() {
+        // A chip with at least 9 CJK characters wraps to a second line at the
+        // default font; the old fixed page count would hide items behind the
+        // panel's internal scroll. Such lists switch to one scrollable list.
+        val nineCjk = candidate("这是一个候选句子啊")
+        val eightCjk = candidate("这是一个候选句子")
+        assertTrue(candidatePanelUsesScrollMode(listOf(nineCjk)))
+        assertTrue(!candidatePanelUsesScrollMode(listOf(eightCjk)))
+        // 1.3x font makes the eight-character chip wrap; the list must switch
+        // to scrolling even though the default-font estimate still fits a page.
+        assertTrue(candidatePanelUsesScrollMode(listOf(eightCjk), fontScale = 1.3f))
+        assertTrue(candidatePanelUsesScrollMode(listOf(candidate("你"), nineCjk)))
+        assertTrue(!candidatePanelUsesScrollMode(emptyList()))
     }
 
     @Test
